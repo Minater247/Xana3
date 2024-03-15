@@ -16,7 +16,9 @@ void preboot_load(uint32_t magic, void *mbd) {
 
     printf("XanaduOS preboot loader %s\n", VERSION_STRING);
 
-    STATUS("Nothing to do, waiting for kernel development ;)");
+    STATUS("Nothing to do, waiting for kernel development ;)\n");
+
+    kpanic("Testing panic\n");
 
     while (1);
 }

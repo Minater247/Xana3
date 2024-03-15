@@ -57,26 +57,11 @@ void serial_printf(const char *format, ...)
                 serial_putchar(va_arg(args, int));
                 break;
             case 'x':
-                itoa(va_arg(args, uint32_t), buffer, 16);
+                uitoa(va_arg(args, uint32_t), buffer, 16);
                 serial_writestring(buffer);
                 break;
             case '%':
                 serial_putchar('%');
-                break;
-            case 'l':
-                switch (format[++i])
-                {
-                case 'x':
-                    uint64_t unum = va_arg(args, uint64_t);
-                    uitoa(unum, buffer, 16);
-                    serial_writestring(buffer);
-                    break;
-                case 'd':
-                    int64_t num = va_arg(args, int64_t);
-                    itoa(num, buffer, 10);
-                    serial_writestring(buffer);
-                    break;
-                }
                 break;
             default:
                 serial_putchar(format[i]);

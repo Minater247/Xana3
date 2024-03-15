@@ -36,26 +36,11 @@ void printf(const char *format, ...)
                 video_putc(va_arg(args, int));
                 break;
             case 'x':
-                itoa(va_arg(args, uint32_t), buffer, 16);
+                uitoa(va_arg(args, uint32_t), buffer, 16);
                 puts(buffer);
                 break;
             case '%':
                 video_putc('%');
-                break;
-            case 'l':
-                switch (format[++i])
-                {
-                case 'x':
-                    uint64_t unum = va_arg(args, uint64_t);
-                    uitoa(unum, buffer, 16);
-                    puts(buffer);
-                    break;
-                case 'd':
-                    int64_t num = va_arg(args, int64_t);
-                    itoa(num, buffer, 10);
-                    puts(buffer);
-                    break;
-                }
                 break;
             default:
                 video_putc(format[i]);
@@ -103,7 +88,7 @@ void printf(const char *format, ...)
                     {
                     case 0:
                         //reset
-                        video_setfg(RGB2COLOR(255, 255, 255));
+                        video_setfg(RGB2COLOR(0xAA, 0xAA, 0xAA));
                         break;
                     case 1:
                         //bold (attribs TODO)
@@ -117,31 +102,31 @@ void printf(const char *format, ...)
                         break;
                     case 31:
                         //red fg
-                        video_setfg(RGB2COLOR(255, 0, 0));
+                        video_setfg(RGB2COLOR(0xAA, 0, 0));
                         break;
                     case 32:
                         //green fg
-                        video_setfg(RGB2COLOR(0, 255, 0));
+                        video_setfg(RGB2COLOR(0, 0xAA, 0));
                         break;
                     case 33:
                         //yellow fg
-                        video_setfg(RGB2COLOR(255, 255, 0));
+                        video_setfg(RGB2COLOR(0xAA, 0x55, 0));
                         break;
                     case 34:
                         //blue fg
-                        video_setfg(RGB2COLOR(0, 0, 255));
+                        video_setfg(RGB2COLOR(0, 0, 0xAA));
                         break;
                     case 35:
                         //magenta fg
-                        video_setfg(RGB2COLOR(255, 0, 255));
+                        video_setfg(RGB2COLOR(0xAA, 0, 0xAA));
                         break;
                     case 36:
                         //cyan fg
-                        video_setfg(RGB2COLOR(0, 255, 255));
+                        video_setfg(RGB2COLOR(0, 0xAA, 0xAA));
                         break;
                     case 37:
                         //white fg
-                        video_setfg(RGB2COLOR(255, 255, 255));
+                        video_setfg(RGB2COLOR(0xAA, 0xAA, 0xAA));
                         break;
                     case 40:
                         //black bg
@@ -149,95 +134,95 @@ void printf(const char *format, ...)
                         break;
                     case 41:
                         //red bg
-                        video_setbg(RGB2COLOR(255, 0, 0));
+                        video_setbg(RGB2COLOR(0xAA, 0, 0));
                         break;
                     case 42:
                         //green bg
-                        video_setbg(RGB2COLOR(0, 255, 0));
+                        video_setbg(RGB2COLOR(0, 0xAA, 0));
                         break;
                     case 43:
                         //yellow bg
-                        video_setbg(RGB2COLOR(255, 255, 0));
+                        video_setbg(RGB2COLOR(0xAA, 0x55, 0));
                         break;
                     case 44:
                         //blue bg
-                        video_setbg(RGB2COLOR(0, 0, 255));
+                        video_setbg(RGB2COLOR(0, 0, 0xAA));
                         break;
                     case 45:
                         //magenta bg
-                        video_setbg(RGB2COLOR(255, 0, 255));
+                        video_setbg(RGB2COLOR(0xAA, 0, 0xAA));
                         break;
                     case 46:
                         //cyan bg
-                        video_setbg(RGB2COLOR(0, 255, 255));
+                        video_setbg(RGB2COLOR(0, 0xAA, 0xAA));
                         break;
                     case 47:
                         //white bg
-                        video_setbg(RGB2COLOR(255, 255, 255));
+                        video_setbg(RGB2COLOR(0xAA, 0xAA, 0xAA));
                         break;
                     case 90:
                         //light black fg
-                        video_setfg(RGB2COLOR(128, 128, 128));
+                        video_setfg(RGB2COLOR(0x55, 0x55, 0x55));
                         break;
                     case 91:
                         //light red fg
-                        video_setfg(RGB2COLOR(255, 0, 0));
+                        video_setfg(RGB2COLOR(0xFF, 0x55, 0x55));
                         break;
                     case 92:
                         //light green fg
-                        video_setfg(RGB2COLOR(0, 255, 0));
+                        video_setfg(RGB2COLOR(0x55, 0xFF, 0x55));
                         break;
                     case 93:
                         //light yellow fg
-                        video_setfg(RGB2COLOR(255, 255, 0));
+                        video_setfg(RGB2COLOR(0xFF, 0xFF, 0x55));
                         break;
                     case 94:
                         //light blue fg
-                        video_setfg(RGB2COLOR(0, 0, 255));
+                        video_setfg(RGB2COLOR(0x55, 0x55, 0xFF));
                         break;
                     case 95:
                         //light magenta fg
-                        video_setfg(RGB2COLOR(255, 0, 255));
+                        video_setfg(RGB2COLOR(0xFF, 0x55, 0xFF));
                         break;
                     case 96:
                         //light cyan fg
-                        video_setfg(RGB2COLOR(0, 255, 255));
+                        video_setfg(RGB2COLOR(0x55, 0xFF, 0xFF));
                         break;
                     case 97:
                         //light white fg
-                        video_setfg(RGB2COLOR(255, 255, 255));
+                        video_setfg(RGB2COLOR(0xFF, 0xFF, 0xFF));
                         break;
                     case 100:
                         //light black bg
-                        video_setbg(RGB2COLOR(128, 128, 128));
+                        video_setbg(RGB2COLOR(0x55, 0x55, 0x55));
                         break;
                     case 101:
                         //light red bg
-                        video_setbg(RGB2COLOR(255, 0, 0));
+                        video_setbg(RGB2COLOR(0xFF, 0x55, 0x55));
                         break;
                     case 102:
                         //light green bg
-                        video_setbg(RGB2COLOR(0, 255, 0));
+                        video_setbg(RGB2COLOR(0x55, 0xFF, 0x55));
                         break;
                     case 103:
                         //light yellow bg
-                        video_setbg(RGB2COLOR(255, 255, 0));
+                        video_setbg(RGB2COLOR(0xFF, 0xFF, 0x55));
                         break;
                     case 104:
                         //light blue bg
-                        video_setbg(RGB2COLOR(0, 0, 255));
+                        video_setbg(RGB2COLOR(0x55, 0x55, 0xFF));
                         break;
                     case 105:
                         //light magenta bg
-                        video_setbg(RGB2COLOR(255, 0, 255));
+                        video_setbg(RGB2COLOR(0xFF, 0x55, 0xFF));
                         break;
                     case 106:
                         //light cyan bg
-                        video_setbg(RGB2COLOR(0, 255, 255));
+                        video_setbg(RGB2COLOR(0x55, 0xFF, 0xFF));
                         break;
                     case 107:
                         //light white bg
-                        video_setbg(RGB2COLOR(255, 255, 255));
+                        video_setbg(RGB2COLOR(0xFF, 0xFF, 0xFF));
                         break;
                     }
                     start_i++;

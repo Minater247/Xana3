@@ -14,7 +14,6 @@ bool has_framebuffer = false;
 
 bool load_multiboot(uint32_t magic, void *mbd)
 {
-
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC)
     {
         FAIL("Invalid magic number: 0x%x", magic);
@@ -44,9 +43,7 @@ bool load_multiboot(uint32_t magic, void *mbd)
             bootloader_name = ((struct multiboot_tag_string *)tag)->string;
             break;
         case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:
-            printf("Lower memory: %dKB, Upper memory: %dKB\n",
-                   ((struct multiboot_tag_basic_meminfo *)tag)->mem_lower,
-                   ((struct multiboot_tag_basic_meminfo *)tag)->mem_upper);
+            //printf("Lower memory: %dKB, Upper memory: %dKB\n", ((struct multiboot_tag_basic_meminfo *)tag)->mem_lower, ((struct multiboot_tag_basic_meminfo *)tag)->mem_upper);
             break;
         case MULTIBOOT_TAG_TYPE_FRAMEBUFFER:
             has_framebuffer = true;

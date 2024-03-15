@@ -2,10 +2,8 @@
 
     section .data
 
-    global _binary_font_psf_start
-    global _binary_font_psf_end
+global font_data_start
 
-    ; Include binary file ../font/zap-vga09.psf
-_binary_font_psf_start:
-    incbin "../font/zap-vga09.psf"
-_binary_font_psf_end:
+font_data_start:
+    incbin "font/zap-vga09.psf"
+font_data_end:
