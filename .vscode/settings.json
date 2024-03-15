@@ -1,0 +1,30 @@
+{
+    "files.associations": {
+        "*.embeddedhtml": "html",
+        "*.ppS": "m68k",
+        "*.s": "asm-intel-x86-generic",
+        "*.asm": "asm-intel-x86-generic",
+        "*.c86": "c",
+        "stdint.h": "c",
+        "display.h": "c",
+        "unused.h": "c",
+        "system.h": "c",
+        "string.h": "c",
+        "stddef.h": "c",
+        "multiboot2.h": "c",
+        "multiboot.h": "c",
+        "tables.h": "c",
+        "serial.h": "c",
+        "stdbool.h": "c",
+        "errno.h": "c",
+        "errors.h": "c",
+        "memory.h": "c",
+        "macho.h": "c",
+        "bsd.h": "c",
+        "filesystem.h": "c",
+        "vga.h": "c",
+        "status.h": "c",
+        "stdarg.h": "c",
+        "io.h": "c"
+    }
+}

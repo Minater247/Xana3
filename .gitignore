@@ -1,0 +1,11 @@
+*.log
+ramdisk/
+isodir/
+*.o
+*.dbo
+*.iso
+*.bin
+*.img
+*.out
+*.txt
+!doc/*/*

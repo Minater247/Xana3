@@ -1,0 +1,84 @@
+ARCH ?= x86_64
+
+CFILES = $(wildcard kernel/*.c) $(wildcard arch/$(ARCH)/*.c) $(wildcard arch/$(ARCH)/*/*.c) $(wildcard kernel/lib/*.c) $(wildcard arch/$(ARCH)/*/*/*.c)
+ASMFILES = $(wildcard arch/$(ARCH)/*.asm) $(wildcard arch/$(ARCH)/*/*.asm)
+OBJFILES = $(CFILES:.c=.o) $(ASMFILES:.asm=.o)
+DB_OBJFILES = $(CFILES:.c=.dbo) $(ASMFILES:.asm=.dbo)
+
+C_INCLUDES = -I./kernel/include -I./arch/$(ARCH)/include
+
+CFLAGS = -std=gnu99 -ffreestanding -O3 -Wall -Wextra -mcmodel=large -mno-sse -mno-red-zone -m64 -mno-mmx -mno-sse2 -D_ARCH_$(ARCH) -fno-omit-frame-pointer -D__ARCH_$(ARCH)__
+ASMFLAGS = -felf64
+LDFLAGS = -T arch/$(ARCH)/linker.ld -ffreestanding -O3 -nostdlib
+
+CC = x86_64-elf-gcc
+LD = x86_64-elf-ld
+AS = nasm
+
+all: iso
+
+verify_multiboot:
+	@echo "Verifying multiboot2 header..."
+	@grub-file --is-x86-multiboot2 kernel.bin
+
+iso: build
+	@if [ `du -m kernel.bin | cut -f1` -gt 4 ]; then echo "Kernel exceeds 4MB, need more page tables!"; exit 1; fi
+	@rm -rf isodir
+	@mkdir -p isodir/boot/grub
+	@cp kernel.bin isodir/boot/kernel.bin
+#	@cp ramdisk.img isodir/boot/ramdisk.img
+	@cp arch/$(ARCH)/grub.cfg isodir/boot/grub/grub.cfg
+	@grub-mkrescue -o os.iso isodir
+
+dbiso: debug_build
+# Ensure kernel is under 4MB
+	if [ `du -m dbg_kernel.bin | cut -f1` -gt 4 ]; then echo "Kernel exceeds 4MB, need more page tables!"; exit 1; fi
+	rm -rf isodir
+	mkdir -p isodir/boot/grub
+	cp dbg_kernel.bin isodir/boot/kernel.bin
+#	cp ramdisk.img isodir/boot/ramdisk.img
+	cp arch/$(ARCH)/grub.cfg isodir/boot/grub/grub.cfg
+	grub-mkrescue -o debug_os.iso isodir
+
+%.o: %.c
+	$(CC) -c $< -o $@ $(C_INCLUDES) $(CFLAGS)
+
+%.dbo: %.c
+	$(CC) -c $< -o $@ $(C_INCLUDES) $(CFLAGS) -g
+
+%.o: %.asm
+	$(AS) $< -o $@ $(ASMFLAGS)
+
+%.dbo: %.asm
+	$(AS) $< -o $@ $(ASMFLAGS) -g
+
+build: $(OBJFILES)
+	$(CC) $(LDFLAGS) -o kernel.bin $(OBJFILES)
+
+debug_build: $(DB_OBJFILES)
+	$(CC) $(LDFLAGS) -o dbg_kernel.bin $(DB_OBJFILES) -g
+
+bochs: dbiso
+	@"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f bochsrc.txt -q
+
+
+clean:
+	@rm -rf $(OBJFILES) kernel.bin serial.log qemu-log.txt isodir os.iso debug_os.iso dbg_kernel.bin $(DB_OBJFILES)
+
+run: iso
+	@qemu-system-x86_64 -cdrom os.iso -monitor stdio -d int,cpu_reset -accel tcg -D qemu-log.txt -cpu SandyBridge -serial file:serial.log
+
+run_no_re:
+# run, but exit on reboot
+	@qemu-system-x86_64 -no-reboot -cdrom os.iso -monitor stdio -d int -accel tcg -D qemu-log.txt -cpu SandyBridge -serial file:serial.log
+
+debug: dbiso
+	@qemu-system-x86_64 -cdrom debug_os.iso -monitor stdio -d int,cpu_reset -accel tcg -D qemu-log.txt -cpu SandyBridge -serial file:serial.log -s -S
+
+debug_term:
+	@gdb -ex "target remote localhost:1234" -ex "symbol-file dbg_kernel.bin"
+
+.PHONY: ramdisk_force
+
+ramdisk: ramdisk_force
+	@python3 buildutils/ramdisk.py ramdisk.img arch/$(ARCH)/ramdisk
