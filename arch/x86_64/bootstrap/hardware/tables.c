@@ -9,13 +9,16 @@
 #include <errors.h>
 #include <io.h>
 
-gdt_entry_t gdt[3];
+gdt_entry_t gdt[7];
 gdt_ptr_t   gdt_ptr;
 
 idt_entry_t idt[256];
 idt_ptr_t   idt_ptr;
 
+tss_entry_t tss;
+
 extern void gdt_flush(uint32_t);
+extern void gdt_flush64(uint32_t, uint32_t);
 extern void idt_load(uint32_t);
 
 extern void isr0();
@@ -289,4 +292,43 @@ void idt_initialize() {
 void tables_initialize() {
     gdt_initialize();
     idt_initialize();
+}
+
+void gdt_init64(uint32_t kernel_entry)
+{
+    // Null segment
+    gdt_set_gate(0, 0, 0xFFFFFFFF, 0, 0);
+
+    // Code segment
+    gdt_set_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xA0);
+
+    // Data segment
+    gdt_set_gate(2, 0, 0xFFFFFFFF, 0x92, 0xA0);
+
+    // TSS entry
+    uint64_t tss_base = (uint32_t)&tss;
+    uint64_t tss_limit = sizeof(tss);
+
+    tss_64_t *tss_entry = (tss_64_t *)&gdt[3];
+    tss_entry->limit_low = tss_limit & 0xFFFF;
+    tss_entry->base_low = tss_base & 0xFFFF;
+    tss_entry->base_middle = (tss_base >> 16) & 0xFF;
+    tss_entry->access = 0xE9;
+    tss_entry->limit_flags = ((tss_limit >> 16) & 0xF) | 0x40;
+    tss_entry->base_high = (tss_base >> 24) & 0xFF;
+    tss_entry->base_upper = (tss_base >> 32) & 0xFFFFFFFF;
+    tss_entry->reserved = 0;
+
+    // User mode data segment
+    gdt_set_gate(5, 0, 0xFFFFFFFF, 0xF2, 0xA0);
+
+    // User mode code segment
+    gdt_set_gate(6, 0, 0xFFFFFFFF, 0xFA, 0xA0);
+
+    gdt_ptr.base = (uint32_t)&gdt;
+    gdt_ptr.limit = sizeof(gdt) - 1;
+
+    asm volatile ("xchg %bx, %bx");
+
+    gdt_flush64((uint32_t)&gdt_ptr, kernel_entry);
 }

@@ -57,13 +57,13 @@ void preboot_load(uint32_t magic, void *mbd) {
     msr |= 1 << 8;
     asm volatile("wrmsr" : : "a"(msr), "c"(0xC0000080));
 
-    asm volatile("xchg %bx, %bx"); //bochs
-
     // Enable paging (cr3 is loaded)
     uint32_t cr0;
     asm volatile("mov %%cr0, %0" : "=r"(cr0));
     cr0 |= 0x80000000;
     asm volatile("mov %0, %%cr0" : : "r"(cr0));
+
+    gdt_init64(kernel_entry);
 
     while (1);
 

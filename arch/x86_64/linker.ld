@@ -1,4 +1,4 @@
-ENTRY(kmain)
+ENTRY(__init)
 
 KERNEL_OFF = 0xffffff8000000000;
 KERNEL_BASE = 0x00400000;

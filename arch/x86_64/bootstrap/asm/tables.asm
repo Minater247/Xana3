@@ -165,3 +165,19 @@ irq_common_stub:
     popa
     add esp, 8
     iret
+
+global gdt_flush64
+gdt_flush64:
+    mov eax, [esp+4]
+    mov ebx, [esp+8]
+    lgdt [eax]
+    mov dword [esp + 4], 0
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    jmp 0x08:gdt_flush_2_64 ; jump to kernel code segment
+gdt_flush_2_64:
+    jmp ebx
