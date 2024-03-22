@@ -25,6 +25,7 @@
         "vga.h": "c",
         "status.h": "c",
         "stdarg.h": "c",
-        "io.h": "c"
+        "io.h": "c",
+        "video.h": "c"
     }
 }

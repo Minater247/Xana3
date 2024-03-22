@@ -17,7 +17,7 @@ void printf(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    char buffer[32];
+    char buffer[65];
     size_t len = strlen(format);
     for (size_t i = 0; i < len; i++)
     {
@@ -38,6 +38,18 @@ void printf(const char *format, ...)
             case 'x':
                 uitoa(va_arg(args, uint32_t), buffer, 16);
                 puts(buffer);
+                break;
+            case 'l':
+                if (format[i + 1] == 'x')
+                {
+                    uitoa64(va_arg(args, uint64_t), buffer, 16);
+                    puts(buffer);
+                    i++;
+                } else if (format[i + 1] == 'd') {
+                    itoa64(va_arg(args, int64_t), buffer, 10);
+                    puts(buffer);
+                    i++;
+                }
                 break;
             case '%':
                 video_putc('%');
@@ -89,6 +101,7 @@ void printf(const char *format, ...)
                     case 0:
                         //reset
                         video_setfg(RGB2COLOR(0xAA, 0xAA, 0xAA));
+                        video_setbg(RGB2COLOR(0, 0, 0));
                         break;
                     case 1:
                         //bold (attribs TODO)

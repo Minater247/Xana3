@@ -1,7 +1,22 @@
 ARCH ?= x86_64
 USE_UEFI ?= 0
 
-all: bootstrap verify_multiboot iso
+CC = $(ARCH)-elf-gcc
+LD = $(ARCH)-elf-ld
+
+CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include
+LDFLAGS = -T arch/$(ARCH)/linker.ld
+
+CFILES = $(wildcard kernel/*.c) $(wildcard kernel/*/*.c)
+OBJFILES = $(CFILES:.c=.o)
+
+all: bootstrap kernel verify_multiboot iso
+
+kernel: $(OBJFILES)
+	$(LD) $(LDFLAGS) $(OBJFILES) -o kernel.bin
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 bootstrap:
 	$(MAKE) -C arch/$(ARCH)/bootstrap USE_UEFI=$(USE_UEFI)
@@ -11,11 +26,11 @@ verify_multiboot:
 	@echo "Verifying multiboot2 header..."
 	@grub-file --is-x86-multiboot2 bootstrap.bin
 
-iso: bootstrap
+iso: bootstrap kernel ramdisk
 	@rm -rf isodir
 	@mkdir -p isodir/boot/grub
 	@cp bootstrap.bin isodir/boot/bootstrap.bin
-#	@cp ramdisk.img isodir/boot/ramdisk.img
+	@cp ramdisk.img isodir/boot/ramdisk.img
 	@cp arch/$(ARCH)/grub.cfg isodir/boot/grub/grub.cfg
 	@grub-mkrescue -o os.iso isodir
 
@@ -38,6 +53,13 @@ debug_term:
 bochs: iso
 	@"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f bochsrc.txt -q
 
+FORCE:
+
+ramdisk: FORCE
+	@mkdir -p ramdisk/bin
+	@cp kernel.bin ramdisk/bin/kernel.bin
+	python3 buildutils/ramdisk.py ramdisk.img ramdisk/
+
 clean:
 	$(MAKE) -C arch/$(ARCH)/bootstrap clean
 	rm -f bootstrap.bin
@@ -47,3 +69,6 @@ clean:
 	rm -rf isodir
 	rm -f debug_os.iso
 	rm -f dbg_kernel.bin
+	rm -f kernel.bin
+	rm -f $(OBJFILES)
+	rm -f com1.out

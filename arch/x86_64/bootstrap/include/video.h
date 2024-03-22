@@ -22,5 +22,6 @@ void video_setfg(uint32_t color);
 void video_setbg(uint32_t color);
 void video_putc(char c);
 void video_puts(const char *s, int x, int y, uint32_t c, uint8_t chars[]);
+void enableBackground(bool enable);
 
 #endif

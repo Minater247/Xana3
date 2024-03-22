@@ -5,6 +5,7 @@
 #include <multiboot2.h>
 #include <video.h>
 #include <serial.h>
+#include <string.h>
 
 void *video;
 uint8_t framebuffer_type = 0;
@@ -20,7 +21,7 @@ uint32_t video_bg;
 struct psf1_header *header;
 uint32_t char_pos_x = 0;
 uint32_t char_pos_y = 0;
-bool displayBackground = true;
+bool displayBackground = false;
 
 void fb_putpixel(uint32_t x, uint32_t y, uint32_t color)
 {
@@ -172,10 +173,6 @@ void enableBackground(bool enable) {
     displayBackground = enable;
 }
 
-void disableBackground() {
-    displayBackground = false;
-}
-
 void displayChar(char ch, uint32_t x, uint32_t y, uint32_t c, uint8_t chars[]) {
     uint8_t row;
     uint32_t x1 = x;
@@ -200,7 +197,7 @@ void displayChar(char ch, uint32_t x, uint32_t y, uint32_t c, uint8_t chars[]) {
     }
 }
 
-extern void font_data_start;
+extern struct psf1_header font_data_start;
 
 bool video_init(struct multiboot_tag_framebuffer *tag)
 {
@@ -256,6 +253,25 @@ bool video_init(struct multiboot_tag_framebuffer *tag)
     return true;
 }
 
+void scroll(uint32_t n_pixels) { 
+    if (framebuffer_type != MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT) {
+        memcpy(video, video + n_pixels * framebuffer_pitch, (framebuffer_height - n_pixels) * framebuffer_pitch);
+        memset(video + (framebuffer_height - n_pixels) * framebuffer_pitch, 0, n_pixels * framebuffer_pitch);
+    } else {
+        uint16_t *video_memory = (uint16_t *)video;
+        for (uint32_t i = 0; i < framebuffer_height - n_pixels; i++) {
+            for (uint32_t j = 0; j < framebuffer_width; j++) {
+                video_memory[framebuffer_width * i + j] = video_memory[framebuffer_width * (i + n_pixels) + j];
+            }
+        }
+        for (uint32_t i = framebuffer_height - n_pixels; i < framebuffer_height; i++) {
+            for (uint32_t j = 0; j < framebuffer_width; j++) {
+                video_memory[framebuffer_width * i + j] = (video_bg << 12) | (video_fg << 8) | ' ';
+            }
+        }
+    }
+}
+
 void video_putc(char c)
 {
     if (framebuffer_type != MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT) {
@@ -281,28 +297,13 @@ void video_putc(char c)
             char_pos_y++;
         }
 
-        // if we went off the bottom, scroll
-        if (char_pos_y >= framebuffer_height / 16)
+        if (char_pos_y >= framebuffer_height / header->fontheight)
         {
-            // scroll
-            for (uint32_t i = 0; i < framebuffer_height - header->fontheight; i++)
-            {
-                for (uint32_t j = 0; j < framebuffer_width; j++)
-                {
-                    *((uint32_t *)video + i * framebuffer_width + j) = *((uint32_t *)video + (i + 16) * framebuffer_width + j);
-                }
-            }
-            for (uint32_t i = framebuffer_height - 16; i < framebuffer_height; i++)
-            {
-                for (uint32_t j = 0; j < framebuffer_width; j++)
-                {
-                    *((uint32_t *)video + i * framebuffer_width + j) = 0;
-                }
-            }
+            scroll(8);
             char_pos_y--;
         }
     } else {
-        uint16_t *video_memory = (uint16_t *)0xb8000;
+        uint16_t *video_memory = (uint16_t *)video;
         if (c == '\n')
         {
             char_pos_x = 0;
@@ -314,26 +315,19 @@ void video_putc(char c)
         }
         else
         {
-            video_memory[80 * char_pos_y + char_pos_x] = (video_bg << 12) | (video_fg << 8) | c;
+            video_memory[framebuffer_width * char_pos_y + char_pos_x] = (video_bg << 12) | (video_fg << 8) | c;
             char_pos_x++;
         }
 
-        if (char_pos_x >= 80)
+        if (char_pos_x >= framebuffer_width)
         {
             char_pos_x = 0;
             char_pos_y++;
         }
 
-        if (char_pos_y >= 25)
+        if (char_pos_y >= framebuffer_height)
         {
-            for (size_t i = 0; i < 80 * 24; i++)
-            {
-                video_memory[i] = video_memory[i + 80];
-            }
-            for (size_t i = 80 * 24; i < 80 * 25; i++)
-            {
-                video_memory[i] = (video_bg << 12) | (video_fg << 8) | ' ';
-            }
+            scroll(1);
             char_pos_y--;
         }
     }
