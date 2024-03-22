@@ -9,7 +9,7 @@ CFLAGS = -std=gnu99 -ffreestanding -O3 -Wall -Wextra -mno-sse -mno-red-zone -m32
 LDFLAGS = -T linker.ld -ffreestanding -O2 -nostdlib -lgcc
 ASMFLAGS = -f elf32
 
-CINCLUDES = -I../include -I ../../kernel/include -Iinclude
+CINCLUDES = -I ../../kernel/include -Iinclude
 
 all: $(OBJS) link
 

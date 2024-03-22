@@ -26,6 +26,7 @@
         "status.h": "c",
         "stdarg.h": "c",
         "io.h": "c",
-        "video.h": "c"
+        "video.h": "c",
+        "pit.h": "c"
     }
 }

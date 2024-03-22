@@ -6,10 +6,13 @@
 #include <multiboot.h>
 #include <info.h>
 #include <errors.h>
-#include <status.h>
 #include <serial.h>
 #include <tables.h>
 #include <drivers/PIT.h>
+#include <memory.h>
+#include <cpuid_funcs.h>
+#include <ramdisk.h>
+#include <elf_loader.h>
 
 void preboot_load(uint32_t magic, void *mbd) {
     serial_init(SERIAL_COM1, 38400);
@@ -29,16 +32,41 @@ void preboot_load(uint32_t magic, void *mbd) {
 
     tables_initialize();
 
-    keyboard_init();
+    memory_init();
 
-    // ints on! We should be set to go now.
-    asm volatile("sti");
+    kassert_msg(has_cpuid(), "CPU does not support CPUID\n");
+    kassert_msg(has_long_mode(), "CPU does not support long mode\n");
 
-    paging_init(); // sets up 64-bit paging but doesn't enable it
+    // Alright, let's get the kernel loaded from the ramdisk
+    char *elf_file = ramdisk_get_path_data("/bin/kernel.bin", &boot_ramdisk);
+    if (elf_file == NULL) {
+        kpanic("Failed to load kernel from ramdisk\n");
+    }
 
-    STATUS("Nothing to do, waiting for kernel development ;)\n");
+    uint32_t kernel_entry = load_elf64(elf_file);
+    // if the highest bit is set, we have an error
+    if (kernel_entry & 0x80000000) {
+        kpanic("Failed to load kernel from ramdisk - error %d\n", kernel_entry);
+    } else {
+        printf("Kernel loaded at 0x%x\n", kernel_entry);
+    }
 
-    kpanic("Testing panic\n");
+    // Set long mode bit in MSR
+    uint32_t msr;
+    asm volatile("rdmsr" : "=a"(msr) : "c"(0xC0000080));
+    msr |= 1 << 8;
+    asm volatile("wrmsr" : : "a"(msr), "c"(0xC0000080));
+
+    asm volatile("xchg %bx, %bx"); //bochs
+
+    // Enable paging (cr3 is loaded)
+    uint32_t cr0;
+    asm volatile("mov %%cr0, %0" : "=r"(cr0));
+    cr0 |= 0x80000000;
+    asm volatile("mov %0, %%cr0" : : "r"(cr0));
 
     while (1);
+
+    // Jump to the kernel (addr in kernel_entry)
+    asm volatile("jmp *%0" : : "r"(kernel_entry));
 }

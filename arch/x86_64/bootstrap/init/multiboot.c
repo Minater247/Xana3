@@ -4,7 +4,6 @@
 #include <multiboot.h>
 #include <multiboot2.h>
 #include <display.h>
-#include <status.h>
 #include <errors.h>
 #include <stdbool.h>
 #include <serial.h>
@@ -25,13 +24,13 @@ bool load_multiboot(uint32_t magic, void *mbd)
 
     if (magic != MULTIBOOT2_BOOTLOADER_MAGIC)
     {
-        FAIL("Invalid magic number: 0x%x", magic);
+        serial_printf("Invalid magic number: 0x%x", magic);
         return false;
     }
 
     if (mbd == NULL)
     {
-        FAIL("Invalid multiboot information");
+        serial_printf("Invalid multiboot information");
         return false;
     }
 
@@ -117,7 +116,7 @@ bool load_multiboot(uint32_t magic, void *mbd)
     serial_printf("Bootloader: %s\n", bootloader_name);
 
     serial_printf("Total memory: %ldMB\n", multiboot_total_memory / 1024 / 1024);
-    serial_printf("Max address: 0x%x\n", multiboot_max_addr);
+    serial_printf("Max address: 0x%lx\n", multiboot_max_addr);
 
     kassert(multiboot_max_addr < 0x400000); //64-bit kernel expects to be loaded at 4MB, so we can't have other stuff above that
 

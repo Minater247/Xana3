@@ -4,11 +4,13 @@ USE_UEFI ?= 0
 CC = $(ARCH)-elf-gcc
 LD = $(ARCH)-elf-ld
 
-CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include
+CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -mcmodel=large
 LDFLAGS = -T arch/$(ARCH)/linker.ld
+AS = nasm
 
-CFILES = $(wildcard kernel/*.c) $(wildcard kernel/*/*.c)
-OBJFILES = $(CFILES:.c=.o)
+CFILES = $(wildcard kernel/*.c) $(wildcard kernel/*/*.c) $(wildcard arch/$(ARCH)/c/*.c) $(wildcard arch/$(ARCH)/c/*/*.c)
+ASFILES = $(wildcard arch/$(ARCH)/asm/*.asm) $(wildcard arch/$(ARCH)/asm/*/*.asm)
+OBJFILES = $(CFILES:.c=.o) $(ASFILES:.asm=.o)
 
 all: bootstrap kernel verify_multiboot iso
 
@@ -17,6 +19,9 @@ kernel: $(OBJFILES)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+%.o: %.asm
+	$(AS) -f elf64 $< -o $@
 
 bootstrap:
 	$(MAKE) -C arch/$(ARCH)/bootstrap USE_UEFI=$(USE_UEFI)
