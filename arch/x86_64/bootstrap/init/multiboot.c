@@ -3,20 +3,33 @@
 
 #include <multiboot.h>
 #include <multiboot2.h>
-#include <display.h>
 #include <errors.h>
 #include <stdbool.h>
 #include <serial.h>
-#include <video.h>
 #include <string.h>
 #include <ramdisk.h>
 
 bool has_framebuffer = false;
+uint32_t framebuffer_tag = 0;
 
 extern uint8_t BOOTSTRAP_END;
 
 uint64_t multiboot_total_memory = 0;
 uint64_t multiboot_max_addr = 0;
+
+uint32_t get_framebuffer_size_bytes(uint32_t tag_addr) {
+    // pitch * height
+    struct multiboot_tag_framebuffer *tag = (struct multiboot_tag_framebuffer *)tag_addr;
+    serial_printf("Framebuffer size: %dx%d\n", tag->common.framebuffer_width, tag->common.framebuffer_height);
+    serial_printf("Framebuffer pitch: %d\n", tag->common.framebuffer_pitch);
+    
+    return tag->common.framebuffer_pitch * tag->common.framebuffer_height;
+}
+
+uint32_t get_framebuffer_addr(uint32_t tag_addr) {
+    struct multiboot_tag_framebuffer *tag = (struct multiboot_tag_framebuffer *)tag_addr;
+    return tag->common.framebuffer_addr;
+}
 
 bool load_multiboot(uint32_t magic, void *mbd)
 {
@@ -56,7 +69,7 @@ bool load_multiboot(uint32_t magic, void *mbd)
             break;
         case MULTIBOOT_TAG_TYPE_FRAMEBUFFER:
             has_framebuffer = true;
-            video_init((struct multiboot_tag_framebuffer *)tag);
+            framebuffer_tag = (uint32_t)tag;
             // I believe this is mapped out of physical memory so we don't have to change max addr
             break;
         case MULTIBOOT_TAG_TYPE_MMAP:

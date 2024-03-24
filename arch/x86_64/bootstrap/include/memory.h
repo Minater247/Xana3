@@ -16,4 +16,6 @@ typedef struct {
 
 void memory_init();
 
+extern uint32_t kheap_loc;
+
 #endif

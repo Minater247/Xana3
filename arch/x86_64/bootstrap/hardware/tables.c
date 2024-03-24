@@ -328,7 +328,5 @@ void gdt_init64(uint32_t kernel_entry)
     gdt_ptr.base = (uint32_t)&gdt;
     gdt_ptr.limit = sizeof(gdt) - 1;
 
-    asm volatile ("xchg %bx, %bx");
-
     gdt_flush64((uint32_t)&gdt_ptr, kernel_entry);
 }

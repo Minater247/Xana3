@@ -27,6 +27,7 @@
         "stdarg.h": "c",
         "io.h": "c",
         "video.h": "c",
-        "pit.h": "c"
+        "pit.h": "c",
+        "keyboard.h": "c"
     }
 }

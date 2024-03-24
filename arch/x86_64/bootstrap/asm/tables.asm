@@ -167,6 +167,7 @@ irq_common_stub:
     iret
 
 global gdt_flush64
+extern passed_info
 gdt_flush64:
     mov eax, [esp+4]
     mov ebx, [esp+8]
@@ -180,4 +181,5 @@ gdt_flush64:
     mov ss, ax
     jmp 0x08:gdt_flush_2_64 ; jump to kernel code segment
 gdt_flush_2_64:
+    mov edi, passed_info
     jmp ebx

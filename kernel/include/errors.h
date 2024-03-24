@@ -4,20 +4,26 @@
 #include <stdbool.h>
 #include <stdarg.h>
 
+#include <display.h>
 #include <serial.h>
+#include <video.h>
 #include <drivers/PIT.h>
 #include <drivers/keyboard.h>
 #include <tables.h>
 
 // Essentially a nonreturning printf - prints the message and halts the system
 #define kpanic(msg, ...) do { \
+    enableBackground(true); \
+    printf("\033[97;41mKernel panic: "); \
+    printf("In function: %s\n", __func__); \
+    printf("%s:%d: \n", __FILE__, __LINE__); \
+    printf(msg, ##__VA_ARGS__); \
+    printf(" System halted.\n"); \
     serial_printf("Kernel panic: "); \
     serial_printf("In function: %s\n", __func__); \
     serial_printf("%s:%d: \n", __FILE__, __LINE__); \
     serial_printf(msg, ##__VA_ARGS__); \
     serial_printf(" System halted.\n"); \
-    irq_install_handler(0, panic_flash); \
-    timer_phase(2); \
     asm volatile("hlt"); \
     while (1); \
 } while (0)
@@ -45,9 +51,9 @@
 // Prints a warning in yellow, but doesn't halt the system
 #define kwarn(msg, ...) do { \
     enableBackground(true); \
-    serial_printf("[\033[93;40mWARN\033[0m]: "); \
-    serial_printf(msg, ##__VA_ARGS__); \
-    serial_printf("\033[0m\n"); \
+    printf("[\033[93;40mWARN\033[0m]: "); \
+    printf(msg, ##__VA_ARGS__); \
+    printf("\033[0m\n"); \
 } while (0)
 
 

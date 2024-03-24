@@ -4,7 +4,6 @@
 #include <errors.h>
 #include <memory.h>
 #include <string.h>
-#include <display.h>
 
 uint32_t kheap_loc = 0;
 
@@ -89,6 +88,14 @@ void memory_init() {
     for (uint64_t addr = 0; addr < 0x800000; addr += 0x1000)
     {
         map_page(addr, addr, true, true, pml4_addr);
+    }
+
+    // Framebuffer may or may not be in physical memory, so we need to map it
+    uint32_t fb_addr = get_framebuffer_addr(framebuffer_tag);
+    uint32_t fb_size = get_framebuffer_size_bytes(framebuffer_tag);
+    for (uint64_t addr = fb_addr; addr < fb_addr + fb_size; addr += 0x1000)
+    {
+        map_page(addr + 0xffffff8000000000, addr, true, true, pml4_addr); // if returns false, we already mapped it
     }
 
     // set the cr3 register

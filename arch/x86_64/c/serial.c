@@ -22,8 +22,7 @@ void serial_write(uint16_t port, char a) {
 }
 
 void serial_writestring(const char *str) {
-    size_t len = strlen(str);
-    for (uint32_t i = 0; i < len; i++) {
+    for (uint32_t i = 0; i < strlen(str); i++) {
         serial_write(SERIAL_COM1, str[i]);
     }
 }

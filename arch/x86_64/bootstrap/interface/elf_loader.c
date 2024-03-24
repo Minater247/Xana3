@@ -2,7 +2,7 @@
 
 #include <elf64.h>
 #include <string.h>
-#include <display.h>
+#include <serial.h>
 
 uint32_t load_elf64(char *elf_file) {
     Elf64_Ehdr *header = (Elf64_Ehdr *)elf_file;
@@ -37,7 +37,7 @@ uint32_t load_elf64(char *elf_file) {
     // Load the program headers (physical memory addresses)
     for (int i = 0; i < header->e_phnum; i++) {
         Elf64_Phdr *phdr = (Elf64_Phdr *)(elf_file + header->e_phoff + (i * header->e_phentsize));
-        printf("Program header %d: type %d, offset 0x%lx, vaddr 0x%lx, paddr 0x%lx, filesz 0x%lx, memsz 0x%lx, flags 0x%x, align 0x%lx\n",
+        serial_printf("Program header %d: type %d, offset 0x%lx, vaddr 0x%lx, paddr 0x%lx, filesz 0x%lx, memsz 0x%lx, flags 0x%x, align 0x%lx\n",
                i, phdr->p_type, phdr->p_offset, phdr->p_vaddr, phdr->p_paddr, phdr->p_filesz, phdr->p_memsz, phdr->p_flags, phdr->p_align);
 
         if (phdr->p_type == PT_LOAD) {
