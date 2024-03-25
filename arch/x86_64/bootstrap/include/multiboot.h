@@ -11,5 +11,6 @@ uint32_t get_framebuffer_addr(uint32_t tag_addr);
 extern uint64_t multiboot_total_memory;
 extern uint64_t multiboot_max_addr;
 extern uint32_t framebuffer_tag;
+extern uint32_t mmap_tag;
 
 #endif

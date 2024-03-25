@@ -12,5 +12,8 @@ void* memset(void* ptr, int value, size_t num);
 void* memcpy(void* dest, const void* src, size_t n);
 void* memmove(void* dest, const void* src, size_t n);
 int strcmp(const char* str1, const char* str2);
+char* strcat(char* dest, const char* src);
+char* strcpy(char* dest, const char* src);
+int strncmp(const char* str1, const char* str2, size_t n);
 
 #endif

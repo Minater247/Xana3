@@ -188,3 +188,39 @@ int strcmp(const char* str1, const char* str2) {
     }
     return *(const unsigned char*)str1 - *(const unsigned char*)str2;
 }
+
+//strcat
+char* strcat(char* dest, const char* src) {
+    char* ptr = dest + strlen(dest);
+
+    while (*src != '\0') {
+        *ptr++ = *src++;
+    }
+
+    *ptr = '\0';
+
+    return dest;
+}
+
+//strcpy
+char* strcpy(char* dest, const char* src) {
+    char* save = dest;
+    while (*src) {
+        *dest++ = *src++;
+    }
+    *dest = 0;
+    return save;
+}
+
+//strncmp
+int strncmp(const char* str1, const char* str2, size_t n) {
+    while (n && *str1 && *str1 == *str2) {
+        n--;
+        str1++;
+        str2++;
+    }
+    if (n == 0) {
+        return 0;
+    }
+    return *(const unsigned char*)str1 - *(const unsigned char*)str2;
+}

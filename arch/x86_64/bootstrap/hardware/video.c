@@ -6,7 +6,7 @@
 #include <video.h>
 #include <serial.h>
 #include <string.h>
-#include <system.h>
+#include <display.h>
 
 void *video;
 uint8_t framebuffer_type = 0;
@@ -380,7 +380,7 @@ bool video_init(struct multiboot_tag_framebuffer *tag)
     unsigned i;
     struct multiboot_tag_framebuffer *tagfb = (struct multiboot_tag_framebuffer *)tag;
 
-    video = (void *)((uint64_t)tagfb->common.framebuffer_addr + VIRT_MEM_OFFSET);
+    video = (void *)((uint32_t)tagfb->common.framebuffer_addr);
     framebuffer_type = tagfb->common.framebuffer_type;
     framebuffer_width = tagfb->common.framebuffer_width;
     framebuffer_height = tagfb->common.framebuffer_height;
@@ -389,13 +389,13 @@ bool video_init(struct multiboot_tag_framebuffer *tag)
     framebuffer_palette = tagfb->framebuffer_palette;
     framebuffer_palette_num_colors = tagfb->framebuffer_palette_num_colors;
 
-    serial_printf("Framebuffer address: 0x%lx\n", (uint64_t)video);
+    serial_printf("Framebuffer address: 0x%lx\n", (uint32_t)video);
     serial_printf("Framebuffer type: %d\n", framebuffer_type);
     serial_printf("Framebuffer width: %d\n", framebuffer_width);
     serial_printf("Framebuffer height: %d\n", framebuffer_height);
     serial_printf("Framebuffer bpp: %d\n", framebuffer_bpp);
     serial_printf("Framebuffer pitch: %d\n", framebuffer_pitch);
-    serial_printf("Framebuffer palette: 0x%lx\n", (uint64_t)framebuffer_palette);
+    serial_printf("Framebuffer palette: 0x%lx\n", (uint32_t)framebuffer_palette);
     serial_printf("Framebuffer palette num colors: %d\n", framebuffer_palette_num_colors);
 
     video_fg = framebuffer_get_color(RGB2COLOR(0xff, 0xff, 0xff));
@@ -425,6 +425,15 @@ bool video_init(struct multiboot_tag_framebuffer *tag)
     // Initialize font data
     header = (struct psf1_header *)&font_data_start;
 
+    printf("Framebuffer address: 0x%lx\n", (uint32_t)video);
+    printf("Framebuffer type: %d\n", framebuffer_type);
+    printf("Framebuffer width: %d\n", framebuffer_width);
+    printf("Framebuffer height: %d\n", framebuffer_height);
+    printf("Framebuffer bpp: %d\n", framebuffer_bpp);
+    printf("Framebuffer pitch: %d\n", framebuffer_pitch);
+    printf("Framebuffer palette: 0x%lx\n", (uint32_t)framebuffer_palette);
+    printf("Framebuffer palette num colors: %d\n", framebuffer_palette_num_colors);
+
     return true;
 }
 
@@ -438,19 +447,15 @@ void scroll(uint32_t n_pixels)
     else
     {
         uint16_t *video_memory = (uint16_t *)video;
-        for (uint32_t i = 0; i < framebuffer_height - n_pixels; i++)
-        {
-            for (uint32_t j = 0; j < framebuffer_width; j++)
-            {
-                video_memory[framebuffer_width * i + j] = video_memory[framebuffer_width * (i + n_pixels) + j];
-            }
-        }
+        uint16_t blank_pixel = (video_bg << 12) | (video_fg << 8) | ' ';
+
+        // Copy the memory
+        memcpy(video_memory, video_memory + n_pixels * framebuffer_width, (framebuffer_height - n_pixels) * framebuffer_width * sizeof(uint16_t));
+
+        // Set the remaining memory
         for (uint32_t i = framebuffer_height - n_pixels; i < framebuffer_height; i++)
         {
-            for (uint32_t j = 0; j < framebuffer_width; j++)
-            {
-                video_memory[framebuffer_width * i + j] = (video_bg << 12) | (video_fg << 8) | ' ';
-            }
+            memset(video_memory + i * framebuffer_width, blank_pixel, framebuffer_width * sizeof(uint16_t));
         }
     }
 }
@@ -468,13 +473,9 @@ void video_putc(char c)
         {
             char_pos_x = 0;
         }
-        else if (c == '\t')
-        {
-            char_pos_x += 4;
-        }
         else
         {
-            displayChar(c, char_pos_x * FONT_WIDTH, char_pos_y * header->fontheight + 1, video_fg, (uint8_t *)((uint64_t)&font_data_start + sizeof(struct psf1_header)));
+            displayChar(c, char_pos_x * FONT_WIDTH, char_pos_y * header->fontheight + 1, video_fg, (uint8_t *)((uint32_t)&font_data_start + sizeof(struct psf1_header)));
             char_pos_x++;
         }
 

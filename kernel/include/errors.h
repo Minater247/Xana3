@@ -7,9 +7,6 @@
 #include <display.h>
 #include <serial.h>
 #include <video.h>
-#include <drivers/PIT.h>
-#include <drivers/keyboard.h>
-#include <tables.h>
 
 // Essentially a nonreturning printf - prints the message and halts the system
 #define kpanic(msg, ...) do { \

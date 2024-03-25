@@ -12,6 +12,7 @@
 #include <cpuid_funcs.h>
 #include <ramdisk.h>
 #include <elf_loader.h>
+#include <display.h>
 
 kernel_info_t passed_info;
 
@@ -55,6 +56,7 @@ void preboot_load(uint32_t magic, void *mbd) {
     passed_info.framebuffer_tag = framebuffer_tag;
     passed_info.kheap_end = kheap_loc;
     passed_info.ramdisk_addr = (uint32_t)&boot_ramdisk;
+    passed_info.mmap_tag_addr = mmap_tag;
 
     gdt_init64(kernel_entry);
 

@@ -17,3 +17,13 @@ bool has_long_mode() {
     __get_cpuid(0x80000001, &eax, &ebx, &ecx, &edx);
     return edx & (1 << 29);
 }
+
+bool has_1gb_pages() {
+    eax = 0;
+    __get_cpuid(0x80000000, &eax, &ebx, &ecx, &edx);
+    if (eax < 0x80000001) {
+        return false;
+    }
+    __get_cpuid(0x80000001, &eax, &ebx, &ecx, &edx);
+    return edx & (1 << 26);
+}

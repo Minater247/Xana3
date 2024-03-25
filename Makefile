@@ -4,7 +4,7 @@ USE_UEFI ?= 0
 CC = $(ARCH)-elf-gcc
 LD = $(ARCH)-elf-ld
 
-CFLAGS = -std=gnu99 -ffreestanding -O3 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -mcmodel=large -mno-sse
+CFLAGS = -std=gnu99 -ffreestanding -O3 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -Ikernel/include -mcmodel=large -mno-sse
 LDFLAGS = -T arch/$(ARCH)/linker.ld
 AS = nasm
 
@@ -76,6 +76,9 @@ debug_term:
 bochs: iso
 	@"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f bochsrc.txt -q
 
+bochs_debug: debug_iso
+	@"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f bochsrc_dbg.txt -q
+
 FORCE:
 
 ramdisk: FORCE
@@ -99,4 +102,5 @@ clean:
 	rm -f dbg_kernel.bin
 	rm -f kernel.bin
 	rm -f $(OBJFILES)
+	rm -f $(DBOBJFILES)
 	rm -f com1.out
