@@ -10,6 +10,7 @@
 #include <sys/errno.h>
 #include <memory.h>
 #include <unused.h>
+#include <device.h>
 
 ramdisk_t boot_ramdisk;
 
@@ -205,7 +206,6 @@ device_t *init_ramdisk_device(uint64_t addr) {
 
     device_t *ramdisk_device = (device_t *)kmalloc(sizeof(device_t));
     strcpy(ramdisk_device->name, "ramdisk");
-    ramdisk_device->id = get_next_device_id();
     ramdisk_device->flags = 0;
     ramdisk_device->data = (void *)&boot_ramdisk;
     ramdisk_device->next = NULL;
@@ -218,5 +218,7 @@ device_t *init_ramdisk_device(uint64_t addr) {
 
     ramdisk_device->file_size = (file_size_func_t)file_size;
 
-    return ramdisk_device;
+    ramdisk_device->type = DEVICE_TYPE_XANDISK;
+
+    return register_device(ramdisk_device);
 }

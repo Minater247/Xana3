@@ -224,3 +224,13 @@ int strncmp(const char* str1, const char* str2, size_t n) {
     }
     return *(const unsigned char*)str1 - *(const unsigned char*)str2;
 }
+
+int64_t atoi(const char* str) {
+    int64_t res = 0;
+
+    for (int i = 0; str[i] != '\0'; ++i) {
+        res = res * 10 + str[i] - '0';
+    }
+
+    return res;
+}

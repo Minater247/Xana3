@@ -17,10 +17,6 @@ device_t *root_filesystem = NULL;
 
 char resolution_buffer[PATH_MAX];
 
-dev_t get_next_device_id() {
-    return next_device_id++;
-}
-
 uint32_t get_path_depth(char *path) {
     uint32_t depth = 0;
     for (uint32_t i = 0; path[i] != '\0'; i++) {
@@ -124,7 +120,7 @@ char *resolve_path(char *path) {
     return resolution_buffer;
 }
 
-int fopen(char *path, int flags) {
+int fopen(char *path, int flags, mode_t mode) {
     resolve_path(path);
     pointer_int_t resolution = get_path_device((char *)&resolution_buffer);
     device_t *device = resolution.pointer;

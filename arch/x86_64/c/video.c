@@ -7,6 +7,9 @@
 #include <serial.h>
 #include <string.h>
 #include <system.h>
+#include <device.h>
+#include <memory.h>
+#include <unused.h>
 
 void *video;
 uint8_t framebuffer_type = 0;
@@ -521,4 +524,46 @@ void video_putc(char c)
             char_pos_y--;
         }
     }
+}
+
+
+
+pointer_int_t simple_output_open(char *path, uint64_t flags, void *device_passed) {
+    UNUSED(path);
+    UNUSED(flags);
+    UNUSED(device_passed);
+
+    return (pointer_int_t){NULL, 0};
+}
+
+size_t simple_output_write(void *ptr, size_t size, size_t nmemb, void *data, void *device_passed, uint64_t flags) {
+    UNUSED(data);
+    UNUSED(device_passed);
+    UNUSED(flags);
+
+    // literally just write bytes until size * nmemb
+    for (size_t i = 0; i < size * nmemb; i++) {
+        video_putc(((char *)ptr)[i]);
+    }
+    return size * nmemb;
+}
+
+device_t *init_simple_output() {
+    device_t *simple_output_device = (device_t *)kmalloc(sizeof(device_t));
+    strcpy(simple_output_device->name, "simple_output");
+    simple_output_device->flags = 0;
+    simple_output_device->data = NULL;
+    simple_output_device->next = NULL;
+    
+    simple_output_device->open = (open_func_t)simple_output_open;
+    simple_output_device->read = NULL;
+    simple_output_device->close = NULL;
+    simple_output_device->fcntl = NULL;
+    simple_output_device->write = (write_func_t)simple_output_write;
+
+    simple_output_device->file_size = NULL;
+
+    simple_output_device->type = DEVICE_TYPE_SIMPLOU;
+
+    return register_device(simple_output_device);
 }

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <device.h>
 
 #define PATH_MAX 4096
 #define NAME_MAX 255
@@ -72,37 +73,6 @@ typedef struct stat
 	int64_t st_qspare[2];
 } stat_t;
 
-typedef struct
-{
-	void *pointer;
-	uint64_t value;
-} pointer_int_t;
-
-typedef pointer_int_t (*open_func_t)(const char *, uint64_t, void *);
-typedef size_t (*read_func_t)(void *, size_t, size_t, void *, void *, uint64_t);
-typedef int (*close_func_t)(void *, void *);
-typedef int (*fcntl_func_t)(int, long, void *, void *);
-
-typedef size_t (*file_size_func_t)(const char *, void *);
-
-// generic device structure
-typedef struct device
-{
-	char name[NAME_MAX];
-	dev_t id;
-	uint32_t flags;
-	void *data;
-
-	open_func_t open;
-	read_func_t read;
-	close_func_t close;
-	fcntl_func_t fcntl;
-
-	file_size_func_t file_size;
-
-	struct device *next;
-} device_t;
-
 typedef struct mount
 {
 	char filesystemtype[NAME_MAX];
@@ -123,13 +93,13 @@ typedef struct file_descriptor
 
 uint32_t get_path_depth(char *path);
 void get_path_part(char *path, char *part, uint32_t part_num);
-dev_t get_next_device_id();
 void filesystem_init(device_t *ramdisk_device);
-int fopen(char *path, int flags);
+int fopen(char *path, int flags, mode_t mode);
 size_t fread(void *ptr, size_t size, size_t nmemb, int fd);
 size_t file_size_internal(char *path);
 char *device_to_path(device_t *device);
 int fcntl(int fd, int cmd, long arg);
 int fclose(int fd);
+int mount_at(char *path, device_t *device, char *filesystemtype, unsigned long mountflags);
 
 #endif

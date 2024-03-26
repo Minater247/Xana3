@@ -13,6 +13,8 @@
 #include <ramdisk.h>
 #include <elf_loader.h>
 #include <tables.h>
+#include <syscall.h>
+#include <device.h>
 
 uint32_t passed_info;
 
@@ -35,6 +37,8 @@ void kmain() {
 
     memory_init(info->kheap_end, info->mmap_tag_addr);
 
+    syscall_init();
+
     printf("Hello from a 64-bit graphical kernel!!\n");
 
     printf("Kheap end: 0x%lx\n", (uint64_t)info->kheap_end + VIRT_MEM_OFFSET);
@@ -42,8 +46,9 @@ void kmain() {
     // Adjust ramdisk accordingly
     serial_printf("Got ramdisk at 0x%lx\n", (uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET);
     filesystem_init(init_ramdisk_device((uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET));
+    init_device_device();
 
-    int fd = fopen("/mnt/ramdisk/logo.txt", 0);
+    int fd = fopen("/mnt/ramdisk/logo.txt", 0, 0);
     if (fd < 0) {
         printf("Failed to open file! Error code: %d / 0x%x\n", fd, fd);
     } else {
@@ -59,7 +64,7 @@ void kmain() {
         }
     }
 
-    fd = fopen("/mnt/ramdisk/bin/XanHello.elf", 0);
+    fd = fopen("/mnt/ramdisk/bin/XanHello.elf", 0, 0);
     if (fd < 0) {
         printf("Failed to open file\n");
     } else {
@@ -75,10 +80,7 @@ void kmain() {
 
             map_page_kmalloc(0x4000, first_free_page_addr(), false, true, current_pml4);
 
-            while (1) {}
-
             // call it...!
-            asm volatile ("xchg %bx, %bx");
             jump_to_usermode(entry, 0x5000);
         }
     }

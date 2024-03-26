@@ -15,5 +15,6 @@ int strcmp(const char* str1, const char* str2);
 char* strcat(char* dest, const char* src);
 char* strcpy(char* dest, const char* src);
 int strncmp(const char* str1, const char* str2, size_t n);
+int64_t atoi(const char* str);
 
 #endif
