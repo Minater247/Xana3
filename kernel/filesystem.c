@@ -121,6 +121,8 @@ char *resolve_path(char *path) {
 }
 
 int fopen(char *path, int flags, mode_t mode) {
+    UNUSED(mode);
+
     resolve_path(path);
     pointer_int_t resolution = get_path_device((char *)&resolution_buffer);
     device_t *device = resolution.pointer;
@@ -136,31 +138,29 @@ int fopen(char *path, int flags, mode_t mode) {
 
     pointer_int_t returned = device->open((char *)((uint64_t)&resolution_buffer + resolution.value), flags, device);
     if (returned.value != 0) {
-        printf("Device returned weird value! Returning it...");
         return returned.value;
     }
 
     file_descriptor_t *fd = (file_descriptor_t *)kmalloc(sizeof(file_descriptor_t));
 
-    printf("Got something! Returning file...\n");
-
     file_descriptor_t *current = file_descriptors;
+    printf("Current: %lx\n", current);
     if (current == NULL) {
         fd->descriptor_id = 0;
         fd->next = NULL;
     } else {
         while (current != NULL) {
             if (current->next != NULL) {
-                if (current->next->descriptor_id > current->descriptor_id + 1) {
-                    fd->descriptor_id = current->descriptor_id + 1;
+                if (current->next->descriptor_id + 1 < current->descriptor_id) {
+                    fd->descriptor_id = current->descriptor_id - 1;
                     fd->next = current->next;
-                    current->next = fd;
                     break;
+                } else {
+                    current = current->next;
                 }
             } else {
-                fd->descriptor_id = current->descriptor_id + 1;
+                fd->descriptor_id = file_descriptors->descriptor_id + 1;
                 fd->next = NULL;
-                current->next = fd;
                 break;
             }
         }
@@ -172,8 +172,6 @@ int fopen(char *path, int flags, mode_t mode) {
     fd->next = file_descriptors;
     file_descriptors = fd;
 
-    printf("Returning descriptor: %d\n", fd->descriptor_id);
-
     return fd->descriptor_id;
 }
 
@@ -182,10 +180,9 @@ int fclose(int fd) {
     file_descriptor_t *prev = NULL;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
-            if (current->device->close == NULL) {
-                return -ENOTSUP;
+            if (current->device->close != NULL) {
+                current->device->close(current->data, current->device);
             }
-            current->device->close(current->data, current->device);
             if (prev == NULL) {
                 file_descriptors = current->next;
             } else {
@@ -208,6 +205,20 @@ size_t fread(void *ptr, size_t size, size_t nmemb, int fd) {
                 return -ENOTSUP;
             }
             return current->device->read(ptr, size, nmemb, current->data, current->device, current->flags);
+        }
+        current = current->next;
+    }
+    return -EBADF;
+}
+
+size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd) {
+    file_descriptor_t *current = file_descriptors;
+    while (current != NULL) {
+        if (current->descriptor_id == fd) {
+            if (current->device->write == NULL) {
+                return -ENOTSUP;
+            }
+            return current->device->write(ptr, size, nmemb, current->data, current->device, current->flags);
         }
         current = current->next;
     }

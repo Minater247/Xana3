@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include <multiboot2.h>
+#include <device.h>
 
 struct psf1_header {
     uint8_t magic[2];
@@ -23,5 +24,6 @@ void video_setbg(uint32_t color);
 void video_putc(char c);
 void video_puts(const char *s, int x, int y, uint32_t c, uint8_t chars[]);
 void enableBackground(bool enable);
+device_t *init_simple_output();
 
 #endif

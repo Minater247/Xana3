@@ -101,5 +101,6 @@ char *device_to_path(device_t *device);
 int fcntl(int fd, int cmd, long arg);
 int fclose(int fd);
 int mount_at(char *path, device_t *device, char *filesystemtype, unsigned long mountflags);
+size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd);
 
 #endif

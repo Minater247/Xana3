@@ -13,6 +13,8 @@
 device_t *xandisk_devices = NULL;
 device_t *simpleo_devices = NULL;
 
+device_t device_device;
+
 void insert_device(device_t *list, device_t *device_to_insert) {
     while (list->next != NULL) {
         list = list->next;
@@ -43,6 +45,11 @@ device_t *register_device(device_t *device_to_register) {
 
     return device_to_register;
 }
+
+typedef struct {
+    void *data;
+    device_t *device;
+} device_open_data_t;
 
 pointer_int_t device_open(char *path, uint64_t flags, void *device_passed) {
     UNUSED(flags);
@@ -80,7 +87,11 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed) {
             while (current_device != NULL) {
                 if (current_device->id == device_number) {
                     device_open_data_t *data = (device_open_data_t *)kmalloc(sizeof(device_open_data_t));
-                    data->data = current_device->open(path, flags, current_device);
+                    pointer_int_t open_data = current_device->open(path, flags, current_device);
+                    if (open_data.value != 0) {
+                        return open_data;
+                    }
+                    data->data = open_data.pointer;
                     data->device = current_device;
                     return (pointer_int_t){data, 0};
                 }
@@ -90,10 +101,19 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed) {
             // we have a simple output device
             dev_t device_number = atoi(&part[first_number]);
             device_t *current_device = simpleo_devices;
+            if (current_device == NULL) {
+                printf("No simple output devices found\n");
+                return (pointer_int_t){NULL, -ENODEV};
+            }
             while (current_device != NULL) {
+                printf("Checking device %d\n", current_device->id);
                 if (current_device->id == device_number) {
                     device_open_data_t *data = (device_open_data_t *)kmalloc(sizeof(device_open_data_t));
-                    data->data = current_device->open(path, flags, current_device);
+                    pointer_int_t open_data = current_device->open(path, flags, current_device);
+                    if (open_data.value != 0) {
+                        return open_data;
+                    }
+                    data->data = open_data.pointer;
                     data->device = current_device;
                     return (pointer_int_t){data, 0};
                 }
@@ -102,25 +122,40 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed) {
         }
     }
 
+    printf("Device not found\n");
     return (pointer_int_t){NULL, -1};
 }
 
+size_t device_write(void *data, size_t size, size_t count, device_open_data_t *device_to_write, device_t *this_device, uint64_t flags) {
+    UNUSED(this_device);
+
+    return device_to_write->device->write(data, size, count, device_to_write->data, device_to_write->device, flags);
+}
+
+int device_close(device_open_data_t *data, device_t *device) {
+    UNUSED(device);
+
+    device->close(data->data, device);
+    kfree(data);
+    return 0;
+}
+
 void init_device_device() {
-    device_t *device_device = (device_t *)kmalloc(sizeof(device_t));
-    strcpy(device_device->name, "devices");
-    device_device->flags = 0;
-    device_device->data = NULL;
-    device_device->next = NULL;
+    strcpy(device_device.name, "devices");
+    device_device.flags = 0;
+    device_device.data = NULL;
+    device_device.next = NULL;
     
     // we need to cast the function pointer to return void *, like a function type taking path, flags, and device_t *, and returning a void *
-    device_device->open = (open_func_t)device_open;
-    device_device->read = NULL;
-    device_device->close = NULL;
-    device_device->fcntl = NULL;
+    device_device.open = (open_func_t)device_open;
+    device_device.read = NULL;
+    device_device.close = NULL;
+    device_device.fcntl = NULL;
+    device_device.write = (write_func_t)device_write;
 
-    device_device->file_size = NULL;
+    device_device.file_size = NULL;
 
-    device_device->type = DEVICE_TYPE_DEVICES;
+    device_device.type = DEVICE_TYPE_DEVICES;
 
-    mount_at("/dev", device_device, "devices", 0);
+    mount_at("/dev", &device_device, "devices", 0);
 }

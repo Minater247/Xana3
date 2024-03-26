@@ -31,17 +31,16 @@ void gdt_set_entry(int index, uint64_t base, uint64_t limit, uint8_t access, uin
     gdt_location[index].access = access;
 }
 
+char tss_stack[4096] __attribute__((aligned(16)));
+
 void tss_init()
 {
     memset(&tss, 0, sizeof(tss));
     tss.io_map_base = sizeof(tss);
 
-    load_tss();
-}
+    tss.rsp0 = (uint64_t)tss_stack + sizeof(tss_stack);
 
-void tss_set_rsp(uint64_t rsp)
-{
-    tss.rsp0 = rsp;
+    load_tss();
 }
 
 extern void load_gdt_initial(uint64_t gdtr);
@@ -260,6 +259,7 @@ void fault_handler(regs_t *regs)
 
 void irq_handler(regs_t *regs)
 {
+    printf("IRQ: %d\n", regs->int_no - 32);
 
     if (isr_handlers[regs->int_no - 32] != 0)
     {
@@ -303,6 +303,11 @@ void jump_to_usermode(uint64_t rip, uint64_t rsp)
     asm volatile("pushq %0" ::"r"(rsp));
     //push rflags
     asm volatile("pushfq");
+    // or the interrupt flag
+    asm volatile("orq $0x200, (%%rsp)" ::);
+
+    asm volatile ("xchg %bx, %bx");
+
     //push code selector
     asm volatile("pushq $0x33");
     //push rip

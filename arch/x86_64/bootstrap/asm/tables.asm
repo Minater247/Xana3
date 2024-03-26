@@ -106,6 +106,7 @@ isr_common_stub:
     pop ds
     popa
     add esp, 8
+    sti
     iret
 
 ; IRQ definitions
@@ -164,6 +165,7 @@ irq_common_stub:
     pop ds
     popa
     add esp, 8
+    sti
     iret
 
 global gdt_flush64

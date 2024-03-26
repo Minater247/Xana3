@@ -8,7 +8,6 @@
 #include <unused.h>
 #include <tables.h>
 #include <memory.h>
-#include <multiboot2.h>
 #include <system.h>
 #include <string.h>
 #include <serial.h>
@@ -248,7 +247,7 @@ bool is_page_free(uint64_t virt) {
 
 }
 
-void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr)
+void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t framebuffer_tag_addr)
 {
     printf("Initializing kheap @ 0x%lx\n", old_kheap_end);
 
@@ -318,6 +317,15 @@ void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr)
     while (pages_filled < pages_to_fill) {
         phys_mem_bitmap[pages_filled / 8] |= 1 << (pages_filled % 8);
         pages_filled++;
+    }
+
+    // Also mark the framebuffer as used
+    struct multiboot_tag_framebuffer *framebuffer_tag = (struct multiboot_tag_framebuffer *)framebuffer_tag_addr;
+    uint64_t fb_start = framebuffer_tag->common.framebuffer_addr;
+    uint64_t fb_end = fb_start + framebuffer_tag->common.framebuffer_pitch * framebuffer_tag->common.framebuffer_height;
+    uint64_t fb_pages = (fb_end - fb_start) / 0x1000;
+    for (uint64_t i = 0; i < fb_pages; i++) {
+        phys_mem_bitmap[(fb_start / 0x1000 + i) / 8] |= 1 << ((fb_start / 0x1000 + i) % 8);
     }
 
     uint64_t last_mapped_virtaddr = total_memory + VIRT_MEM_OFFSET;

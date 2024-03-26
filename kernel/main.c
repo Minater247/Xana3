@@ -35,7 +35,7 @@ void kmain() {
 
     tables_init();
 
-    memory_init(info->kheap_end, info->mmap_tag_addr);
+    memory_init(info->kheap_end, info->mmap_tag_addr, (uint64_t)info->framebuffer_tag + VIRT_MEM_OFFSET);
 
     syscall_init();
 
@@ -47,8 +47,10 @@ void kmain() {
     serial_printf("Got ramdisk at 0x%lx\n", (uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET);
     filesystem_init(init_ramdisk_device((uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET));
     init_device_device();
+    init_simple_output();
 
     int fd = fopen("/mnt/ramdisk/logo.txt", 0, 0);
+    printf("FD: %d\n", fd);
     if (fd < 0) {
         printf("Failed to open file! Error code: %d / 0x%x\n", fd, fd);
     } else {
@@ -65,6 +67,7 @@ void kmain() {
     }
 
     fd = fopen("/mnt/ramdisk/bin/XanHello.elf", 0, 0);
+    printf("XANHELLO FD: %d\n", fd);
     if (fd < 0) {
         printf("Failed to open file\n");
     } else {
