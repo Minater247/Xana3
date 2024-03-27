@@ -38,11 +38,20 @@ uint32_t load_elf64(char *elf_file) {
     // Load the program headers
     for (int i = 0; i < header->e_phnum; i++) {
         Elf64_Phdr *phdr = (Elf64_Phdr *)(elf_file + header->e_phoff + (i * header->e_phentsize));
-        // serial_printf("Program header %d: type %d, offset 0x%lx, vaddr 0x%lx, paddr 0x%lx, filesz 0x%lx, memsz 0x%lx, flags 0x%x, align 0x%lx\n",
-        //        i, phdr->p_type, phdr->p_offset, phdr->p_vaddr, phdr->p_paddr, phdr->p_filesz, phdr->p_memsz, phdr->p_flags, phdr->p_align);
+        serial_printf("Program header %d: type %d, offset 0x%lx, vaddr 0x%lx, paddr 0x%lx, filesz 0x%lx, memsz 0x%lx, flags 0x%x, align 0x%lx\n",
+               i, phdr->p_type, phdr->p_offset, phdr->p_vaddr, phdr->p_paddr, phdr->p_filesz, phdr->p_memsz, phdr->p_flags, phdr->p_align);
 
         if (phdr->p_type == PT_LOAD) {
-            map_page_kmalloc(phdr->p_vaddr, first_free_page_addr(), false, true, current_pml4);
+            // Calculate the number of pages
+            int num_pages = phdr->p_memsz / 0x1000;
+            if (phdr->p_memsz % 0x1000 != 0) {
+                num_pages++;
+            }
+
+            // Map each page
+            for (int j = 0; j < num_pages; j++) {
+                map_page_kmalloc(phdr->p_vaddr + j * 0x1000, first_free_page_addr(), false, true, current_pml4);
+            }
 
             // Copy the segment to the physical memory address
             memcpy((void *)phdr->p_paddr, (void *)(elf_file + phdr->p_offset), phdr->p_filesz);
