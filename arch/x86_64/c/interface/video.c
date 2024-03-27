@@ -10,6 +10,7 @@
 #include <device.h>
 #include <memory.h>
 #include <unused.h>
+#include <errors.h>
 
 void *video;
 uint8_t framebuffer_type = 0;
@@ -749,7 +750,7 @@ void video_putc(char c)
         }
         else
         {
-            displayChar(c, char_pos_x * FONT_WIDTH, char_pos_y * header->fontheight + 1, video_fg, (uint8_t *)((uint64_t)&font_data_start + sizeof(struct psf1_header)));
+            displayChar(c, char_pos_x * FONT_WIDTH, char_pos_y * header->fontheight, video_fg, (uint8_t *)((uint64_t)&font_data_start + sizeof(struct psf1_header)));
             char_pos_x++;
         }
 
@@ -762,7 +763,7 @@ void video_putc(char c)
 
         if (char_pos_y >= framebuffer_height / header->fontheight)
         {
-            scroll(8);
+            scroll(header->fontheight);
             char_pos_y--;
         }
     }

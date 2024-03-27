@@ -195,21 +195,7 @@ void page_fault_error(regs_t *r) {
     asm volatile("mov %%cr2, %0" : "=r" (faulting_address));
     uint32_t flags = r->err_code;
 
-    // if (current_process->pid == 0) {
-    //     kpanic("Page fault! (%s%s%s%s%s) at 0x%x\n", (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", faulting_address);
-    // } else {
-    //     serial_printf("Process %d page fault! (%s%s%s%s%s) at 0x%x\n", current_process->pid, (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", faulting_address);
-    // }
     kpanic("Page fault! (%s%s%s%s%s) at 0x%x\n", (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", faulting_address);
-    
-    asm volatile (
-        "movl $60, %%eax \n\t"
-        "movl $1, %%ebx \n\t"
-        "int $0x80 \n\t"
-        :
-        :
-        : "%eax", "%ebx"
-    );
 }
 
 void isr_handler(regs_t *r) {

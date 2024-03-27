@@ -22,6 +22,55 @@ void traceback_init(uint32_t elf_symbols_addr, uint32_t elf_strings_addr, uint32
     symbol_count = elf_symbol_count;
 }
 
+void serial_traceback(size_t depth) {
+
+    uint64_t *rbp;
+    asm volatile("mov %%rbp, %0" : "=r" (rbp));
+    while (rbp != NULL) {
+        uint64_t rip = rbp[1];
+        serial_printf("0x%lx", rip);
+        rbp = (uint64_t *)rbp[0];
+        if (depth-- == 0) {
+            break;  
+        }
+        if (rip == 0 || rip < VIRT_MEM_OFFSET) {
+            break;
+        }
+        
+        if (string_table == NULL || symbol_table == NULL) {
+            continue;
+        }
+
+        bool found = false;
+        // find the symbol that contains the RIP
+        for (size_t i = 0; i < symbol_count; i++) {
+            if (rip >= symbol_table[i].st_value && rip < symbol_table[i].st_value + symbol_table[i].st_size) {
+                serial_printf("  %s+0x%lx\n", string_table + symbol_table[i].st_name, rip - symbol_table[i].st_value);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            // find the closest symbol before the RIP
+            uint64_t closest_diff = UINT64_MAX;
+            size_t closest_index = 0;
+            for (size_t i = 0; i < symbol_count; i++) {
+                if (rip > symbol_table[i].st_value && rip - symbol_table[i].st_value < closest_diff) {
+                    closest_diff = rip - symbol_table[i].st_value;
+                    closest_index = i;
+                }
+            }
+            serial_printf("  %s+0x%lx (asm)\n", string_table + symbol_table[closest_index].st_name, rip - symbol_table[closest_index].st_value);
+        }
+    }
+
+    if (depth == 0) {
+        serial_printf("...\n");
+    } else if (rbp == NULL) {
+        serial_printf("End of stack\n");
+    }
+}
+
 void traceback(size_t depth) {
 
     uint64_t *rbp;
