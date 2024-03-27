@@ -7,6 +7,7 @@
 #include <display.h>
 #include <serial.h>
 #include <video.h>
+#include <trace.h>
 
 // Essentially a nonreturning printf - prints the message and halts the system
 #define kpanic(msg, ...) do { \
@@ -21,6 +22,7 @@
     serial_printf("%s:%d: \n", __FILE__, __LINE__); \
     serial_printf(msg, ##__VA_ARGS__); \
     serial_printf(" System halted.\n"); \
+    traceback(10); \
     asm volatile("hlt"); \
     while (1); \
 } while (0)

@@ -28,7 +28,7 @@ void traceback(size_t depth) {
     asm volatile("mov %%rbp, %0" : "=r" (rbp));
     while (rbp != NULL) {
         uint64_t rip = rbp[1];
-        printf("\033[36m0x%lx", rip);
+        printf("\033[36;40m0x%lx", rip);
         rbp = (uint64_t *)rbp[0];
         if (depth-- == 0) {
             break;  

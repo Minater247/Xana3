@@ -345,6 +345,12 @@ void displayChar(char ch, uint32_t x, uint32_t y, uint32_t c, uint8_t chars[])
 {
     uint8_t row;
     uint32_t x1 = x;
+
+    // We don't support negative characters
+    if (ch < 0) {
+        ch = 0;
+    }
+
     for (uint32_t j = 0; j < header->fontheight; j++)
     {
         row = chars[ch * header->fontheight + j];
