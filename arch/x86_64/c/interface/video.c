@@ -123,9 +123,9 @@ void fb_video_fillrect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t 
         {
             for (uint32_t j = 0; j < w; j++)
             {
-                pixel[0] = color & 0xff;           // Blue component
-                pixel[1] = (color >> 8) & 0xff;    // Green component
-                pixel[2] = (color >> 16) & 0xff;   // Red component
+                pixel[0] = color & 0xff;         // Blue component
+                pixel[1] = (color >> 8) & 0xff;  // Green component
+                pixel[2] = (color >> 16) & 0xff; // Red component
                 pixel += 3;
             }
             pixel += framebuffer_pitch - 3 * w;
@@ -223,8 +223,6 @@ void fb_video_clearto(uint32_t color)
         break;
     }
 }
-
-
 
 uint32_t ega_color_defs[] = {
     0x00000000, // black
@@ -460,10 +458,266 @@ void scroll(uint32_t n_pixels)
     }
 }
 
+bool in_escape_sequence = false;
+char *escape_sequence = NULL;
+uint32_t escape_sequence_length = 0;
+
+void begin_escape_sequence()
+{
+    in_escape_sequence = true;
+    escape_sequence = kmalloc(64);
+    escape_sequence[0] = '\0';
+    escape_sequence_length = 0;
+}
+
+void handle_escape_sequence_color(uint32_t color)
+{
+    switch (color)
+    {
+    case 0:
+        // reset
+        video_setfg(RGB2COLOR(0xAA, 0xAA, 0xAA));
+        video_setbg(RGB2COLOR(0, 0, 0));
+        break;
+    case 1:
+        // bold (attribs TODO)
+        break;
+    case 4:
+        // underline (attribs TODO)
+        break;
+    case 30:
+        // black fg
+        video_setfg(RGB2COLOR(0, 0, 0));
+        break;
+    case 31:
+        // red fg
+        video_setfg(RGB2COLOR(0xAA, 0, 0));
+        break;
+    case 32:
+        // green fg
+        video_setfg(RGB2COLOR(0, 0xAA, 0));
+        break;
+    case 33:
+        // yellow fg
+        video_setfg(RGB2COLOR(0xAA, 0x55, 0));
+        break;
+    case 34:
+        // blue fg
+        video_setfg(RGB2COLOR(0, 0, 0xAA));
+        break;
+    case 35:
+        // magenta fg
+        video_setfg(RGB2COLOR(0xAA, 0, 0xAA));
+        break;
+    case 36:
+        // cyan fg
+        video_setfg(RGB2COLOR(0, 0xAA, 0xAA));
+        break;
+    case 37:
+        // white fg
+        video_setfg(RGB2COLOR(0xAA, 0xAA, 0xAA));
+        break;
+    case 40:
+        // black bg
+        video_setbg(RGB2COLOR(0, 0, 0));
+        break;
+    case 41:
+        // red bg
+        video_setbg(RGB2COLOR(0xAA, 0, 0));
+        break;
+    case 42:
+        // green bg
+        video_setbg(RGB2COLOR(0, 0xAA, 0));
+        break;
+    case 43:
+        // yellow bg
+        video_setbg(RGB2COLOR(0xAA, 0x55, 0));
+        break;
+    case 44:
+        // blue bg
+        video_setbg(RGB2COLOR(0, 0, 0xAA));
+        break;
+    case 45:
+        // magenta bg
+        video_setbg(RGB2COLOR(0xAA, 0, 0xAA));
+        break;
+    case 46:
+        // cyan bg
+        video_setbg(RGB2COLOR(0, 0xAA, 0xAA));
+        break;
+    case 47:
+        // white bg
+        video_setbg(RGB2COLOR(0xAA, 0xAA, 0xAA));
+        break;
+    case 90:
+        // light black fg
+        video_setfg(RGB2COLOR(0x55, 0x55, 0x55));
+        break;
+    case 91:
+        // light red fg
+        video_setfg(RGB2COLOR(0xFF, 0x55, 0x55));
+        break;
+    case 92:
+        // light green fg
+        video_setfg(RGB2COLOR(0x55, 0xFF, 0x55));
+        break;
+    case 93:
+        // light yellow fg
+        video_setfg(RGB2COLOR(0xFF, 0xFF, 0x55));
+        break;
+    case 94:
+        // light blue fg
+        video_setfg(RGB2COLOR(0x55, 0x55, 0xFF));
+        break;
+    case 95:
+        // light magenta fg
+        video_setfg(RGB2COLOR(0xFF, 0x55, 0xFF));
+        break;
+    case 96:
+        // light cyan fg
+        video_setfg(RGB2COLOR(0x55, 0xFF, 0xFF));
+        break;
+    case 97:
+        // light white fg
+        video_setfg(RGB2COLOR(0xFF, 0xFF, 0xFF));
+        break;
+    case 100:
+        // light black bg
+        video_setbg(RGB2COLOR(0x55, 0x55, 0x55));
+        break;
+    case 101:
+        // light red bg
+        video_setbg(RGB2COLOR(0xFF, 0x55, 0x55));
+        break;
+    case 102:
+        // light green bg
+        video_setbg(RGB2COLOR(0x55, 0xFF, 0x55));
+        break;
+    case 103:
+        // light yellow bg
+        video_setbg(RGB2COLOR(0xFF, 0xFF, 0x55));
+        break;
+    case 104:
+        // light blue bg
+        video_setbg(RGB2COLOR(0x55, 0x55, 0xFF));
+        break;
+    case 105:
+        // light magenta bg
+        video_setbg(RGB2COLOR(0xFF, 0x55, 0xFF));
+        break;
+    case 106:
+        // light cyan bg
+        video_setbg(RGB2COLOR(0x55, 0xFF, 0xFF));
+        break;
+    case 107:
+        // light white bg
+        video_setbg(RGB2COLOR(0xFF, 0xFF, 0xFF));
+        break;
+    }
+}
+
+void parse_escape_sequence(char *seq)
+{
+    // We will have something like \033[1;31m
+    // We need to parse the numbers and the letter
+    char command = seq[strlen(seq) - 1];
+
+    switch (command)
+    {
+    case 'm':
+    {
+        // We have color codes, separated by ;
+        char *where = seq;
+        uint32_t color = 0;
+        while (*where != 'm')
+        {
+            if (*where >= '0' && *where <= '9')
+            {
+                color = color * 10 + (*where - '0');
+            }
+            else if (*where == ';')
+            {
+                handle_escape_sequence_color(color);
+                color = 0;
+            }
+            where++;
+        }
+        handle_escape_sequence_color(color);
+        break;
+    }
+    default:
+    {
+        // just write the escape sequence
+        for (uint32_t i = 0; i < escape_sequence_length; i++)
+        {
+            video_putc(escape_sequence[i]);
+        }
+    }
+    }
+}
+
+void handle_escape_sequence_char(char c)
+{
+    // if it's the first char and it's not [, it's not an escape sequence
+    if (escape_sequence_length == 0)
+    {
+        if (c != '[')
+        {
+            in_escape_sequence = false;
+            // just write the char
+            video_putc('[');
+            return;
+        }
+        else
+        {
+            // if length is too long, realloc
+            if (escape_sequence_length >= 64)
+            {
+                escape_sequence = krealloc(escape_sequence, escape_sequence_length + 64);
+            }
+
+            escape_sequence[escape_sequence_length++] = c;
+            escape_sequence[escape_sequence_length] = '\0';
+            return;
+        }
+    }
+
+    // if length is too long, realloc
+    if (escape_sequence_length >= 64)
+    {
+        escape_sequence = krealloc(escape_sequence, escape_sequence_length + 64);
+    }
+
+    // if it's a number of ;, we're still in the sequence
+    if ((c >= '0' && c <= '9') || c == ';')
+    {
+        escape_sequence[escape_sequence_length++] = c;
+        escape_sequence[escape_sequence_length] = '\0';
+    }
+    else
+    {
+        // if it's not a number or ;, we're done
+        in_escape_sequence = false;
+        escape_sequence[escape_sequence_length++] = c;
+        escape_sequence[escape_sequence_length] = '\0';
+    }
+}
+
 void video_putc(char c)
 {
     if (framebuffer_type != MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT)
     {
+        if (in_escape_sequence)
+        {
+            handle_escape_sequence_char(c);
+            if (!in_escape_sequence)
+            {
+                parse_escape_sequence(escape_sequence);
+                kfree(escape_sequence);
+            }
+            return;
+        }
+
         if (c == '\n')
         {
             char_pos_x = 0;
@@ -492,6 +746,10 @@ void video_putc(char c)
             }
             // just use drawRect to draw a space, to avoid displayChar overhead and background enabling
             fb_video_fillrect(char_pos_x * FONT_WIDTH, char_pos_y * header->fontheight, FONT_WIDTH, header->fontheight, video_bg);
+        }
+        else if (c == '\033')
+        {
+            begin_escape_sequence();
         }
         else
         {
@@ -544,9 +802,8 @@ void video_putc(char c)
     }
 }
 
-
-
-pointer_int_t simple_output_open(char *path, uint64_t flags, void *device_passed) {
+pointer_int_t simple_output_open(char *path, uint64_t flags, void *device_passed)
+{
     UNUSED(path);
     UNUSED(flags);
     UNUSED(device_passed);
@@ -554,24 +811,27 @@ pointer_int_t simple_output_open(char *path, uint64_t flags, void *device_passed
     return (pointer_int_t){NULL, 0};
 }
 
-size_t simple_output_write(void *ptr, size_t size, size_t nmemb, void *data, void *device_passed, uint64_t flags) {
+size_t simple_output_write(void *ptr, size_t size, size_t nmemb, void *data, void *device_passed, uint64_t flags)
+{
     UNUSED(data);
     UNUSED(device_passed);
     UNUSED(flags);
 
     // literally just write bytes until size * nmemb
-    for (size_t i = 0; i < size * nmemb; i++) {
+    for (size_t i = 0; i < size * nmemb; i++)
+    {
         video_putc(((char *)ptr)[i]);
     }
     return size * nmemb;
 }
 
-device_t *init_simple_output() {
+device_t *init_simple_output()
+{
     strcpy(simple_output_device.name, "simple_output");
     simple_output_device.flags = 0;
     simple_output_device.data = NULL;
     simple_output_device.next = NULL;
-    
+
     simple_output_device.open = (open_func_t)simple_output_open;
     simple_output_device.read = NULL;
     simple_output_device.close = NULL;

@@ -42,7 +42,7 @@ void kmain() {
 
     printf("Hello from a 64-bit graphical kernel!!\n");
 
-    printf("Kheap end: 0x%lx\n", (uint64_t)info->kheap_end + VIRT_MEM_OFFSET);
+    serial_printf("Kheap end: 0x%lx\n", (uint64_t)info->kheap_end + VIRT_MEM_OFFSET);
 
     // Adjust ramdisk accordingly
     serial_printf("Got ramdisk at 0x%lx\n", (uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET);
@@ -51,21 +51,8 @@ void kmain() {
     init_simple_output();
     keyboard_install();
 
-    int fd = fopen("/mnt/ramdisk/logo.txt", 0, 0);
-    if (fd < 0) {
-        printf("Failed to open file! Error code: %d / 0x%x\n", fd, fd);
-    } else {
-        char buf[1024];
-        int read = fread(buf, 1, 1024, fd);
-        if (read < 0) {
-            printf("Failed to read file\n");
-        } else {
-            printf("Read %d bytes\n", read);
-            for (int i = 0; i < read; i++) {
-                printf("%c", buf[i]);
-            }
-        }
-    }
+    // test printing in ANSI color
+    printf("\033[1;31mThis is red text\033[0m\n");
 
     printf("\n\nBefore we jump to the usermode program, roadmap:\n");
     printf("  - Simple shell of some sort using keyboard input (usermode)\n");
@@ -77,7 +64,7 @@ void kmain() {
     printf("  - USB stack\n");
     printf("Now back to your regularly scheduled program...\n\n");
 
-    fd = fopen("/mnt/ramdisk/bin/Xansh.elf", 0, 0);
+    int fd = fopen("/mnt/ramdisk/bin/Xansh.elf", 0, 0);
     if (fd < 0) {
         printf("Failed to open file\n");
     } else {

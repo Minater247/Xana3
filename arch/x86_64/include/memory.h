@@ -65,6 +65,7 @@ uint64_t virt_to_phys(uint64_t virt, page_directory_t *pd);
 void free_page(uint64_t virt, page_directory_t *pd);
 int memory_set_protection(void *addr, uint64_t length, uint64_t prot);
 bool is_page_free(uint64_t virt);
+void *krealloc(void *ptr, uint64_t size);
 
 extern page_directory_t *current_pml4;
 

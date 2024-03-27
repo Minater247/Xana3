@@ -780,6 +780,15 @@ void *kmalloc(uint64_t size)
     return kmalloc_int(size, false, NULL);
 }
 
+void *krealloc(void *ptr, uint64_t size)
+{
+    heap_header_t *header = (heap_header_t *)((uint64_t)ptr - sizeof(heap_header_t));
+    void *new_ptr = kmalloc(size);
+    memcpy(new_ptr, ptr, header->length);
+    kfree(ptr);
+    return new_ptr;
+}
+
 
 int memory_set_protection(void *addr, uint64_t length, uint64_t prot)
 {
