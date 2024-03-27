@@ -138,6 +138,7 @@ int fopen(char *path, int flags, mode_t mode) {
 
     pointer_int_t returned = device->open((char *)((uint64_t)&resolution_buffer + resolution.value), flags, device);
     if (returned.value != 0) {
+        printf("Open failed: %d\n", returned.value);
         return returned.value;
     }
 
@@ -199,6 +200,7 @@ int fclose(int fd) {
 
 size_t fread(void *ptr, size_t size, size_t nmemb, int fd) {
     file_descriptor_t *current = file_descriptors;
+
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->read == NULL) {

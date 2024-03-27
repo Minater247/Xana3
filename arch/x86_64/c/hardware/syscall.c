@@ -34,11 +34,16 @@ int64_t syscall_close(regs_t *regs) {
     return fclose(regs->rdi);
 }
 
+int64_t syscall_read(regs_t *regs) {
+    return fread((void *)regs->rsi, regs->rdx, 1, regs->rdi);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
     }
 
+    syscall_table[0] = &syscall_read;
     syscall_table[1] = &syscall_write;
     syscall_table[2] = &syscall_open;
     syscall_table[3] = &syscall_close;

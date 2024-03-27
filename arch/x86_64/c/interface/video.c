@@ -475,6 +475,22 @@ void video_putc(char c)
         {
             char_pos_x += 4;
         }
+        else if (c == '\b')
+        {
+            // move cursor left, wrapping around if necessary
+            // also draw a space where the cursor has moved to
+            if (char_pos_x == 0)
+            {
+                char_pos_x = framebuffer_width / FONT_WIDTH - 1;
+                char_pos_y--;
+            }
+            else
+            {
+                char_pos_x--;
+            }
+            // just use drawRect to draw a space, to avoid displayChar overhead and background enabling
+            fb_video_fillrect(char_pos_x * FONT_WIDTH, char_pos_y * header->fontheight, FONT_WIDTH, header->fontheight, video_bg);
+        }
         else
         {
             displayChar(c, char_pos_x * FONT_WIDTH, char_pos_y * header->fontheight + 1, video_fg, (uint8_t *)((uint64_t)&font_data_start + sizeof(struct psf1_header)));

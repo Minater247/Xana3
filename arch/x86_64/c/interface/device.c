@@ -12,6 +12,7 @@
 
 device_t *xandisk_devices = NULL;
 device_t *simpleo_devices = NULL;
+device_t *keyboard_devices = NULL;
 
 device_t device_device;
 
@@ -37,6 +38,14 @@ device_t *register_device(device_t *device_to_register) {
         device_t *current_device = simpleo_devices;
         if (current_device == NULL) {
             simpleo_devices = device_to_register;
+            device_to_register->id = 0;
+        } else {
+            insert_device(current_device, device_to_register);
+        }
+    } else if (device_to_register->type == DEVICE_TYPE_KYBOARD) {
+        device_t *current_device = keyboard_devices;
+        if (current_device == NULL) {
+            keyboard_devices = device_to_register;
             device_to_register->id = 0;
         } else {
             insert_device(current_device, device_to_register);
@@ -119,17 +128,46 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed) {
                 }
                 current_device = current_device->next;
             }
+        } else if (strncmp(part, "kb", 2) == 0) {
+            // we have a keyboard device
+            dev_t device_number = atoi(&part[first_number]);
+            device_t *current_device = keyboard_devices;
+            if (current_device == NULL) {
+                printf("No keyboard devices found\n");
+                return (pointer_int_t){NULL, -ENODEV};
+            }
+            while (current_device != NULL) {
+                printf("Checking device %d\n", current_device->id);
+                if (current_device->id == device_number) {
+                    device_open_data_t *data = (device_open_data_t *)kmalloc(sizeof(device_open_data_t));
+                    printf("Open is: %lx\n", current_device->open);
+                    pointer_int_t open_data = current_device->open(path, flags, current_device);
+                    if (open_data.value != 0) {
+                        return open_data;
+                    }
+                    data->data = open_data.pointer;
+                    data->device = current_device;
+                    return (pointer_int_t){data, 0};
+                }
+                current_device = current_device->next;
+            }
         }
     }
 
     printf("Device not found\n");
-    return (pointer_int_t){NULL, -1};
+    return (pointer_int_t){NULL, -ENODEV};
 }
 
 size_t device_write(void *data, size_t size, size_t count, device_open_data_t *device_to_write, device_t *this_device, uint64_t flags) {
     UNUSED(this_device);
 
     return device_to_write->device->write(data, size, count, device_to_write->data, device_to_write->device, flags);
+}
+
+size_t device_read(void *data, size_t size, size_t count, device_open_data_t *device_to_read, device_t *this_device, uint64_t flags) {
+    UNUSED(this_device);
+
+    return device_to_read->device->read(data, size, count, device_to_read->data, device_to_read->device, flags);
 }
 
 int device_close(device_open_data_t *data, device_t *device) {
@@ -148,7 +186,7 @@ void init_device_device() {
     
     // we need to cast the function pointer to return void *, like a function type taking path, flags, and device_t *, and returning a void *
     device_device.open = (open_func_t)device_open;
-    device_device.read = NULL;
+    device_device.read = (read_func_t)device_read;
     device_device.close = NULL;
     device_device.fcntl = NULL;
     device_device.write = (write_func_t)device_write;

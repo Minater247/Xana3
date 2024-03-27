@@ -259,8 +259,6 @@ void fault_handler(regs_t *regs)
 
 void irq_handler(regs_t *regs)
 {
-    printf("IRQ: %d\n", regs->int_no - 32);
-
     if (isr_handlers[regs->int_no - 32] != 0)
     {
         isr_handlers[regs->int_no - 32](regs);

@@ -15,6 +15,7 @@
 #include <tables.h>
 #include <syscall.h>
 #include <device.h>
+#include <keyboard.h>
 
 uint32_t passed_info;
 
@@ -48,6 +49,7 @@ void kmain() {
     filesystem_init(init_ramdisk_device((uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET));
     init_device_device();
     init_simple_output();
+    keyboard_install();
 
     int fd = fopen("/mnt/ramdisk/logo.txt", 0, 0);
     printf("FD: %d\n", fd);

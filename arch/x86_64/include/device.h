@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <stddef.h>
 
 #define NAME_MAX 255
 
@@ -15,6 +16,7 @@ typedef struct
 #define DEVICE_TYPE_DEVICES 0x0
 #define DEVICE_TYPE_XANDISK 0x1
 #define DEVICE_TYPE_SIMPLOU 0x2
+#define DEVICE_TYPE_KYBOARD 0x3
 
 typedef pointer_int_t (*open_func_t)(const char *, uint64_t, void *);
 typedef size_t (*read_func_t)(void *, size_t, size_t, void *, void *, uint64_t);
