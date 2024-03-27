@@ -13,6 +13,7 @@
 #include <device.h>
 
 ramdisk_t boot_ramdisk;
+device_t ramdisk_device;
 
 ramdisk_file_t *ramdisk_get_path_header(char *path, ramdisk_t *ramdisk) {
     if (path[0] != '/') {
@@ -204,21 +205,20 @@ device_t *init_ramdisk_device(uint64_t addr) {
     serial_printf("Files: 0x%lx\n", (uint64_t)boot_ramdisk.files);
     serial_printf("Data: 0x%lx\n", (uint64_t)boot_ramdisk.data);
 
-    device_t *ramdisk_device = (device_t *)kmalloc(sizeof(device_t));
-    strcpy(ramdisk_device->name, "ramdisk");
-    ramdisk_device->flags = 0;
-    ramdisk_device->data = (void *)&boot_ramdisk;
-    ramdisk_device->next = NULL;
+    strcpy(ramdisk_device.name, "ramdisk");
+    ramdisk_device.flags = 0;
+    ramdisk_device.data = (void *)&boot_ramdisk;
+    ramdisk_device.next = NULL;
     
     // we need to cast the function pointer to return void *, like a function type taking path, flags, and device_t *, and returning a void *
-    ramdisk_device->open = (open_func_t)ramdisk_open;
-    ramdisk_device->read = (read_func_t)ramdisk_read;
-    ramdisk_device->close = (close_func_t)ramdisk_close;
-    ramdisk_device->fcntl = (fcntl_func_t)fnctl;
+    ramdisk_device.open = (open_func_t)ramdisk_open;
+    ramdisk_device.read = (read_func_t)ramdisk_read;
+    ramdisk_device.close = (close_func_t)ramdisk_close;
+    ramdisk_device.fcntl = (fcntl_func_t)fnctl;
 
-    ramdisk_device->file_size = (file_size_func_t)file_size;
+    ramdisk_device.file_size = (file_size_func_t)file_size;
 
-    ramdisk_device->type = DEVICE_TYPE_XANDISK;
+    ramdisk_device.type = DEVICE_TYPE_XANDISK;
 
-    return register_device(ramdisk_device);
+    return register_device(&ramdisk_device);
 }
