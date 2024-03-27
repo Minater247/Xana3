@@ -249,7 +249,7 @@ bool is_page_free(uint64_t virt) {
 
 void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t framebuffer_tag_addr)
 {
-    printf("Initializing kheap @ 0x%lx\n", old_kheap_end);
+    serial_printf("Initializing kheap @ 0x%lx\n", old_kheap_end);
 
     kheap_end = old_kheap_end + VIRT_MEM_OFFSET;
 
@@ -273,12 +273,12 @@ void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t frameb
     }
 
     char buf[15];
-    printf("Total installed memory: 0x%lx (%s)\n", total_memory, format_memory(total_memory, (char *)&buf));
+    serial_printf("Total installed memory: 0x%lx (%s)\n", total_memory, format_memory(total_memory, (char *)&buf));
 
     // We need to read cr3 to locate the current page table
     uint64_t cr3;
     asm volatile("mov %%cr3, %0" : "=r"(cr3));
-    printf("Current PML4: 0x%lx\n", cr3);
+    serial_printf("Current PML4: 0x%lx\n", cr3);
     pml4 = (page_directory_t *)(cr3 + VIRT_MEM_OFFSET);
     current_pml4 = pml4;
 
@@ -336,7 +336,7 @@ void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t frameb
     kheap = (heap_header_t *)(last_mapped_virtaddr);
     kheap_end = (uint64_t)kheap + (INIT_HEAP_PAGES * 0x1000) - 1;
     uint64_t new_map;
-    printf("New heap address: 0x%lx\n", kheap);
+    serial_printf("New heap address: 0x%lx\n", kheap);
     
     for (uint64_t i = (uint64_t)kheap; i < kheap_end; i += 0x1000) {
         new_map = first_free_page_addr();
@@ -365,8 +365,8 @@ void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t frameb
     // MTODO: we need to adjust the virt field of each page directory by VIRT_MEM_OFFSET
     // we didn't do this in the preloader to avoid 64-bit math in 32-bit mode
 
-    printf("Final state: %d%% of memory used\n", (first_free_page_addr() * 100) / total_memory);
-    printf("First free page: 0x%lx\n", first_free_page_addr());
+    serial_printf("Final state: %d%% of memory used\n", (first_free_page_addr() * 100) / total_memory);
+    serial_printf("First free page: 0x%lx\n", first_free_page_addr());
 }
 
 bool is_in_usable_memory(uint64_t phys_addr)

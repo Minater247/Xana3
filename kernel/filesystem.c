@@ -128,7 +128,7 @@ int fopen(char *path, int flags, mode_t mode) {
     device_t *device = resolution.pointer;
 
     if (device == NULL) {
-        printf("Resolution found no device!");
+        serial_printf("Resolution found no device!");
         return -ENOENT;
     }
 
@@ -138,14 +138,13 @@ int fopen(char *path, int flags, mode_t mode) {
 
     pointer_int_t returned = device->open((char *)((uint64_t)&resolution_buffer + resolution.value), flags, device);
     if (returned.value != 0) {
-        printf("Open failed: %d\n", returned.value);
+        serial_printf("Open failed: %d\n", returned.value);
         return returned.value;
     }
 
     file_descriptor_t *fd = (file_descriptor_t *)kmalloc(sizeof(file_descriptor_t));
 
     file_descriptor_t *current = file_descriptors;
-    printf("Current: %lx\n", current);
     if (current == NULL) {
         fd->descriptor_id = 0;
         fd->next = NULL;

@@ -54,6 +54,9 @@ int64_t syscall_handler(regs_t *regs)
 {
     if (syscall_table[regs->rax] != NULL) {
         return syscall_table[regs->rax](regs);
+    } else {
+        printf("Unknown syscall: %d\n", regs->rax);
+        while (true);
     }
 
     return -ENOSYS;

@@ -52,7 +52,6 @@ void kmain() {
     keyboard_install();
 
     int fd = fopen("/mnt/ramdisk/logo.txt", 0, 0);
-    printf("FD: %d\n", fd);
     if (fd < 0) {
         printf("Failed to open file! Error code: %d / 0x%x\n", fd, fd);
     } else {
@@ -68,12 +67,21 @@ void kmain() {
         }
     }
 
-    fd = fopen("/mnt/ramdisk/bin/XanHello.elf", 0, 0);
-    printf("XANHELLO FD: %d\n", fd);
+    printf("\n\nBefore we jump to the usermode program, roadmap:\n");
+    printf("  - Simple shell of some sort using keyboard input (usermode)\n");
+    printf("  - Multitasking\n");
+    printf("  - Image drawing\n");
+    printf("  - Filesystem (EXT2, ISO9660)\n");
+    printf("  - ACPI AML parsing\n");
+    printf("  - PCI device enumeration\n");
+    printf("  - USB stack\n");
+    printf("Now back to your regularly scheduled program...\n\n");
+
+    fd = fopen("/mnt/ramdisk/bin/Xansh.elf", 0, 0);
     if (fd < 0) {
         printf("Failed to open file\n");
     } else {
-        size_t size = file_size_internal("/mnt/ramdisk/bin/XanHello.elf");
+        size_t size = file_size_internal("/mnt/ramdisk/bin/Xansh.elf");
         char *buf = kmalloc(size);
         int read = fread(buf, 1, size, fd);
         if (read < 0) {

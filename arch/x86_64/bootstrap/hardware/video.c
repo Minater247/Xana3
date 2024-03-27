@@ -425,15 +425,6 @@ bool video_init(struct multiboot_tag_framebuffer *tag)
     // Initialize font data
     header = (struct psf1_header *)&font_data_start;
 
-    printf("Framebuffer address: 0x%lx\n", (uint32_t)video);
-    printf("Framebuffer type: %d\n", framebuffer_type);
-    printf("Framebuffer width: %d\n", framebuffer_width);
-    printf("Framebuffer height: %d\n", framebuffer_height);
-    printf("Framebuffer bpp: %d\n", framebuffer_bpp);
-    printf("Framebuffer pitch: %d\n", framebuffer_pitch);
-    printf("Framebuffer palette: 0x%lx\n", (uint32_t)framebuffer_palette);
-    printf("Framebuffer palette num colors: %d\n", framebuffer_palette_num_colors);
-
     return true;
 }
 

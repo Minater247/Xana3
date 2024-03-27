@@ -102,6 +102,11 @@ pointer_int_t ramdisk_open(char *path, uint64_t flags, void *device_passed) {
 
     // TODO: check major/minor device numbers to make sure we're opening the right type of device
 
+    if (file == NULL) {
+        // didn't find the file
+        return (pointer_int_t){NULL, -ENOENT};
+    }
+
     serial_printf("Got file: %s\n", file->file_name);
 
     if (file == NULL) {
@@ -192,13 +197,13 @@ device_t *init_ramdisk_device(uint64_t addr) {
     boot_ramdisk.files = (ramdisk_file_t *)((uint64_t)info->files + VIRT_MEM_OFFSET);
     boot_ramdisk.data = (void *)((uint64_t)info->data + VIRT_MEM_OFFSET);
 
-    printf("Got ramdisk @ 0x%lx\n", addr);
-    printf("Points to location: 0x%lx\n", boot_ramdisk.hdr);
-    printf("Which contains the info:\n");
-    printf("\tSize: 0x%x\n", boot_ramdisk.hdr->size);
-    printf("\tFiles: %d\n", boot_ramdisk.hdr->files);
-    printf("\tHeader Size: 0x%x\n", boot_ramdisk.hdr->hdr_size);
-    printf("\tRoot Entries: %d\n", boot_ramdisk.hdr->root_ents);
+    serial_printf("Got ramdisk @ 0x%lx\n", addr);
+    serial_printf("Points to location: 0x%lx\n", boot_ramdisk.hdr);
+    serial_printf("Which contains the info:\n");
+    serial_printf("\tSize: 0x%x\n", boot_ramdisk.hdr->size);
+    serial_printf("\tFiles: %d\n", boot_ramdisk.hdr->files);
+    serial_printf("\tHeader Size: 0x%x\n", boot_ramdisk.hdr->hdr_size);
+    serial_printf("\tRoot Entries: %d\n", boot_ramdisk.hdr->root_ents);
 
     serial_printf("Ramdisk initialized\n");
     serial_printf("Header: 0x%lx\n", (uint64_t)boot_ramdisk.hdr);
