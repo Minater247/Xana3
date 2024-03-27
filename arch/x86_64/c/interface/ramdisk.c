@@ -17,44 +17,34 @@ device_t ramdisk_device;
 
 ramdisk_file_t *ramdisk_get_path_header(char *path, ramdisk_t *ramdisk) {
     if (path[0] != '/') {
-        serial_printf("Invalid path: %s\n", path);
         return NULL;
     }
     ramdisk_file_t *current = ramdisk->files;
     uint32_t path_depth = get_path_depth(path);
     uint32_t i = 0;
-    serial_printf("Parsing %s (depth %d)\n", path, path_depth);
     while (1) {
         char part[64];
         get_path_part(path, part, i);
         if (current->magic == FILE_ENTRY) {
             // check the name
-            serial_printf("Got file: %s\n", current->file_name);
             if (strcmp(part, current->file_name) == 0) {
-                serial_printf("Found %s\n", current->file_name);
                 return current;
             } else {
-                serial_printf("Skipping %s\n", current->file_name);
                 current = (ramdisk_file_t *)((uint64_t)current + sizeof(ramdisk_file_t));
             }
         } else if (current->magic == DIR_ENTRY) {
-            serial_printf("Got dir: %s\n", current->file_name);
             ramdisk_file_t *entries = (ramdisk_file_t *)((uint64_t)current + sizeof(ramdisk_file_t));
             uint32_t entries_count = current->size;
             if (strcmp(part, current->file_name) == 0) {
                 // if we're at the end of the path, we found the directory
-                serial_printf("Comparing %d, %d\n", i, path_depth - 1);
                 if (i == path_depth - 1) {
-                    serial_printf("Found %s\n", current->file_name);
                     return current;
                 }
                 // we want to move into this directory's contents
-                serial_printf("Moving into %s\n", part);
                 current = entries;
                 i++;
             } else {
                 // we want to skip this directory
-                serial_printf("Skipping %s\n", current->file_name);
                 current = (ramdisk_file_t *)((uint64_t)current + (sizeof(ramdisk_file_t) * (entries_count + 1)));
             }
         }
@@ -63,7 +53,6 @@ ramdisk_file_t *ramdisk_get_path_header(char *path, ramdisk_t *ramdisk) {
             break;
         }
     }
-    serial_printf("Bad path: %s\n", path);
     return NULL;
 }
 
@@ -85,8 +74,6 @@ char *ramdisk_get_header_data(ramdisk_file_t *header, ramdisk_t *ramdisk) {
 pointer_int_t ramdisk_open(char *path, uint64_t flags, void *device_passed) {
     UNUSED(flags);
 
-    serial_printf("RAMDISK_OPEN: %s\n", path);
-
     if (path[0] != '/') {
         return (pointer_int_t){NULL, -EINVAL};
     }
@@ -106,8 +93,6 @@ pointer_int_t ramdisk_open(char *path, uint64_t flags, void *device_passed) {
         // didn't find the file
         return (pointer_int_t){NULL, -ENOENT};
     }
-
-    serial_printf("Got file: %s\n", file->file_name);
 
     if (file == NULL) {
         // didn't find the file
@@ -181,7 +166,6 @@ int fnctl(int cmd, long arg, void *file_entry, void *device) {
         ramdisk_file_entry_t *entry = (ramdisk_file_entry_t *)file_entry;
         ramdisk_file_t *file = entry->file;
         strcat(retpath, file->file_name);
-        serial_printf("F_GETPATH: %s\n", retpath);
         return 0;
     }
 
@@ -196,19 +180,6 @@ device_t *init_ramdisk_device(uint64_t addr) {
     boot_ramdisk.hdr = (ramdisk_hdr_t *)((uint64_t)info->hdr + VIRT_MEM_OFFSET);
     boot_ramdisk.files = (ramdisk_file_t *)((uint64_t)info->files + VIRT_MEM_OFFSET);
     boot_ramdisk.data = (void *)((uint64_t)info->data + VIRT_MEM_OFFSET);
-
-    serial_printf("Got ramdisk @ 0x%lx\n", addr);
-    serial_printf("Points to location: 0x%lx\n", boot_ramdisk.hdr);
-    serial_printf("Which contains the info:\n");
-    serial_printf("\tSize: 0x%x\n", boot_ramdisk.hdr->size);
-    serial_printf("\tFiles: %d\n", boot_ramdisk.hdr->files);
-    serial_printf("\tHeader Size: 0x%x\n", boot_ramdisk.hdr->hdr_size);
-    serial_printf("\tRoot Entries: %d\n", boot_ramdisk.hdr->root_ents);
-
-    serial_printf("Ramdisk initialized\n");
-    serial_printf("Header: 0x%lx\n", (uint64_t)boot_ramdisk.hdr);
-    serial_printf("Files: 0x%lx\n", (uint64_t)boot_ramdisk.files);
-    serial_printf("Data: 0x%lx\n", (uint64_t)boot_ramdisk.data);
 
     strcpy(ramdisk_device.name, "ramdisk");
     ramdisk_device.flags = 0;

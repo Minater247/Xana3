@@ -57,6 +57,9 @@ void preboot_load(uint32_t magic, void *mbd) {
     passed_info.kheap_end = kheap_loc;
     passed_info.ramdisk_addr = (uint32_t)&boot_ramdisk;
     passed_info.mmap_tag_addr = mmap_tag;
+    passed_info.elf_symbols_addr = symbols_location;
+    passed_info.elf_strings_addr = strings_location;
+    passed_info.elf_symbol_count = symbols_count;
 
     gdt_init64(kernel_entry);
 

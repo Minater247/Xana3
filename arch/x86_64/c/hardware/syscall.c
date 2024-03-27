@@ -8,6 +8,7 @@
 #include <filesystem.h>
 #include <syscall.h>
 #include <sys/errno.h>
+#include <trace.h>
 
 syscall_t syscall_table[512];
 
@@ -20,6 +21,8 @@ int64_t syscall_exit(regs_t *regs) {
     // to be dealt with when multitasking is implemented
 
     printf("Process exited with code %d\n", regs->rdi);
+
+    traceback(10);
 
     asm volatile ("sti");
 

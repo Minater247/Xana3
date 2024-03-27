@@ -392,20 +392,8 @@ bool video_init(struct multiboot_tag_framebuffer *tag)
     framebuffer_palette = tagfb->framebuffer_palette;
     framebuffer_palette_num_colors = tagfb->framebuffer_palette_num_colors;
 
-    serial_printf("Framebuffer address: 0x%lx\n", (uint64_t)video);
-    serial_printf("Framebuffer type: %d\n", framebuffer_type);
-    serial_printf("Framebuffer width: %d\n", framebuffer_width);
-    serial_printf("Framebuffer height: %d\n", framebuffer_height);
-    serial_printf("Framebuffer bpp: %d\n", framebuffer_bpp);
-    serial_printf("Framebuffer pitch: %d\n", framebuffer_pitch);
-    serial_printf("Framebuffer palette: 0x%lx\n", (uint64_t)framebuffer_palette);
-    serial_printf("Framebuffer palette num colors: %d\n", framebuffer_palette_num_colors);
-
     video_fg = framebuffer_get_color(RGB2COLOR(0xff, 0xff, 0xff));
     video_bg = framebuffer_get_color(RGB2COLOR(0, 0, 0));
-
-    serial_printf("Foreground color: 0x%x\n", video_fg);
-    serial_printf("Background color: 0x%x\n", video_bg);
 
     // Clear the screen
     fb_video_clearto(video_bg);
@@ -422,8 +410,6 @@ bool video_init(struct multiboot_tag_framebuffer *tag)
     // top left should lie on the line and be 1/8 of the way across
     // size should be 1/2 of the screen height
     fb_video_fillrect(framebuffer_width / 8, framebuffer_width / 8, framebuffer_height / 2, framebuffer_height / 2, color);
-
-    serial_printf("BPP: %d\n", framebuffer_bpp);
 
     // Initialize font data
     header = (struct psf1_header *)&font_data_start;
@@ -461,6 +447,7 @@ void scroll(uint32_t n_pixels)
 bool in_escape_sequence = false;
 char *escape_sequence = NULL;
 uint32_t escape_sequence_length = 0;
+uint64_t sequence_buffer_size = 0;
 
 void begin_escape_sequence()
 {
@@ -468,6 +455,7 @@ void begin_escape_sequence()
     escape_sequence = kmalloc(64);
     escape_sequence[0] = '\0';
     escape_sequence_length = 0;
+    sequence_buffer_size = 64;
 }
 
 void handle_escape_sequence_color(uint32_t color)
@@ -671,9 +659,10 @@ void handle_escape_sequence_char(char c)
         else
         {
             // if length is too long, realloc
-            if (escape_sequence_length >= 64)
+            if (escape_sequence_length >= sequence_buffer_size)
             {
                 escape_sequence = krealloc(escape_sequence, escape_sequence_length + 64);
+                sequence_buffer_size += 64;
             }
 
             escape_sequence[escape_sequence_length++] = c;
@@ -683,9 +672,10 @@ void handle_escape_sequence_char(char c)
     }
 
     // if length is too long, realloc
-    if (escape_sequence_length >= 64)
+    if (escape_sequence_length >= sequence_buffer_size)
     {
         escape_sequence = krealloc(escape_sequence, escape_sequence_length + 64);
+        sequence_buffer_size += 64;
     }
 
     // if it's a number of ;, we're still in the sequence

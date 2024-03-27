@@ -12,5 +12,6 @@ extern uint64_t multiboot_total_memory;
 extern uint64_t multiboot_max_addr;
 extern uint32_t framebuffer_tag;
 extern uint32_t mmap_tag;
+extern uint32_t elf_sections_tag;
 
 #endif

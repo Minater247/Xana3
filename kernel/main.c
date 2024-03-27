@@ -16,6 +16,7 @@
 #include <syscall.h>
 #include <device.h>
 #include <keyboard.h>
+#include <trace.h>
 
 uint32_t passed_info;
 
@@ -40,12 +41,11 @@ void kmain() {
 
     syscall_init();
 
+    traceback_init(info->elf_symbols_addr, info->elf_strings_addr, info->elf_symbol_count);
+
     printf("Hello from a 64-bit graphical kernel!!\n");
 
-    serial_printf("Kheap end: 0x%lx\n", (uint64_t)info->kheap_end + VIRT_MEM_OFFSET);
-
     // Adjust ramdisk accordingly
-    serial_printf("Got ramdisk at 0x%lx\n", (uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET);
     filesystem_init(init_ramdisk_device((uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET));
     init_device_device();
     init_simple_output();

@@ -82,11 +82,9 @@ pointer_int_t device_open_helper(device_t *device_list, char *part, uint32_t fir
     dev_t device_number = atoi(&part[first_number]);
     device_t *current_device = device_list;
     if (current_device == NULL) {
-        serial_printf("No devices found for the given prefix\n");
         return (pointer_int_t){NULL, -ENODEV};
     }
     while (current_device != NULL) {
-        serial_printf("Checking device %d\n", current_device->id);
         if (current_device->id == device_number) {
             device_open_data_t *data = (device_open_data_t *)kmalloc(sizeof(device_open_data_t));
             pointer_int_t open_data = current_device->open(path, flags, current_device);
@@ -106,8 +104,6 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed)
 {
     UNUSED(flags);
     UNUSED(device_passed);
-
-    serial_printf("DEVICE_OPEN: %s\n", path);
 
     if (path[0] != '/')
     {
@@ -132,8 +128,6 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed)
             return (pointer_int_t){NULL, -ENODEV};
         }
 
-        serial_printf("First numeric char idx: %d\n", first_number);
-
         // now we can strncmp everything before the number to get the device name!
         // for now, only checking for "xd" (xandisk) and "so" (simple output)
         if (strncmp(part, "xd", 2) == 0)
@@ -150,7 +144,6 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed)
         }
     }
 
-    serial_printf("Device not found\n");
     return (pointer_int_t){NULL, -ENODEV};
 }
 

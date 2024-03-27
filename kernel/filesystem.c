@@ -71,15 +71,11 @@ int mount_at(char *path, device_t *device, char *filesystemtype, unsigned long m
 pointer_int_t get_path_device(char *path) {
     mount_t *current_mount = mounts;
     while (current_mount != NULL) {
-        serial_printf("Comparing %s to %s\n", current_mount->path, path);
         if (strncmp(current_mount->path, path, strlen(current_mount->path)) == 0) {
-            serial_printf("strncmp works out...");
             if (path[strlen(current_mount->path)] == '/' || path[strlen(current_mount->path)] == '\0') {
-                serial_printf("gotcha!\n");
                 return (pointer_int_t){current_mount->filesystem, strlen(current_mount->path)};
             }
         }
-        serial_printf("nope, continuing!");
         current_mount = current_mount->next;
     }
     return (pointer_int_t){root_filesystem, 0};
@@ -128,7 +124,6 @@ int fopen(char *path, int flags, mode_t mode) {
     device_t *device = resolution.pointer;
 
     if (device == NULL) {
-        serial_printf("Resolution found no device!");
         return -ENOENT;
     }
 
@@ -138,7 +133,6 @@ int fopen(char *path, int flags, mode_t mode) {
 
     pointer_int_t returned = device->open((char *)((uint64_t)&resolution_buffer + resolution.value), flags, device);
     if (returned.value != 0) {
-        serial_printf("Open failed: %d\n", returned.value);
         return returned.value;
     }
 
