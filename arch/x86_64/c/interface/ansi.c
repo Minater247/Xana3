@@ -227,6 +227,36 @@ void handle_escape_sequence_color(uint32_t color)
     }
 }
 
+void handleHome(char *seq) {
+    // Go to home position if no arguments, or to the position specified if 2
+    if (seq[1] == 'H') {
+        video_set_cursor(0, 0);
+    } else {
+        // Parse the numbers
+        char *where = seq;
+        uint32_t row = 0;
+        uint32_t col = 0;
+        uint32_t i = 0;
+        while (*where != 'H')
+        {
+            if (*where >= '0' && *where <= '9')
+            {
+                if (i == 0) {
+                    row = row * 10 + (*where - '0');
+                } else {
+                    col = col * 10 + (*where - '0');
+                }
+            }
+            else if (*where == ';')
+            {
+                i++;
+            }
+            where++;
+        }
+        video_set_cursor(row - 1, col - 1);
+    }
+}
+
 void parse_escape_sequence(char *seq)
 {
     // We will have something like \033[1;31m
@@ -254,6 +284,25 @@ void parse_escape_sequence(char *seq)
             where++;
         }
         handle_escape_sequence_color(color);
+        break;
+    }
+    case 'J':
+    {
+        // Clear screen. May have an argument, but defaults to 0
+        if (seq[1] == '2')
+        {
+            fb_video_clear();
+        } else if (seq[1] == '1') {
+            fb_video_clear_up();
+        } else {
+            fb_video_clear_down();
+        }
+        break;
+    }
+    case 'H':
+    {
+        // Go to home position if no arguments, or to the position specified if 2
+        handleHome(seq);
         break;
     }
     default:

@@ -220,6 +220,20 @@ size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd) {
     return -EBADF;
 }
 
+size_t fgetdents64(int fd, void *ptr, size_t count) {
+    file_descriptor_t *current = file_descriptors;
+    while (current != NULL) {
+        if (current->descriptor_id == fd) {
+            if (current->device->getdents64 == NULL) {
+                return -ENOTSUP;
+            }
+            return current->device->getdents64(ptr, count, current->data, current->device);
+        }
+        current = current->next;
+    }
+    return -EBADF;
+}
+
 size_t file_size_internal(char *path) {
     pointer_int_t resolution = get_path_device(path);
     device_t *device = resolution.pointer;

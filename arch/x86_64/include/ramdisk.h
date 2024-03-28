@@ -46,6 +46,7 @@ ramdisk_file_t *ramdisk_get_path_header(char *path, ramdisk_t *ramdisk);
 char *ramdisk_get_path_data(char *path, ramdisk_t *ramdisk);
 char *ramdisk_get_header_data(ramdisk_file_t *header, ramdisk_t *ramdisk);
 device_t *init_ramdisk_device(uint64_t addr);
+size_t read_dirents(void *ptr, size_t count, void *file_entry_passed, void *device_passed);
 
 
 extern ramdisk_t boot_ramdisk;

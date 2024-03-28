@@ -55,7 +55,6 @@ void kmain() {
     printf("\033[1;31mThis is red text\033[0m\n");
 
     printf("\n\nBefore we jump to the usermode program, roadmap:\n");
-    printf("  - Simple shell of some sort using keyboard input (usermode)\n");
     printf("  - Multitasking\n");
     printf("  - Image drawing\n");
     printf("  - Filesystem (EXT2, ISO9660)\n");

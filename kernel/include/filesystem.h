@@ -91,6 +91,14 @@ typedef struct file_descriptor
 	struct file_descriptor *next;
 } file_descriptor_t;
 
+struct dirent64
+{
+	ino_t d_ino;		   /* inode number */
+	off_t d_off;		   /* offset to the next dirent */
+	unsigned short d_reclen; /* length of this record */
+	char d_name[];		   /* filename */
+};
+
 uint32_t get_path_depth(char *path);
 void get_path_part(char *path, char *part, uint32_t part_num);
 void filesystem_init(device_t *ramdisk_device);
@@ -102,5 +110,6 @@ int fcntl(int fd, int cmd, long arg);
 int fclose(int fd);
 int mount_at(char *path, device_t *device, char *filesystemtype, unsigned long mountflags);
 size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd);
+size_t fgetdents64(int fd, void *ptr, size_t count);
 
 #endif

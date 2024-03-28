@@ -25,5 +25,9 @@ void video_putc(char c);
 void video_puts(const char *s, int x, int y, uint32_t c, uint8_t chars[]);
 void enableBackground(bool enable);
 device_t *init_simple_output();
+void fb_video_clear();
+void fb_video_clear_up();
+void fb_video_clear_down();
+void video_set_cursor(uint32_t x, uint32_t y);
 
 #endif

@@ -226,6 +226,90 @@ void fb_video_clearto(uint32_t color)
     }
 }
 
+void fb_video_clear()
+{
+    fb_video_clearto(video_bg);
+}
+
+void fb_video_clear_up() {
+    // ANSI 1J
+    // Clear from cursor to beginning of screen
+
+    // step 1: clear from cursor to beginning of line (rectangle 1)
+    if (framebuffer_type != MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT)
+    {
+        fb_video_fillrect(0, char_pos_y * header->fontheight, (char_pos_x + 1) * FONT_WIDTH, header->fontheight, video_bg);
+    }
+    else
+    {
+        uint16_t *video_memory = (uint16_t *)video;
+        for (uint32_t x = 0; x <= char_pos_x; x++)
+        {
+            video_memory[framebuffer_width * char_pos_y + x] = (video_bg << 12) | (video_fg << 8) | ' ';
+        }
+    }
+
+    // step 2: clear from beginning of screen to cursor (rectangle 2)
+    if (framebuffer_type != MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT)
+    {
+        fb_video_fillrect(0, 0, framebuffer_width, char_pos_y * header->fontheight, video_bg);
+    }
+    else
+    {
+        uint16_t *video_memory = (uint16_t *)video;
+        for (uint32_t i = 0; i < char_pos_y; i++)
+        {
+            for (uint32_t j = 0; j < framebuffer_width; j++)
+            {
+                video_memory[framebuffer_width * i + j] = (video_bg << 12) | (video_fg << 8) | ' ';
+            }
+        }
+    }
+}
+
+void video_set_cursor(uint32_t x, uint32_t y)
+{
+    // move the cursor to the specified position
+    char_pos_x = x;
+    char_pos_y = y;
+}
+
+void fb_video_clear_down() {
+    // ANSI 0J
+    // Clear from cursor to end of screen
+
+    // step 1: clear from cursor to end of line (rectangle 1)
+    if (framebuffer_type != MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT)
+    {
+        fb_video_fillrect(char_pos_x * FONT_WIDTH, char_pos_y * header->fontheight, framebuffer_width - char_pos_x * FONT_WIDTH, header->fontheight, video_bg);
+    }
+    else
+    {
+        uint16_t *video_memory = (uint16_t *)video;
+        for (uint32_t x = char_pos_x; x < framebuffer_width; x++)
+        {
+            video_memory[framebuffer_width * char_pos_y + x] = (video_bg << 12) | (video_fg << 8) | ' ';
+        }
+    }
+
+    // step 2: clear from next line to end of screen (rectangle 2)
+    if (framebuffer_type != MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT)
+    {
+        fb_video_fillrect(0, (char_pos_y + 1) * header->fontheight, framebuffer_width, framebuffer_height - (char_pos_y + 1) * header->fontheight, video_bg);
+    }
+    else
+    {
+        uint16_t *video_memory = (uint16_t *)video;
+        for (uint32_t i = char_pos_y + 1; i < framebuffer_height / header->fontheight; i++)
+        {
+            for (uint32_t j = 0; j < framebuffer_width; j++)
+            {
+                video_memory[framebuffer_width * i + j] = (video_bg << 12) | (video_fg << 8) | ' ';
+            }
+        }
+    }
+}
+
 uint32_t ega_color_defs[] = {
     0x00000000, // black
     0x000000aa, // blue

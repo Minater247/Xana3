@@ -24,6 +24,7 @@ typedef int (*close_func_t)(void *, void *);
 typedef int (*fcntl_func_t)(int, long, void *, void *);
 typedef size_t (*file_size_func_t)(const char *, void *);
 typedef size_t (*write_func_t)(void *, size_t, size_t, void *, void *, uint64_t);
+typedef size_t (*getdents64_func_t)(void *, size_t, void *, void *);
 
 typedef struct device
 {
@@ -38,6 +39,7 @@ typedef struct device
 	close_func_t close;
 	fcntl_func_t fcntl;
     write_func_t write;
+	getdents64_func_t getdents64;
 
 	file_size_func_t file_size;
 

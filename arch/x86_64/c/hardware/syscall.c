@@ -41,6 +41,10 @@ int64_t syscall_read(regs_t *regs) {
     return fread((void *)regs->rsi, regs->rdx, 1, regs->rdi);
 }
 
+int64_t getdents64(regs_t *regs) {
+    return fgetdents64(regs->rdi, (void *)regs->rsi, regs->rdx);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -51,6 +55,7 @@ void syscall_init() {
     syscall_table[2] = &syscall_open;
     syscall_table[3] = &syscall_close;
     syscall_table[60] = &syscall_exit;
+    syscall_table[217] = &getdents64;
 }
 
 int64_t syscall_handler(regs_t *regs)
