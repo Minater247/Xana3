@@ -1,0 +1,12 @@
+- Multitasking
+    - Cloning/Freeing Page Directories
+    - Task structure
+    - Per-Process Interrupt Stack
+    - Task Scheduling
+- Image drawing
+    - Image loading
+    - Optimized drawing (avoiding putpixel)
+- Filesystem (EXT2, ISO9660)
+- ACPI AML parsing
+- PCI Device Enumeration
+- USB Stack

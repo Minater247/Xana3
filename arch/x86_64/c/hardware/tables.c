@@ -303,9 +303,6 @@ void jump_to_usermode(uint64_t rip, uint64_t rsp)
     asm volatile("pushfq");
     // or the interrupt flag
     asm volatile("orq $0x200, (%%rsp)" ::);
-
-    asm volatile ("xchg %bx, %bx");
-
     //push code selector
     asm volatile("pushq $0x33");
     //push rip
