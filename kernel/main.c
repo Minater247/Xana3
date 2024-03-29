@@ -79,6 +79,8 @@ void kmain() {
 
             map_page_kmalloc(0x4000, first_free_page_addr(), false, true, current_pml4);
 
+            switch_page_directory(clone_page_directory(current_pml4));
+
             // call it...!
             jump_to_usermode(entry, 0x5000);
         }

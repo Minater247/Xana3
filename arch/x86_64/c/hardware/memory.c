@@ -419,8 +419,70 @@ page_table_entry_t first_free_page()
 
 page_directory_t *clone_page_directory(page_directory_t *directory)
 {
-    UNUSED(directory);
-    unimplemented("");
+    page_directory_t *new_directory = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
+    memset(new_directory, 0, sizeof(page_directory_t));
+    new_directory->phys_addr = virt_to_phys((uint64_t)new_directory, pml4);
+
+    for (uint32_t i = 0; i < 511; i++) {
+        // actually copy everything not in the last entry (the kernel space)
+        if (directory->virt[i] != 0) {
+            page_directory_t *pdpt = (page_directory_t *)(directory->virt[i]);
+            page_directory_t *new_pdpt = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
+            memset(new_pdpt, 0, sizeof(page_directory_t));
+            new_directory->virt[i] = (uint64_t)new_pdpt;
+            // should be fine to use old PML4 since allocations here are in kernel space
+            new_directory->entries[i] = virt_to_phys((uint64_t)new_pdpt, pml4) | (directory->entries[i] & 0xFFF);
+            new_directory->is_full[i] = directory->is_full[i];
+
+            for (uint32_t j = 0; j < 511; j++) {
+                if (pdpt->virt[j] != 0) {
+                    page_directory_t *pd = (page_directory_t *)(pdpt->virt[j]);
+                    page_directory_t *new_pd = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
+                    memset(new_pd, 0, sizeof(page_directory_t));
+                    new_pdpt->virt[j] = (uint64_t)new_pd;
+                    new_pdpt->entries[j] = virt_to_phys((uint64_t)new_pd, pml4) | (pdpt->entries[j] & 0xFFF);
+                    new_pdpt->is_full[j] = pdpt->is_full[j];
+
+                    for (uint32_t k = 0; k < 511; k++) {
+                        if (pd->virt[k] != 0) {
+                            page_table_t *pt = (page_table_t *)(pd->virt[k]);
+                            page_table_t *new_pt = (page_table_t *)kmalloc_a(sizeof(page_table_t));
+                            memset(new_pt, 0, sizeof(page_table_t));
+                            new_pd->virt[k] = (uint64_t)new_pt;
+                            new_pd->entries[k] = virt_to_phys((uint64_t)new_pt, pml4) | (pd->entries[k] & 0xFFF);
+                            new_pd->is_full[k] = pd->is_full[k];
+
+                            for (uint32_t l = 0; l < 511; l++) {
+                                if (pt->pt_entry[l] != 0) {
+                                    uint64_t new_phys = first_free_page_addr();
+
+                                    // map the new page
+                                    new_pt->pt_entry[l] = new_phys | (pt->pt_entry[l] & 0xFFF);
+
+                                    // copy the old page to the new page
+                                    memcpy((void *)(new_phys + VIRT_MEM_OFFSET), (void *)((pt->pt_entry[l] & 0xFFFFFFFFFFFFF000) + VIRT_MEM_OFFSET), 0x1000);
+
+                                    // mark the new page as used
+                                    uint64_t page = new_phys / 0x1000;
+                                    phys_mem_bitmap[page / 8] |= 1 << (page % 8);
+                                }
+                            }
+                        } else if (pd->entries[k] & 1) {
+                            unimplemented("2MB page cloning");
+                        }
+                    }
+                }
+            }
+        
+        }
+    }
+
+    // last entry is the kernel space, just copy it
+    new_directory->virt[511] = directory->virt[511];
+    new_directory->entries[511] = directory->entries[511];
+    new_directory->is_full[511] = directory->is_full[511];
+
+    return new_directory;
 }
 
 void free_page_directory(page_directory_t *directory)
@@ -431,8 +493,9 @@ void free_page_directory(page_directory_t *directory)
 
 void switch_page_directory(page_directory_t *directory)
 {
+    asm volatile ("xchg %bx, %bx");
     current_pml4 = directory;
-    asm volatile("mov %0, %%cr3" ::"r"((uint64_t)directory - VIRT_MEM_OFFSET));
+    asm volatile("mov %0, %%cr3" ::"r"(directory->phys_addr));
 }
 
 void free_page(uint64_t virt, page_directory_t *pd)
