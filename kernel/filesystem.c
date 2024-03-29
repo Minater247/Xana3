@@ -17,6 +17,8 @@ device_t *root_filesystem = NULL;
 
 char resolution_buffer[PATH_MAX];
 
+char pwd[PATH_MAX];
+
 uint32_t get_path_depth(char *path) {
     uint32_t depth = 0;
     for (uint32_t i = 0; path[i] != '\0'; i++) {
@@ -92,20 +94,54 @@ char *device_to_path(device_t *device) {
     return NULL;
 }
 
-char *temp_pwd = "/mnt/ramdisk/bin";
+char *abs_path_cleanup(char *path) {
+    // remove double slashes, if dotdot is found, remove the previous part
+    // this should work in the given buffer, no external space
+    uint64_t path_addr_start = (uint64_t)path;
+
+    while (*path != '\0') {
+        if (*path == '/' && *(path + 1) == '/') {
+            // remove the current slash
+            memmove(path, path + 1, strlen(path + 1) + 1);
+        } else if (*path == '/' && *(path + 1) == '.' && *(path + 2) == '.' && *(path + 3) == '/') {
+            // remove the previous part
+            if (path == (char *)path_addr_start) {
+                // we're at the start of the path, just remove the dotdot
+                memmove(path, path + 3, strlen(path + 3) + 1);
+            } else {
+                // find the previous slash
+                char *prev_slash = path - 1;
+                while (prev_slash != (char *)path_addr_start && *prev_slash != '/') {
+                    prev_slash--;
+                }
+                if (prev_slash == (char *)path_addr_start) {
+                    // we're at the start of the path, just remove the dotdot
+                    memmove(path, path + 3, strlen(path + 3) + 1);
+                } else {
+                    // remove the previous part
+                    memmove(prev_slash, path + 3, strlen(path + 3) + 1);
+                    path = prev_slash;
+                }
+            }
+        } else {
+            path++;
+        }
+    }
+
+    return (char *)path_addr_start;
+}
 
 char *resolve_path(char *path) {
-    // if we start with ., we need to resolve it to the current working directory
-    if (path[0] == '.') {
+    if (path[0] != '/') {
         char *resolved = &resolution_buffer[0];
         // ensure the paths are short enough to fit in the buffer
-        if (strlen(temp_pwd) + strlen(path) + 2 > PATH_MAX) {
+        if (strlen(pwd) + strlen(path) + 2 > PATH_MAX) {
             kpanic("Path too long to resolve\n");
         }
-        strcpy(resolved, temp_pwd);
+        strcpy(resolved, pwd);
         strcat(resolved, "/");
         if (!(path[1] == '\0' || path[2] == '\0')) {
-            strcat(resolved, path + 2);
+            strcat(resolved, path);
         }
         return resolved;
     }
@@ -120,6 +156,7 @@ int fopen(char *path, int flags, mode_t mode) {
     UNUSED(mode);
 
     resolve_path(path);
+    abs_path_cleanup(resolution_buffer);
     pointer_int_t resolution = get_path_device((char *)&resolution_buffer);
     device_t *device = resolution.pointer;
 
@@ -263,10 +300,46 @@ int fcntl(int fd, int cmd, long arg) {
     return -EBADF;
 }
 
+int fsetpwd(char *new_pwd) {
+    if (strlen(new_pwd) > PATH_MAX) {
+        return -ENAMETOOLONG;
+    }
+    
+    // relative -> absolute
+    resolve_path(new_pwd);
+    abs_path_cleanup(resolution_buffer);
+
+    // if it doesn't end with a slash, add one
+    if (resolution_buffer[strlen(resolution_buffer) - 1] != '/') {
+        strcat(resolution_buffer, "/");
+
+        // double check the length
+        if (strlen(resolution_buffer) > PATH_MAX) {
+            return -ENAMETOOLONG;
+        }
+    }
+
+    strcpy(pwd, resolution_buffer);
+
+    return 0;
+}
+
+int fgetpwd(char *buf, size_t size) {
+    if (strlen(pwd) > size) {
+        return -ENAMETOOLONG;
+    }
+
+    strcpy(buf, pwd);
+
+    return 0;
+}
+
 void filesystem_init(device_t *ramdisk_device) {
     if (ramdisk_device == NULL) {
         kpanic("Ramdisk device not found, boot can't continue\n");
     }
+
+    strcpy(pwd, "/");
 
     // Mount the ramdisk
     mount_at("/mnt/ramdisk", ramdisk_device, "xandisk", 0);

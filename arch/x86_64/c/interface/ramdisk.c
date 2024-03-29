@@ -93,11 +93,6 @@ pointer_int_t ramdisk_open(char *path, uint64_t flags, void *device_passed)
 {
     UNUSED(flags);
 
-    if (path[0] != '/')
-    {
-        return (pointer_int_t){NULL, -EINVAL};
-    }
-
     // check for write flags (XanDisk does not support writing!)
     if (flags & O_WRONLY || flags & O_RDWR)
     {
@@ -111,6 +106,12 @@ pointer_int_t ramdisk_open(char *path, uint64_t flags, void *device_passed)
         entry->file = NULL;
         entry->read_pos = 0;
         return (pointer_int_t){entry, 0};
+    }
+
+    // anything other than root must be absolute
+    if (path[0] != '/')
+    {
+        return (pointer_int_t){NULL, -EINVAL};
     }
 
     device_t *device = (device_t *)device_passed;

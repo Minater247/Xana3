@@ -45,6 +45,14 @@ int64_t getdents64(regs_t *regs) {
     return fgetdents64(regs->rdi, (void *)regs->rsi, regs->rdx);
 }
 
+int64_t syscall_chdir(regs_t *regs) {
+    return fsetpwd((char *)regs->rdi);
+}
+
+int64_t syscall_getcwd(regs_t *regs) {
+    return fgetpwd((char *)regs->rdi, regs->rsi);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -55,6 +63,8 @@ void syscall_init() {
     syscall_table[2] = &syscall_open;
     syscall_table[3] = &syscall_close;
     syscall_table[60] = &syscall_exit;
+    syscall_table[79] = &syscall_getcwd;
+    syscall_table[80] = &syscall_chdir;
     syscall_table[217] = &getdents64;
 }
 

@@ -111,5 +111,7 @@ int fclose(int fd);
 int mount_at(char *path, device_t *device, char *filesystemtype, unsigned long mountflags);
 size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd);
 size_t fgetdents64(int fd, void *ptr, size_t count);
+int fsetpwd(char *new_pwd);
+int fgetpwd(char *buf, size_t size);
 
 #endif
