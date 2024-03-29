@@ -103,7 +103,7 @@ char *abs_path_cleanup(char *path) {
         if (*path == '/' && *(path + 1) == '/') {
             // remove the current slash
             memmove(path, path + 1, strlen(path + 1) + 1);
-        } else if (*path == '/' && *(path + 1) == '.' && *(path + 2) == '.' && *(path + 3) == '/') {
+        } else if (*path == '/' && *(path + 1) == '.' && *(path + 2) == '.') {
             // remove the previous part
             if (path == (char *)path_addr_start) {
                 // we're at the start of the path, just remove the dotdot
@@ -140,9 +140,7 @@ char *resolve_path(char *path) {
         }
         strcpy(resolved, pwd);
         strcat(resolved, "/");
-        if (!(path[1] == '\0' || path[2] == '\0')) {
-            strcat(resolved, path);
-        }
+        strcat(resolved, path);
         return resolved;
     }
     if (strlen(path) > PATH_MAX) {
@@ -307,8 +305,6 @@ int fsetpwd(char *new_pwd) {
     
     // relative -> absolute
     resolve_path(new_pwd);
-    abs_path_cleanup(resolution_buffer);
-
     // if it doesn't end with a slash, add one
     if (resolution_buffer[strlen(resolution_buffer) - 1] != '/') {
         strcat(resolution_buffer, "/");
@@ -318,6 +314,7 @@ int fsetpwd(char *new_pwd) {
             return -ENAMETOOLONG;
         }
     }
+    abs_path_cleanup(resolution_buffer);
 
     strcpy(pwd, resolution_buffer);
 
