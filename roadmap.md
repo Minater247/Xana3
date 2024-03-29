@@ -1,5 +1,5 @@
 - Multitasking
-    - Cloning/Freeing Page Directories
+    - Freeing Page Directories
     - Task structure
     - Per-Process Interrupt Stack
     - Task Scheduling

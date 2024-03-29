@@ -79,7 +79,19 @@ void kmain() {
 
             map_page_kmalloc(0x4000, first_free_page_addr(), false, true, current_pml4);
 
-            switch_page_directory(clone_page_directory(current_pml4));
+            printf("Heap memory before clone: %d\n", heap_free_space());
+
+            page_directory_t *saved = current_pml4;
+            page_directory_t *new_pml4 = clone_page_directory(current_pml4);
+            switch_page_directory(new_pml4);
+
+            printf("Heap memory after clone: %d\n", heap_free_space());
+
+            switch_page_directory(saved);
+
+            free_page_directory(new_pml4);
+
+            printf("Heap memory after free: %d\n", heap_free_space());
 
             // call it...!
             jump_to_usermode(entry, 0x5000);

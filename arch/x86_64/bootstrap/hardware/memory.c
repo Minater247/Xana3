@@ -110,6 +110,8 @@ void memory_init() {
     pml4_addr = (page_directory_t *)kmalloc_a(sizeof(page_directory_t), 0x1000);
     memset(pml4_addr, 0, sizeof(page_directory_t));
     
+    pml4_addr->phys_addr = (uint64_t)(uint32_t)pml4_addr;
+    
     // for (uint64_t addr = 0; addr < multiboot_total_memory; addr += 0x1000)
     // {
     //     map_page(addr + 0xffffff8000000000, addr, true, true, pml4_addr);

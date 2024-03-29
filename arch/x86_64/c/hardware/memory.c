@@ -434,7 +434,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
             new_directory->entries[i] = virt_to_phys((uint64_t)new_pdpt, pml4) | (directory->entries[i] & 0xFFF);
             new_directory->is_full[i] = directory->is_full[i];
 
-            for (uint32_t j = 0; j < 511; j++) {
+            for (uint32_t j = 0; j < 512; j++) {
                 if (pdpt->virt[j] != 0) {
                     page_directory_t *pd = (page_directory_t *)(pdpt->virt[j]);
                     page_directory_t *new_pd = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
@@ -443,7 +443,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
                     new_pdpt->entries[j] = virt_to_phys((uint64_t)new_pd, pml4) | (pdpt->entries[j] & 0xFFF);
                     new_pdpt->is_full[j] = pdpt->is_full[j];
 
-                    for (uint32_t k = 0; k < 511; k++) {
+                    for (uint32_t k = 0; k < 512; k++) {
                         if (pd->virt[k] != 0) {
                             page_table_t *pt = (page_table_t *)(pd->virt[k]);
                             page_table_t *new_pt = (page_table_t *)kmalloc_a(sizeof(page_table_t));
@@ -452,7 +452,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
                             new_pd->entries[k] = virt_to_phys((uint64_t)new_pt, pml4) | (pd->entries[k] & 0xFFF);
                             new_pd->is_full[k] = pd->is_full[k];
 
-                            for (uint32_t l = 0; l < 511; l++) {
+                            for (uint32_t l = 0; l < 512; l++) {
                                 if (pt->pt_entry[l] != 0) {
                                     uint64_t new_phys = first_free_page_addr();
 
@@ -487,8 +487,38 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
 
 void free_page_directory(page_directory_t *directory)
 {
-    UNUSED(directory);
-    unimplemented("");
+    for (uint32_t i = 0; i < 511; i++)
+    {
+        if (directory->virt[i] != 0)
+        {
+            page_directory_t *pdpt = (page_directory_t *)(directory->virt[i]);
+            for (uint32_t j = 0; j < 512; j++)
+            {
+                if (pdpt->virt[j] != 0)
+                {
+                    page_directory_t *pd = (page_directory_t *)(pdpt->virt[j]);
+                    for (uint32_t k = 0; k < 512; k++)
+                    {
+                        if (pd->virt[k] != 0)
+                        {
+                            page_table_t *pt = (page_table_t *)(pd->virt[k]);
+                            for (uint32_t l = 0; l < 512; l++)
+                            {
+                                if (pt->pt_entry[l] != 0)
+                                {
+                                    free_page(pt->pt_entry[l] & 0xFFFFFFFFFFFFF000, directory);
+                                }
+                            }
+                            kfree((void *)pt);
+                        }
+                    }
+                    kfree((void *)pd);
+                }
+            }
+            kfree((void *)pdpt);
+        }
+    }
+    kfree((void *)directory);
 }
 
 void switch_page_directory(page_directory_t *directory)
@@ -903,4 +933,19 @@ int memory_set_protection(void *addr, uint64_t length, uint64_t prot)
     }
 
     return 0;
+}
+
+int64_t heap_free_space()
+{
+    heap_header_t *header = kheap;
+    int64_t free_space = 0;
+    while (header != NULL)
+    {
+        if (header->free)
+        {
+            free_space += header->length;
+        }
+        header = header->next;
+    }
+    return free_space;
 }

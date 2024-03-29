@@ -59,6 +59,7 @@ page_table_entry_t first_free_page();
 uint64_t first_free_page_addr();
 bool map_page_kmalloc(uint64_t virt, uint64_t phys, bool is_kernel, bool is_writeable, page_directory_t *pml4_root);
 page_directory_t *clone_page_directory(page_directory_t *directory);
+int64_t heap_free_space();
 void switch_page_directory(page_directory_t *directory);
 void free_page_directory(page_directory_t *directory);
 uint64_t virt_to_phys(uint64_t virt, page_directory_t *pd);
