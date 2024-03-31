@@ -18,7 +18,7 @@ process_t *current_process = NULL;
 process_t idle_process;
 
 pid_t first_free_pid() {
-    pid_t pid = 1;
+    pid_t pid = 0;
     if (process_list == NULL) {
         return pid;
     }
@@ -66,7 +66,15 @@ void add_process(process_t *process) {
     }
 }
 
-process_t *create_process(void *entry, size_t stack_size, page_directory_t *pml4) {
+/**
+ * Create a new process.
+ * 
+ * @param entry The entry point of the process
+ * @param stack_size The size of the stack, or the address of the stack if has_stack is true
+ * @param pml4 The page directory for the process
+ * @param has_stack Whether the stack is already set up
+*/
+process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pml4, bool has_stack) {
     pid_t pid = first_free_pid();
 
     serial_printf("Creating process: entry=0x%x, stack_size=%d\n", entry, stack_size);
@@ -79,15 +87,20 @@ process_t *create_process(void *entry, size_t stack_size, page_directory_t *pml4
     new_process->status = TASK_INITIAL;
     new_process->next = NULL;
 
-    // Set up the stack
-    uint32_t stack_size_pages = stack_size & 0xFFF ? (stack_size >> 12) + 1 : stack_size >> 12;
-    for (uint32_t i = 0; i < stack_size_pages; i++) {
-        uint64_t phys = first_free_page_addr();
-        map_page_kmalloc(VIRT_MEM_OFFSET - ((i + 1) * 0x1000), phys, false, true, pml4);
-    }
+    if (!has_stack) {
+        // Set up the stack
+        uint32_t stack_size_pages = stack_size & 0xFFF ? (stack_size >> 12) + 1 : stack_size >> 12;
+        for (uint32_t i = 0; i < stack_size_pages; i++) {
+            uint64_t phys = first_free_page_addr();
+            map_page_kmalloc(VIRT_MEM_OFFSET - ((i + 1) * 0x1000), phys, false, true, pml4);
+        }
 
-    new_process->rsp = VIRT_MEM_OFFSET;
-    new_process->rbp = VIRT_MEM_OFFSET;
+        new_process->rsp = VIRT_MEM_OFFSET;
+        new_process->rbp = VIRT_MEM_OFFSET;
+    } else {
+        new_process->rsp = stack_size;
+        new_process->rbp = stack_size;
+    }
 
     return new_process;
 }
@@ -105,11 +118,8 @@ void process_init() {
 }
 
 void schedule() {
-    serial_printf("TASK SWITCH: %d\n", current_process->pid);
-    serial_printf("NEXT ON QUEUE: %d\n", queue == NULL ? -1 : queue->pid);
-
+    serial_printf("Scheduling\n");
     // really basic scheduler for now, just switch to the next process in the queue
-
     if (queue == NULL) {
         return;
     }
@@ -146,13 +156,63 @@ void schedule() {
 
         // jump to the new process
         jump_to_usermode((uint64_t)new_process->entry, new_process->rsp);
-    } else {
+    } else if (new_process->status == TASK_RUNNING) {
+        // Change page directory
+        asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
+        current_pml4 = new_process->pml4;
+
         // switch to the new process's stack
         asm volatile ("movq %0, %%rsp" : : "r" (new_process->rsp));
         asm volatile ("movq %0, %%rbp" : : "r" (new_process->rbp));
 
-        asm volatile ("xchg %bx, %bx");
+        return;
+    } else if (new_process->status == TASK_FORKED) {
+        // Change page directory
+        asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
+        current_pml4 = new_process->pml4;
+
+        // switch to the new process's stack
+        asm volatile ("movq %0, %%rsp" : : "r" (new_process->rsp));
+        asm volatile ("movq %0, %%rbp" : : "r" (new_process->rbp));
+
+        new_process->status = TASK_RUNNING;
+
+        // zero out rax
+        asm volatile ("movq $0, %rax");
+
+        // jump to the new process
+        asm volatile ("jmp *%0" : : "r" (new_process->entry) : "rax");
+
+        while (true);
 
         return;
     }
+}
+
+extern uint64_t read_rip();
+
+int64_t fork(regs_t *regs) {
+    page_directory_t *new_pml4 = clone_page_directory(current_pml4);
+
+    uint64_t rsp, rbp;
+    asm volatile ("movq %%rsp, %0;" : "=r" (rsp));
+    asm volatile ("movq %%rbp, %0;" : "=r" (rbp));
+
+    process_t *new_process = create_process(0, 0, new_pml4, true);
+    new_process->status = TASK_FORKED;
+    new_process->queue_next = NULL;
+    new_process->rsp = rsp;
+    new_process->rbp = rbp;
+
+    add_process(new_process);
+
+    uint64_t rip = read_rip();
+
+    if (rip == 0) {
+        return 0;
+    } else {
+        new_process->entry = (void *)rip;
+    }
+
+    return new_process->pid;
 }

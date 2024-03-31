@@ -239,10 +239,6 @@ syscall_handler_asm:
     pop rdx
     pop rcx
 
-    ; jump stack past RAX, int_no-CS, to get pushed flags
-    add rsp, 0x28
-    pop r11
-
     ; Restore the old rsp
     mov rsp, qword [syscall_old_rsp]
 
@@ -257,3 +253,9 @@ syscall_stack:
 syscall_stack_top:
 
 syscall_old_rsp: dq 0
+
+global read_rip
+read_rip:
+    ; Read the RIP of the calling function
+    mov rax, [rsp]
+    ret

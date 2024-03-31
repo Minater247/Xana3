@@ -53,6 +53,10 @@ int64_t syscall_getcwd(regs_t *regs) {
     return fgetpwd((char *)regs->rdi, regs->rsi);
 }
 
+int64_t syscall_fork(regs_t *regs) {
+    return fork(regs);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -62,6 +66,7 @@ void syscall_init() {
     syscall_table[1] = &syscall_write;
     syscall_table[2] = &syscall_open;
     syscall_table[3] = &syscall_close;
+    syscall_table[57] = &syscall_fork;
     syscall_table[60] = &syscall_exit;
     syscall_table[79] = &syscall_getcwd;
     syscall_table[80] = &syscall_chdir;

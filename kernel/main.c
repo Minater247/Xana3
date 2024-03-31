@@ -83,7 +83,7 @@ void kmain() {
             // call it...!
             //jump_to_usermode(entry, 0x5000);
 
-            add_process(create_process((void *)entry, 0x10000, clone_page_directory(current_pml4)));
+            add_process(create_process((void *)entry, 0x10000, clone_page_directory(current_pml4), false));
 
             asm volatile ("sti");
         }
@@ -91,9 +91,9 @@ void kmain() {
 
     // Loop indefinitely
     while (1) {
-        asm volatile ("cli");
-        printf(".");
-        asm volatile ("sti");
+        // asm volatile ("cli");
+        // printf(".");
+        // asm volatile ("sti");
     }
 }
 
