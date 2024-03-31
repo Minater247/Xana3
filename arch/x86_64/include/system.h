@@ -1,6 +1,8 @@
 #ifndef _SYSTEM_H
 #define _SYSTEM_H
 
+#include <stdint.h>
+
 #define VIRT_MEM_OFFSET 0xffffff8000000000
 
 typedef struct {

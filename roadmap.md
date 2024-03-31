@@ -1,5 +1,4 @@
 - Multitasking
-    - Freeing Page Directories
     - Task structure
     - Per-Process Interrupt Stack
     - Task Scheduling

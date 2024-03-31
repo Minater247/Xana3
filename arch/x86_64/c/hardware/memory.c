@@ -411,6 +411,51 @@ uint64_t first_free_page_addr() {
     return first_free_bit * 0x1000;
 }
 
+/**
+ * Find the first n consecutive free pages
+ *
+ * @param n The number of consecutive pages to find
+ * 
+ * @return The address of the first page in the consecutive block
+*/
+uint64_t first_free_consec_page_addr(uint32_t n) {
+    uint64_t *bitmap = (uint64_t *)phys_mem_bitmap;
+    uint64_t first_free_bit = 0;
+    uint32_t consecutive_free = 0;
+    bool found = false;
+
+    while (!found) {
+        while (bitmap[first_free_bit / 64] == 0xFFFFFFFFFFFFFFFF)
+        {
+            first_free_bit += 64;
+            consecutive_free = 0;
+        }
+
+        if (first_free_bit > total_pages) {
+            kpanic("Out of memory");
+        }
+
+        first_free_bit += __builtin_ctzll(~bitmap[first_free_bit / 64]);
+
+        if (first_free_bit > total_pages) {
+            kpanic("Out of memory");
+        }
+
+        while (consecutive_free < n && !(bitmap[first_free_bit / 64] & (1ULL << (first_free_bit % 64)))) {
+            first_free_bit++;
+            consecutive_free++;
+        }
+
+        if (consecutive_free == n) {
+            found = true;
+        } else {
+            consecutive_free = 0;
+        }
+    }
+
+    return (first_free_bit - n) * 0x1000;
+}
+
 page_table_entry_t first_free_page()
 {
     uint64_t addr = first_free_page_addr();
@@ -523,7 +568,6 @@ void free_page_directory(page_directory_t *directory)
 
 void switch_page_directory(page_directory_t *directory)
 {
-    asm volatile ("xchg %bx, %bx");
     current_pml4 = directory;
     asm volatile("mov %0, %%cr3" ::"r"(directory->phys_addr));
 }

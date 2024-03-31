@@ -1,14 +1,14 @@
+#include <stdint.h>
+
 #include <tables.h>
 #include <string.h>
 #include <io.h>
 #include <errors.h>
 #include <syscall.h>
+#include <process.h>
 
 extern void load_tss();
 extern void load_idt(uint64_t idtr);
-
-uint64_t presyscall_rsp;
-uint64_t presyscall_rbp;
 
 gdt_entry_t gdt[7]; // 6 entries, TSS has 2 entries
 tss_entry_t tss;
@@ -259,6 +259,13 @@ void fault_handler(regs_t *regs)
 
 void irq_handler(regs_t *regs)
 {
+    if (regs->int_no - 32 == 0) {
+        // timer interrupt
+        outb(0x20, 0x20);
+        schedule();
+        return;
+    }
+
     if (isr_handlers[regs->int_no - 32] != 0)
     {
         isr_handlers[regs->int_no - 32](regs);
@@ -291,10 +298,6 @@ void jump_to_usermode(uint64_t rip, uint64_t rsp)
     asm volatile("mov %ax, %gs");
     // SS is handled by iret
 
-    // store the pre-syscall rsp
-    asm volatile("mov %%rsp, %0" : "=r"(presyscall_rsp));
-    asm volatile("mov %%rbp, %0" : "=r"(presyscall_rbp));
-
     //push data selector
     asm volatile("pushq $0x2B");
     //push rsp
@@ -307,6 +310,7 @@ void jump_to_usermode(uint64_t rip, uint64_t rsp)
     asm volatile("pushq $0x33");
     //push rip
     asm volatile("pushq %0" ::"r"(rip));
+
     //iretq
     asm volatile("iretq");
 }
