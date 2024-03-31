@@ -9,6 +9,8 @@
 #include <syscall.h>
 #include <sys/errno.h>
 #include <trace.h>
+#include <unused.h>
+#include <process.h>
 
 syscall_t syscall_table[512];
 
@@ -54,7 +56,13 @@ int64_t syscall_getcwd(regs_t *regs) {
 }
 
 int64_t syscall_fork(regs_t *regs) {
-    return fork(regs);
+    UNUSED(regs);
+
+    return fork();
+}
+
+int64_t syscall_execv(regs_t *regs) {
+    return execv(regs);
 }
 
 void syscall_init() {
@@ -67,6 +75,7 @@ void syscall_init() {
     syscall_table[2] = &syscall_open;
     syscall_table[3] = &syscall_close;
     syscall_table[57] = &syscall_fork;
+    syscall_table[59] = &syscall_execv;
     syscall_table[60] = &syscall_exit;
     syscall_table[79] = &syscall_getcwd;
     syscall_table[80] = &syscall_chdir;

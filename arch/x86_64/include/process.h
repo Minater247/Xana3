@@ -31,7 +31,8 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
 void schedule();
 void process_init();
 void add_process(process_t *process);
-int64_t fork(regs_t *regs);
+int64_t fork();
+int64_t execv(regs_t *regs);
 
 extern process_t *current_process;
 

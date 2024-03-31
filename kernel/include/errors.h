@@ -9,6 +9,7 @@
 #include <video.h>
 #include <trace.h>
 #include <process.h>
+#include <memory.h>
 
 // Essentially a nonreturning printf - prints the message and halts the system
 #define kpanic(msg, ...) do { \
@@ -18,12 +19,14 @@
     serial_printf(msg, ##__VA_ARGS__); \
     serial_printf(" System halted.\n"); \
     serial_traceback(10); \
+    heap_dump_serial(); \
     enableBackground(true); \
     printf("\033[97;41mKernel panic [PID %d]: ", current_process->pid); \
     printf("In function: %s\n", __func__); \
     printf("%s:%d: \n", __FILE__, __LINE__); \
     printf(msg, ##__VA_ARGS__); \
     printf(" System halted.\n"); \
+    traceback(10); \
     asm volatile("hlt"); \
     while (1); \
 } while (0)

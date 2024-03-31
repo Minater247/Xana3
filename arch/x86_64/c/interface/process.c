@@ -2,12 +2,18 @@
 #include <stddef.h>
 
 #include <process.h>
-#include <display.h>
 #include <memory.h>
 #include <system.h>
-#include <serial.h>
 #include <io.h>
 #include <tables.h>
+#include <unused.h>
+#include <errors.h>
+#include <sys/errno.h>
+#include <filesystem.h>
+#include <elf_loader.h>
+
+#include <display.h>
+#include <serial.h>
 
 process_t *process_list = NULL;
 
@@ -77,14 +83,12 @@ void add_process(process_t *process) {
 process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pml4, bool has_stack) {
     pid_t pid = first_free_pid();
 
-    serial_printf("Creating process: entry=0x%x, stack_size=%d\n", entry, stack_size);
-    serial_printf("PID: %d\n", pid);
-
     process_t *new_process = (process_t *)kmalloc(sizeof(process_t));
     new_process->pid = pid;
     new_process->entry = entry;
     new_process->pml4 = pml4;
     new_process->status = TASK_INITIAL;
+    new_process->queue_next = NULL;
     new_process->next = NULL;
 
     if (!has_stack) {
@@ -118,7 +122,6 @@ void process_init() {
 }
 
 void schedule() {
-    serial_printf("Scheduling\n");
     // really basic scheduler for now, just switch to the next process in the queue
     if (queue == NULL) {
         return;
@@ -141,8 +144,6 @@ void schedule() {
         current->queue_next = current_process;
     }
     current_process = new_process;
-
-    serial_printf("Switching to process: %d\n", new_process->pid);
 
     if (new_process->status == TASK_INITIAL) {
         new_process->status = TASK_RUNNING;
@@ -191,7 +192,7 @@ void schedule() {
 
 extern uint64_t read_rip();
 
-int64_t fork(regs_t *regs) {
+int64_t fork() {
     page_directory_t *new_pml4 = clone_page_directory(current_pml4);
 
     uint64_t rsp, rbp;
@@ -215,4 +216,67 @@ int64_t fork(regs_t *regs) {
     }
 
     return new_process->pid;
+}
+
+int64_t execv(regs_t *regs) {
+    printf("execv:\n");
+    printf("\tPath: %s\n", regs->rdi);
+    printf("\tArgv: %lx\n", regs->rsi);
+    printf("\tEnvp: %lx\n", regs->rdx);
+
+    kassert(regs->rdx == regs->rsi);
+
+    printf("Args:\n");
+    char **argv = (char **)regs->rsi;
+    while (*argv != NULL) {
+        printf("\t%s\n", *argv);
+        argv++;
+    }
+    printf("argc: %d\n", argv - (char **)regs->rsi);
+
+    printf("Envs:\n");
+    char **envp = (char **)regs->rdx;
+    while (*envp != NULL) {
+        printf("\t%s\n", *envp);
+        envp++;
+    }
+    printf("envc: %d\n", envp - (char **)regs->rdx);
+
+    int fd = fopen((char *)regs->rdi, 0, 0);
+    if (fd < 0) {
+        printf("Failed to open file\n");
+        return -ENOENT;
+    }
+
+    size_t size = file_size_internal((char *)regs->rdi);
+    char *buf = kmalloc(size);
+    int read = fread(buf, 1, size, fd);
+    if (read < 0) {
+        printf("Failed to read file\n");
+        return -EIO;
+    }
+
+    printf("Read %d bytes\n", read);
+
+    // For now it should suffice to just set up the page directory and jump to the new process
+    // In the future, we need to read args/env before messing with pages
+    page_directory_t *old_pml4 = current_pml4;
+    switch_page_directory(kernel_pml4);
+    free_page_directory(old_pml4);
+
+    switch_page_directory(clone_page_directory(kernel_pml4));
+
+    uint64_t entry = load_elf64(buf);
+    fclose(fd);
+    kfree(buf);
+
+    for (uint32_t i = 0; i < 0x10000; i += 0x1000) {
+        map_page_kmalloc(VIRT_MEM_OFFSET - i, first_free_page_addr(), false, true, current_pml4);
+    }
+
+    // jump to the new process
+    asm volatile ("xchg %bx, %bx");
+    jump_to_usermode(entry, VIRT_MEM_OFFSET);
+
+    while (1);
 }

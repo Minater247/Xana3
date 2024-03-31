@@ -78,15 +78,15 @@ void kmain() {
         } else {
             printf("Read %d bytes\n", read);
             uint64_t entry = load_elf64(buf);
-            printf("Entry point: 0x%x\n", entry);
-
-            // call it...!
-            //jump_to_usermode(entry, 0x5000);
+            fclose(fd);
 
             add_process(create_process((void *)entry, 0x10000, clone_page_directory(current_pml4), false));
 
+            printf("Loaded ELF, entry point: 0x%lx\n", entry);
+
             asm volatile ("sti");
         }
+        kfree(buf);
     }
 
     // Loop indefinitely

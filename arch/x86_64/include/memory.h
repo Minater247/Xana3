@@ -54,7 +54,7 @@ void *kmalloc_p(uint64_t size, uint64_t *phys);
 void *kmalloc_ap(uint64_t size, uint64_t *phys);
 void kfree(void *ptr);
 void kfree_a(void *ptr);
-void heap_dump();
+void heap_dump_serial();
 page_table_entry_t first_free_page();
 uint64_t first_free_page_addr();
 bool map_page_kmalloc(uint64_t virt, uint64_t phys, bool is_kernel, bool is_writeable, page_directory_t *pml4_root);
@@ -70,5 +70,6 @@ void *krealloc(void *ptr, uint64_t size);
 uint64_t first_free_n_consecutive_addr(uint32_t n);
 
 extern page_directory_t *current_pml4;
+extern page_directory_t *kernel_pml4;
 
 #endif

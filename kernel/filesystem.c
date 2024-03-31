@@ -103,7 +103,7 @@ char *abs_path_cleanup(char *path) {
         if (*path == '/' && *(path + 1) == '/') {
             // remove the current slash
             memmove(path, path + 1, strlen(path + 1) + 1);
-        } else if (*path == '/' && *(path + 1) == '.' && *(path + 2) == '.') {
+        } else if (*path == '/' && *(path + 1) == '.' && *(path + 2) == '.' && (*(path + 3) == '/' || *(path + 3) == '\0')) {
             // remove the previous part
             if (path == (char *)path_addr_start) {
                 // we're at the start of the path, just remove the dotdot
@@ -123,6 +123,9 @@ char *abs_path_cleanup(char *path) {
                     path = prev_slash;
                 }
             }
+        } else if (*path == '/' && *(path + 1) == '.' && (*(path + 2) == '/' || *(path + 2) == '\0')) {
+            // remove the dot
+            memmove(path, path + 2, strlen(path + 2) + 1);
         } else {
             path++;
         }

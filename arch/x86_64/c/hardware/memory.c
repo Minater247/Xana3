@@ -26,7 +26,7 @@ typedef struct usable_memory_region
 heap_header_t *kheap = NULL;
 uint64_t kheap_end = 0;
 
-page_directory_t *pml4 __attribute__((aligned(4096)));
+page_directory_t *kernel_pml4 __attribute__((aligned(4096)));
 page_directory_t *current_pml4;
 
 // preallocated space for things
@@ -277,12 +277,12 @@ void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t frameb
     // We need to read cr3 to locate the current page table
     uint64_t cr3;
     asm volatile("mov %%cr3, %0" : "=r"(cr3));
-    pml4 = (page_directory_t *)(cr3 + VIRT_MEM_OFFSET);
-    current_pml4 = pml4;
+    kernel_pml4 = (page_directory_t *)(cr3 + VIRT_MEM_OFFSET);
+    current_pml4 = kernel_pml4;
 
     // Undo identity mapping
-    pml4->virt[0] = 0;
-    pml4->entries[0] = 0;
+    kernel_pml4->virt[0] = 0;
+    kernel_pml4->entries[0] = 0;
 
     // Set up preallocated space
     prealloc_pdpt = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
@@ -337,7 +337,7 @@ void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t frameb
     
     for (uint64_t i = (uint64_t)kheap; i < kheap_end; i += 0x1000) {
         new_map = first_free_page_addr();
-        kassert_msg(map_page_prealloc(i, new_map, true, true, pml4), "Failed to map page at 0x%lx", i);
+        kassert_msg(map_page_prealloc(i, new_map, true, true, kernel_pml4), "Failed to map page at 0x%lx", i);
     }
 
     kheap->magic = HEAP_MAGIC;
@@ -466,7 +466,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
 {
     page_directory_t *new_directory = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
     memset(new_directory, 0, sizeof(page_directory_t));
-    new_directory->phys_addr = virt_to_phys((uint64_t)new_directory, pml4);
+    new_directory->phys_addr = virt_to_phys((uint64_t)new_directory, kernel_pml4);
 
     for (uint32_t i = 0; i < 511; i++) {
         // actually copy everything not in the last entry (the kernel space)
@@ -476,7 +476,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
             memset(new_pdpt, 0, sizeof(page_directory_t));
             new_directory->virt[i] = (uint64_t)new_pdpt;
             // should be fine to use old PML4 since allocations here are in kernel space
-            new_directory->entries[i] = virt_to_phys((uint64_t)new_pdpt, pml4) | (directory->entries[i] & 0xFFF);
+            new_directory->entries[i] = virt_to_phys((uint64_t)new_pdpt, kernel_pml4) | (directory->entries[i] & 0xFFF);
             new_directory->is_full[i] = directory->is_full[i];
 
             for (uint32_t j = 0; j < 512; j++) {
@@ -485,7 +485,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
                     page_directory_t *new_pd = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
                     memset(new_pd, 0, sizeof(page_directory_t));
                     new_pdpt->virt[j] = (uint64_t)new_pd;
-                    new_pdpt->entries[j] = virt_to_phys((uint64_t)new_pd, pml4) | (pdpt->entries[j] & 0xFFF);
+                    new_pdpt->entries[j] = virt_to_phys((uint64_t)new_pd, kernel_pml4) | (pdpt->entries[j] & 0xFFF);
                     new_pdpt->is_full[j] = pdpt->is_full[j];
 
                     for (uint32_t k = 0; k < 512; k++) {
@@ -494,7 +494,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
                             page_table_t *new_pt = (page_table_t *)kmalloc_a(sizeof(page_table_t));
                             memset(new_pt, 0, sizeof(page_table_t));
                             new_pd->virt[k] = (uint64_t)new_pt;
-                            new_pd->entries[k] = virt_to_phys((uint64_t)new_pt, pml4) | (pd->entries[k] & 0xFFF);
+                            new_pd->entries[k] = virt_to_phys((uint64_t)new_pt, kernel_pml4) | (pd->entries[k] & 0xFFF);
                             new_pd->is_full[k] = pd->is_full[k];
 
                             for (uint32_t l = 0; l < 512; l++) {
@@ -618,7 +618,7 @@ void heap_expand()
     // Expand heap by 2MB (1 page table of pages)
     for (uint64_t i = 0; i < 512; i++)
     {
-        kassert_msg(map_page_prealloc(kheap_end + 1, first_free_page_addr(), true, true, pml4), "Failed to map page at 0x%lx", kheap_end + 1);
+        kassert_msg(map_page_prealloc(kheap_end + 1, first_free_page_addr(), true, true, kernel_pml4), "Failed to map page at 0x%lx", kheap_end + 1);
         kheap_end += 0x1000;
     }
 
@@ -701,7 +701,7 @@ uint64_t virt_to_phys(uint64_t virt, page_directory_t *pd)
     return (pt->pt_entry[pt_index] & 0xFFFFFFFFFFFFF000) + (virt & 0xFFF);
 }
 
-void *kmalloc_int(uint64_t size, bool align, uint64_t *phys)
+void __attribute__((malloc)) *kmalloc_int(uint64_t size, bool align, uint64_t *phys)
 {
     if (kheap == NULL)
     {
@@ -787,7 +787,7 @@ void *kmalloc_int(uint64_t size, bool align, uint64_t *phys)
 
                 if (phys != NULL)
                 {
-                    *phys = virt_to_phys(aligned_addr, pml4);
+                    *phys = virt_to_phys(aligned_addr, kernel_pml4);
                 }
                 return (void *)aligned_addr;
             }
@@ -825,7 +825,7 @@ void *kmalloc_int(uint64_t size, bool align, uint64_t *phys)
 
                 if (phys != NULL)
                 {
-                    *phys = virt_to_phys((uint64_t)header + sizeof(heap_header_t), pml4);
+                    *phys = virt_to_phys((uint64_t)header + sizeof(heap_header_t), kernel_pml4);
                 }
 
                 // now we can return the header
