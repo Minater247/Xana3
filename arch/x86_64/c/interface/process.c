@@ -278,7 +278,7 @@ int64_t execv(regs_t *regs) {
     kfree(buf);
 
     for (uint32_t i = 0; i < 0x10000; i += 0x1000) {
-        map_page_kmalloc(VIRT_MEM_OFFSET - i, first_free_page_addr(), false, true, current_pml4);
+        map_page_kmalloc(VIRT_MEM_OFFSET - (i + 0x1000), first_free_page_addr(), false, true, current_pml4);
     }
 
     // RBP not set up, do now

@@ -70,6 +70,9 @@ run_no_re:
 debug: debug_iso
 	@qemu-system-x86_64 -cdrom os.iso -monitor stdio -d int,cpu_reset -accel tcg -D qemu-log.txt -cpu SandyBridge -serial file:serial.log -s -S -bios OVMF.fd
 
+debug_no_uefi: debug_iso
+	@qemu-system-x86_64 -cdrom os.iso -monitor stdio -d int,cpu_reset -accel tcg -D qemu-log.txt -cpu SandyBridge -serial file:serial.log -s -S
+
 debug_term:
 	@gdb -ex "target remote localhost:1234" -ex "symbol-file dbg_kernel.bin"
 

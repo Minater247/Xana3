@@ -19,7 +19,6 @@
     serial_printf(msg, ##__VA_ARGS__); \
     serial_printf(" System halted.\n"); \
     serial_traceback(10); \
-    heap_dump_serial(); \
     enableBackground(true); \
     printf("\033[97;41mKernel panic [PID %d]: ", current_process->pid); \
     printf("In function: %s\n", __func__); \

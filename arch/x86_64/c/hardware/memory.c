@@ -532,6 +532,32 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
     return new_directory;
 }
 
+void serial_dump_mappings(page_directory_t *pml4) {
+    serial_printf("Mappings for PML4 0x%lx\n", pml4);
+    for (uint64_t i = 0; i < 512; i++) {
+        if (pml4->virt[i] != 0) {
+            page_directory_t *pdpt = (page_directory_t *)(pml4->virt[i]);
+            for (uint64_t j = 0; j < 512; j++) {
+                if (pdpt->virt[j] != 0) {
+                    page_directory_t *pd = (page_directory_t *)(pdpt->virt[j]);
+                    for (uint64_t k = 0; k < 512; k++) {
+                        if (pd->virt[k] != 0) {
+                            page_table_t *pt = (page_table_t *)(pd->virt[k]);
+                            for (uint64_t l = 0; l < 512; l++) {
+                                if (pt->pt_entry[l] != 0) {
+                                    serial_printf("0x%lx -> 0x%lx\n", (i << 39) | (j << 30) | (k << 21) | (l << 12), pt->pt_entry[l] & 0xFFFFFFFFFFFFF000);
+                                }
+                            }
+                        } else if (pd->entries[k] & (1 << 7)) {
+                            serial_printf("2MB: 0x%lx -> 0x%lx\n", (i << 39) | (j << 30) | (k << 21), pd->entries[k] & 0xFFFFFFFFFFE00000);
+                        }
+                    }
+                }
+            }
+        }
+    }    
+}
+
 void free_page_directory(page_directory_t *directory)
 {
     for (uint32_t i = 0; i < 511; i++)

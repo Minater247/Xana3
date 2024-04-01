@@ -34,9 +34,7 @@ int64_t syscall_exit(regs_t *regs) {
 }
 
 int64_t syscall_write(regs_t *regs) {
-    int64_t value = fwrite((void *)regs->rsi, regs->rdx, 1, regs->rdi);
-
-    return value;
+    return fwrite((void *)regs->rsi, regs->rdx, 1, regs->rdi);
 }
 
 int64_t syscall_close(regs_t *regs) {
@@ -86,13 +84,12 @@ void syscall_init() {
     syscall_table[217] = &getdents64;
 }
 
-int64_t syscall_handler(regs_t *regs)
+void syscall_handler(regs_t *regs)
 {
     if (syscall_table[regs->rax] != NULL) {
-        return syscall_table[regs->rax](regs);
+        regs->rax = syscall_table[regs->rax](regs);
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
+        regs->rax = -ENOSYS;
     }
-
-    return -ENOSYS;
 }

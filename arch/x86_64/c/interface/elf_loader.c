@@ -49,6 +49,7 @@ uint32_t load_elf64(char *elf_file) {
             }
 
             // Map each page
+            serial_printf("Mapping %d pages\n", num_pages);
             for (int j = 0; j < num_pages; j++) {
                 map_page_kmalloc(phdr->p_vaddr + j * 0x1000, first_free_page_addr(), false, true, current_pml4);
             }

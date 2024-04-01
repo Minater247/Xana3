@@ -208,7 +208,7 @@ void isr_handler(regs_t *r) {
     }
 
     if (r->int_no == 128) {
-        //msyscall_handler(r);
+        //syscall_handler(r);
     }
 }
 

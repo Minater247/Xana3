@@ -223,21 +223,8 @@ syscall_handler_asm:
     mov rdi, rsp
     call syscall_handler
 
-    ; Pop the registers (except for rax, which is the return value)
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop r11
-    pop r10
-    pop r9
-    pop r8
-    pop rdi
-    pop rsi
-    pop rbp
-    pop rbx
-    pop rdx
-    pop rcx
+    ; Pop the registers (rax has been set to the return value)
+    popa64
 
     ; Restore the old rsp
     mov rsp, qword [syscall_old_rsp]
