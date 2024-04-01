@@ -144,6 +144,7 @@ void schedule() {
         current->queue_next = current_process;
     }
     current_process = new_process;
+    new_process->queue_next = NULL;
 
     if (new_process->status == TASK_INITIAL) {
         new_process->status = TASK_RUNNING;
@@ -249,6 +250,12 @@ int64_t execv(regs_t *regs) {
     }
 
     size_t size = file_size_internal((char *)regs->rdi);
+    // if the highest bit is set, it's an error
+    if (size & 0x8000000000000000) {
+        printf("Failed to get file size\n");
+        return -EIO;
+    }
+
     char *buf = kmalloc(size);
     int read = fread(buf, 1, size, fd);
     if (read < 0) {
@@ -274,8 +281,10 @@ int64_t execv(regs_t *regs) {
         map_page_kmalloc(VIRT_MEM_OFFSET - i, first_free_page_addr(), false, true, current_pml4);
     }
 
+    // RBP not set up, do now
+    asm volatile ("movq %0, %%rbp" : : "r" (VIRT_MEM_OFFSET));
+
     // jump to the new process
-    asm volatile ("xchg %bx, %bx");
     jump_to_usermode(entry, VIRT_MEM_OFFSET);
 
     while (1);

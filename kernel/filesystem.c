@@ -273,7 +273,10 @@ size_t fgetdents64(int fd, void *ptr, size_t count) {
 }
 
 size_t file_size_internal(char *path) {
-    pointer_int_t resolution = get_path_device(path);
+
+    resolve_path(path);
+    abs_path_cleanup(resolution_buffer);
+    pointer_int_t resolution = get_path_device((char *)&resolution_buffer);
     device_t *device = resolution.pointer;
 
     if (device == NULL) {
@@ -284,7 +287,7 @@ size_t file_size_internal(char *path) {
         return -ENOTSUP;
     }
 
-    return device->file_size((char *)((uint64_t)path + resolution.value), device);
+    return device->file_size((char *)((uint64_t)&resolution_buffer + resolution.value), device);
 }
 
 int fcntl(int fd, int cmd, long arg) {

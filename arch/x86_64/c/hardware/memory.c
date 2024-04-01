@@ -468,7 +468,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
     memset(new_directory, 0, sizeof(page_directory_t));
     new_directory->phys_addr = virt_to_phys((uint64_t)new_directory, kernel_pml4);
 
-    for (uint32_t i = 0; i < 511; i++) {
+    for (uint64_t i = 0; i < 511; i++) {
         // actually copy everything not in the last entry (the kernel space)
         if (directory->virt[i] != 0) {
             page_directory_t *pdpt = (page_directory_t *)(directory->virt[i]);
@@ -479,7 +479,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
             new_directory->entries[i] = virt_to_phys((uint64_t)new_pdpt, kernel_pml4) | (directory->entries[i] & 0xFFF);
             new_directory->is_full[i] = directory->is_full[i];
 
-            for (uint32_t j = 0; j < 512; j++) {
+            for (uint64_t j = 0; j < 512; j++) {
                 if (pdpt->virt[j] != 0) {
                     page_directory_t *pd = (page_directory_t *)(pdpt->virt[j]);
                     page_directory_t *new_pd = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));
@@ -488,7 +488,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
                     new_pdpt->entries[j] = virt_to_phys((uint64_t)new_pd, kernel_pml4) | (pdpt->entries[j] & 0xFFF);
                     new_pdpt->is_full[j] = pdpt->is_full[j];
 
-                    for (uint32_t k = 0; k < 512; k++) {
+                    for (uint64_t k = 0; k < 512; k++) {
                         if (pd->virt[k] != 0) {
                             page_table_t *pt = (page_table_t *)(pd->virt[k]);
                             page_table_t *new_pt = (page_table_t *)kmalloc_a(sizeof(page_table_t));
@@ -497,7 +497,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
                             new_pd->entries[k] = virt_to_phys((uint64_t)new_pt, kernel_pml4) | (pd->entries[k] & 0xFFF);
                             new_pd->is_full[k] = pd->is_full[k];
 
-                            for (uint32_t l = 0; l < 512; l++) {
+                            for (uint64_t l = 0; l < 512; l++) {
                                 if (pt->pt_entry[l] != 0) {
                                     uint64_t new_phys = first_free_page_addr();
 
@@ -506,6 +506,8 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
 
                                     // copy the old page to the new page
                                     memcpy((void *)(new_phys + VIRT_MEM_OFFSET), (void *)((pt->pt_entry[l] & 0xFFFFFFFFFFFFF000) + VIRT_MEM_OFFSET), 0x1000);
+
+                                    serial_printf("Cloned virt 0x%lx (0x%lx) to 0x%lx\n", (i << 39) | (j << 30) | (k << 21) | (l << 12), pt->pt_entry[l] & 0xFFFFFFFFFFFFF000, new_phys);
 
                                     // mark the new page as used
                                     uint64_t page = new_phys / 0x1000;

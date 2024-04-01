@@ -22,9 +22,11 @@ int64_t syscall_open(regs_t *regs) {
 int64_t syscall_exit(regs_t *regs) {
     // to be dealt with when multitasking is implemented
 
+    serial_printf("Process exited with code %d\n", regs->rdi);
     printf("Process exited with code %d\n", regs->rdi);
 
-    traceback(10);
+    // TODO: figure out why traceback is flipping out
+    //traceback(10);
 
     asm volatile ("sti");
 
@@ -32,7 +34,9 @@ int64_t syscall_exit(regs_t *regs) {
 }
 
 int64_t syscall_write(regs_t *regs) {
-    return fwrite((void *)regs->rsi, regs->rdx, 1, regs->rdi);
+    int64_t value = fwrite((void *)regs->rsi, regs->rdx, 1, regs->rdi);
+
+    return value;
 }
 
 int64_t syscall_close(regs_t *regs) {
@@ -87,8 +91,7 @@ int64_t syscall_handler(regs_t *regs)
     if (syscall_table[regs->rax] != NULL) {
         return syscall_table[regs->rax](regs);
     } else {
-        printf("Unknown syscall: %d\n", regs->rax);
-        while (true);
+        serial_printf("Unknown syscall: %d\n", regs->rax);
     }
 
     return -ENOSYS;
