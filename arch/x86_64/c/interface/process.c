@@ -150,14 +150,14 @@ void schedule() {
     new_process->queue_next = NULL;
 
     serial_printf("Scheduling %d\n", new_process->pid);
+    serial_printf("Switching to pml4: %lx\n", new_process->pml4->phys_addr);
+    asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
+    current_pml4 = new_process->pml4;
 
     tss_set_rsp0((uint64_t)new_process->tss_stack + 4096);
 
     if (new_process->status == TASK_INITIAL) {
         new_process->status = TASK_RUNNING;
-        serial_printf("Switching to pml4: %lx\n", new_process->pml4->phys_addr);
-        asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
-        current_pml4 = new_process->pml4;
 
         // switch to the new process's stack
         asm volatile ("movq %0, %%rsp" : : "r" (new_process->rsp));
@@ -166,10 +166,6 @@ void schedule() {
         // jump to the new process
         jump_to_usermode((uint64_t)new_process->entry, new_process->rsp);
     } else if (new_process->status == TASK_RUNNING) {
-        // Change page directory
-        serial_printf("Switching to pml4: %lx\n", new_process->pml4->phys_addr);
-        asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
-        current_pml4 = new_process->pml4;
 
         // switch to the new process's stack
         asm volatile ("movq %0, %%rsp" : : "r" (new_process->rsp));
@@ -177,11 +173,6 @@ void schedule() {
 
         return;
     } else if (new_process->status == TASK_FORKED) {
-        // Change page directory
-        serial_printf("Switching to pml4: %lx\n", new_process->pml4->phys_addr);
-        asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
-        current_pml4 = new_process->pml4;
-
         // switch to the new process's stack
         asm volatile ("movq %0, %%rsp" : : "r" (new_process->rsp));
         asm volatile ("movq %0, %%rbp" : : "r" (new_process->rbp));
@@ -232,6 +223,7 @@ int64_t fork() {
     new_process->rsp = rsp;
     new_process->rbp = rbp;
     new_process->entry = (void *)rip;
+    new_process->syscall_rsp = current_process->syscall_rsp;
 
     add_process(new_process);
 

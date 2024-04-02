@@ -56,6 +56,7 @@ typedef struct process {
     exit_status_bits_t exit_status;
 
     void *tss_stack;
+    uint64_t syscall_rsp;
 
     struct process *next;
     struct process *queue_next;

@@ -76,12 +76,16 @@ void syscall_init() {
     syscall_table[217] = &getdents64;
 }
 
+
+extern uint64_t syscall_old_rsp;
 void syscall_handler(regs_t *regs)
 {
+    current_process->syscall_rsp = regs->rsp;
     if (syscall_table[regs->rax] != NULL) {
         regs->rax = syscall_table[regs->rax](regs);
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
         regs->rax = -ENOSYS;
     }
+    syscall_old_rsp = current_process->syscall_rsp;
 }

@@ -239,6 +239,7 @@ syscall_stack:
     times 4096 db 0
 syscall_stack_top:
 
+global syscall_old_rsp
 syscall_old_rsp: dq 0
 
 global read_rip
