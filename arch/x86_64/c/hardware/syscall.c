@@ -20,6 +20,7 @@ int64_t syscall_open(regs_t *regs) {
 }
 
 int64_t syscall_exit(regs_t *regs) {
+    serial_printf("Process %d exited with status %d\n", current_process->pid, regs->rdi);
 
     process_exit(regs->rdi);
 }

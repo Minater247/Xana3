@@ -91,7 +91,6 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->queue_next = NULL;
     new_process->next = NULL;
     new_process->tss_stack = kmalloc(4096);
-    new_process->rsp0 = (uint64_t)new_process->tss_stack + 4096;
 
     if (!has_stack) {
         // Set up the stack
@@ -136,25 +135,23 @@ void schedule() {
     process_t *new_process = queue;
     queue = queue->queue_next;
     // add the current process back to the queue
-    if (queue == NULL) {
-        queue = current_process;
-    } else {
-        process_t *current = queue;
-        while (current->queue_next != NULL) {
-            current = current->queue_next;
+    if (current_process->status != TASK_EXITED) {
+        if (queue == NULL) {
+            queue = current_process;
+        } else {
+            process_t *current = queue;
+            while (current->queue_next != NULL) {
+                current = current->queue_next;
+            }
+            current->queue_next = current_process;
         }
-        current->queue_next = current_process;
     }
     current_process = new_process;
     new_process->queue_next = NULL;
 
     serial_printf("Scheduling %d\n", new_process->pid);
 
-    if (new_process->pid == 2) {
-        BOCHS_BREAKPOINT;
-    }
-
-    tss_set_rsp0(new_process->rsp0);
+    tss_set_rsp0((uint64_t)new_process->tss_stack + 4096);
 
     if (new_process->status == TASK_INITIAL) {
         new_process->status = TASK_RUNNING;
@@ -206,19 +203,10 @@ void schedule() {
 void process_exit(int status) {
     current_process->status = TASK_EXITED;
 
-    // if on the queue, remove it
-    if (queue == current_process) {
-        queue = queue->queue_next;
-    } else {
-        process_t *current = queue;
-        while (current->queue_next != NULL) {
-            if (current->queue_next == current_process) {
-                current->queue_next = current_process->queue_next;
-                break;
-            }
-            current = current->queue_next;
-        }
-    }
+    // free the process's memory
+    kfree(current_process->tss_stack);
+    switch_page_directory(kernel_pml4);
+    free_page_directory(current_process->pml4);
 
     schedule();
 }
