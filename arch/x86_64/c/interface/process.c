@@ -16,12 +16,12 @@
 #include <serial.h>
 
 process_t *process_list = NULL;
-
 process_t *queue = NULL;
-
 process_t *current_process = NULL;
 
 process_t idle_process;
+
+waiter_t *waiters = NULL;
 
 pid_t first_free_pid() {
     pid_t pid = 0;
@@ -135,7 +135,7 @@ void schedule() {
     process_t *new_process = queue;
     queue = queue->queue_next;
     // add the current process back to the queue
-    if (current_process->status != TASK_EXITED) {
+    if (current_process->status != TASK_EXITED && current_process->status != TASK_WAITING) {
         if (queue == NULL) {
             queue = current_process;
         } else {
@@ -149,8 +149,13 @@ void schedule() {
     current_process = new_process;
     new_process->queue_next = NULL;
 
-    serial_printf("Scheduling %d\n", new_process->pid);
-    serial_printf("Switching to pml4: %lx\n", new_process->pml4->phys_addr);
+    serial_printf("Scheduling process %d\n", new_process->pid);
+
+    if (waiters != NULL && new_process->pid == 1) {
+        BOCHS_BREAKPOINT;
+        asm volatile ("cli");
+    }
+
     asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
     current_pml4 = new_process->pml4;
 
@@ -199,7 +204,48 @@ void process_exit(int status) {
     switch_page_directory(kernel_pml4);
     free_page_directory(current_process->pml4);
 
+    // Update the exit status and waiters
+    current_process->exit_status.normal_exit = true;
+    current_process->exit_status.exit_status = status;
+    
+    waiter_t *current = waiters;
+    while (current != NULL) {
+        if (current->type == WAIT_PID && current->pid == current_process->pid) {
+            current->status_ptr = status;
+            current->received = true;
+        }
+        current = current->next;
+    }
+
     schedule();
+}
+
+int64_t process_wait(int wait_type, pid_t pid, int *status, int options) {
+    waiter_t *waiter = (waiter_t *)kmalloc(sizeof(waiter_t));
+    waiter->pid = pid;
+    waiter->options = options;
+    waiter->received = false;
+    waiter->type = wait_type;
+    waiter->waiting = current_process->pid;
+    waiter->next = NULL;
+
+    if (waiters == NULL) {
+        waiters = waiter;
+    } else {
+        waiter->next = waiters;
+        waiters = waiter;
+    }
+
+    uint64_t rsp;
+    asm volatile ("movq %%rsp, %0;" : "=r" (rsp));
+    printf("WHILE WAITING RSP: 0x%lx\n", rsp);
+
+    asm volatile ("sti");
+    while (1);
+
+    *status = waiter->status_ptr;
+
+    return pid;
 }
 
 extern uint64_t read_rip();

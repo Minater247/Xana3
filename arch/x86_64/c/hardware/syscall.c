@@ -15,7 +15,6 @@
 syscall_t syscall_table[512];
 
 int64_t syscall_open(regs_t *regs) {
-    printf("SYSCALL_OPEN: %s\n", (char *)regs->rdi);
     return fopen((char *)regs->rdi, regs->rsi, regs->rdx);
 }
 
@@ -59,6 +58,14 @@ int64_t syscall_execv(regs_t *regs) {
     return execv(regs);
 }
 
+int64_t syscall_waitpid(regs_t *regs) {
+    int *status = (int *)regs->rsi;
+    int options = regs->rdx;
+    pid_t pid = regs->rdi;
+
+    return process_wait(WAIT_PID, pid, status, options);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -71,6 +78,7 @@ void syscall_init() {
     syscall_table[57] = &syscall_fork;
     syscall_table[59] = &syscall_execv;
     syscall_table[60] = &syscall_exit;
+    syscall_table[61] = &syscall_waitpid;
     syscall_table[79] = &syscall_getcwd;
     syscall_table[80] = &syscall_chdir;
     syscall_table[217] = &getdents64;

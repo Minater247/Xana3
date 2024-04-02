@@ -13,6 +13,7 @@
 #define TASK_INITIAL 2
 #define TASK_FORKED 3
 #define TASK_EXITED 4
+#define TASK_WAITING 5
 
 #define WNOHANG 0b1;
 #define WCONTINUED 0b10;
@@ -41,6 +42,27 @@ typedef struct exit_status_bits {
     uint16_t continued : 1;    // Bit 24
 } exit_status_bits_t;
 
+#define WIFEXITED(status) (((exit_status_bits_t)status).normal_exit)
+#define WEXITSTATUS(status) (((exit_status_bits_t)status).exit_status)
+#define WIFSIGNALED(status) (((exit_status_bits_t)status).signal_term)
+#define WTERMSIG(status) (((exit_status_bits_t)status).term_signal)
+#define WCOREDUMP(status) (((exit_status_bits_t)status).core_dump)
+#define WIFSTOPPED(status) (((exit_status_bits_t)status).signal_stop)
+#define WSTOPSIG(status) (((exit_status_bits_t)status).stop_signal)
+#define WIFCONTINUED(status) (((exit_status_bits_t)status).continued)
+
+#define WAIT_PID 0
+
+typedef struct waiter {
+    pid_t pid;
+    gid_t pgid;
+    pid_t waiting;
+    int options;
+    int status_ptr;
+    int type;
+    bool received;
+    struct waiter *next;
+} waiter_t;
 
 typedef struct process {
     pid_t pid;
@@ -69,6 +91,7 @@ void add_process(process_t *process);
 int64_t fork();
 int64_t execv(regs_t *regs);
 void process_exit(int status);
+int64_t process_wait(int wait_type, pid_t pid, int *status, int options);
 
 extern process_t *current_process;
 
