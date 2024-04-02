@@ -15,22 +15,13 @@
 syscall_t syscall_table[512];
 
 int64_t syscall_open(regs_t *regs) {
+    printf("SYSCALL_OPEN: %s\n", (char *)regs->rdi);
     return fopen((char *)regs->rdi, regs->rsi, regs->rdx);
-    
 }
 
 int64_t syscall_exit(regs_t *regs) {
-    // to be dealt with when multitasking is implemented
 
-    serial_printf("Process exited with code %d\n", regs->rdi);
-    printf("Process exited with code %d\n", regs->rdi);
-
-    // TODO: figure out why traceback is flipping out
-    //traceback(10);
-
-    asm volatile ("sti");
-
-    while (true);
+    process_exit(regs->rdi);
 }
 
 int64_t syscall_write(regs_t *regs) {

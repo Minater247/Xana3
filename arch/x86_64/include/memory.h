@@ -68,7 +68,7 @@ int memory_set_protection(void *addr, uint64_t length, uint64_t prot);
 bool is_page_free(uint64_t virt);
 void *krealloc(void *ptr, uint64_t size);
 uint64_t first_free_n_consecutive_addr(uint32_t n);
-void serial_dump_mappings(page_directory_t *pml4);
+void serial_dump_mappings(page_directory_t *pml4, bool include_kernel);
 
 extern page_directory_t *current_pml4;
 extern page_directory_t *kernel_pml4;

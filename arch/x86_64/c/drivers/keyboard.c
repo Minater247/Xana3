@@ -148,7 +148,6 @@ void keyboard_interrupt_handler(regs_t *r)
 
 uint8_t keyboard_getcode()
 {
-    asm volatile("cli");
     if (keypress_buffer_size > 0)
     {
         keypress_buffer_size--;
@@ -158,10 +157,8 @@ uint8_t keyboard_getcode()
         {
             keypress_buffer[i] = keypress_buffer[i + 1];
         }
-        asm volatile("sti");
         return scancode;
     }
-    asm volatile("sti");
     return 0;
 }
 

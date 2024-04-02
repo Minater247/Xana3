@@ -532,9 +532,9 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
     return new_directory;
 }
 
-void serial_dump_mappings(page_directory_t *pml4) {
+void serial_dump_mappings(page_directory_t *pml4, bool include_kernel) {
     serial_printf("Mappings for PML4 0x%lx\n", pml4);
-    for (uint64_t i = 0; i < 512; i++) {
+    for (uint64_t i = 0; i < (include_kernel ? 512 : 511); i++) {
         if (pml4->virt[i] != 0) {
             page_directory_t *pdpt = (page_directory_t *)(pml4->virt[i]);
             for (uint64_t j = 0; j < 512; j++) {

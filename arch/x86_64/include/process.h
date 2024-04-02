@@ -12,6 +12,7 @@
 #define TASK_STOPPED 1
 #define TASK_INITIAL 2
 #define TASK_FORKED 3
+#define TASK_EXITED 4
 
 #define WNOHANG 0b1;
 #define WCONTINUED 0b10;
@@ -52,6 +53,11 @@ typedef struct process {
 
     uint64_t rsp, rbp;
 
+    exit_status_bits_t exit_status;
+
+    void *tss_stack;
+    uint64_t rsp0;
+
     struct process *next;
     struct process *queue_next;
 } process_t;
@@ -62,6 +68,7 @@ void process_init();
 void add_process(process_t *process);
 int64_t fork();
 int64_t execv(regs_t *regs);
+void process_exit(int status);
 
 extern process_t *current_process;
 

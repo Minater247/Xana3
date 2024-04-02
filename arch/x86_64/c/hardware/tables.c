@@ -43,6 +43,11 @@ void tss_init()
     load_tss();
 }
 
+void tss_set_rsp0(uint64_t rsp0)
+{
+    tss.rsp0 = rsp0;
+}
+
 extern void load_gdt_initial(uint64_t gdtr);
 
 void gdt_init()
@@ -238,7 +243,11 @@ void page_fault_error(regs_t *r)
     uint64_t faulting_address;
     asm volatile("mov %%cr2, %0" : "=r"(faulting_address));
     uint32_t flags = r->err_code;
-    kpanic("Page fault! (%s%s%s%s%s) at 0x%lx [0x%lx]\n", (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", (uint64_t)faulting_address, r->rip);
+    serial_printf("Page fault! (%s%s%s%s%s) at 0x%lx [0x%lx]\n", (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", (uint64_t)faulting_address, r->rip);
+    
+    // for now, just sti and while
+    asm volatile("sti");
+    while (1);
 }
 
 void fault_handler(regs_t *regs)

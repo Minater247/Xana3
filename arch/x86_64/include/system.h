@@ -5,6 +5,8 @@
 
 #define VIRT_MEM_OFFSET 0xffffff8000000000
 
+#define BOCHS_BREAKPOINT asm volatile("xchgw %bx, %bx");
+
 typedef struct {
    uint64_t r15;
    uint64_t r14;

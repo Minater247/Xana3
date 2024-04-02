@@ -90,6 +90,8 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->status = TASK_INITIAL;
     new_process->queue_next = NULL;
     new_process->next = NULL;
+    new_process->tss_stack = kmalloc(4096);
+    new_process->rsp0 = (uint64_t)new_process->tss_stack + 4096;
 
     if (!has_stack) {
         // Set up the stack
@@ -146,20 +148,29 @@ void schedule() {
     current_process = new_process;
     new_process->queue_next = NULL;
 
+    serial_printf("Scheduling %d\n", new_process->pid);
+
+    if (new_process->pid == 2) {
+        BOCHS_BREAKPOINT;
+    }
+
+    tss_set_rsp0(new_process->rsp0);
+
     if (new_process->status == TASK_INITIAL) {
         new_process->status = TASK_RUNNING;
+        serial_printf("Switching to pml4: %lx\n", new_process->pml4->phys_addr);
         asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
         current_pml4 = new_process->pml4;
 
         // switch to the new process's stack
         asm volatile ("movq %0, %%rsp" : : "r" (new_process->rsp));
         asm volatile ("movq %0, %%rbp" : : "r" (new_process->rbp));
-        asm volatile ("sti");
 
         // jump to the new process
         jump_to_usermode((uint64_t)new_process->entry, new_process->rsp);
     } else if (new_process->status == TASK_RUNNING) {
         // Change page directory
+        serial_printf("Switching to pml4: %lx\n", new_process->pml4->phys_addr);
         asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
         current_pml4 = new_process->pml4;
 
@@ -170,6 +181,7 @@ void schedule() {
         return;
     } else if (new_process->status == TASK_FORKED) {
         // Change page directory
+        serial_printf("Switching to pml4: %lx\n", new_process->pml4->phys_addr);
         asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
         current_pml4 = new_process->pml4;
 
@@ -191,30 +203,49 @@ void schedule() {
     }
 }
 
+void process_exit(int status) {
+    current_process->status = TASK_EXITED;
+
+    // if on the queue, remove it
+    if (queue == current_process) {
+        queue = queue->queue_next;
+    } else {
+        process_t *current = queue;
+        while (current->queue_next != NULL) {
+            if (current->queue_next == current_process) {
+                current->queue_next = current_process->queue_next;
+                break;
+            }
+            current = current->queue_next;
+        }
+    }
+
+    schedule();
+}
+
 extern uint64_t read_rip();
 
 int64_t fork() {
-    page_directory_t *new_pml4 = clone_page_directory(current_pml4);
 
     uint64_t rsp, rbp;
     asm volatile ("movq %%rsp, %0;" : "=r" (rsp));
     asm volatile ("movq %%rbp, %0;" : "=r" (rbp));
+
+    uint64_t rip = read_rip();
+    if (rip == 0) {
+        return 0;
+    }
+
+    page_directory_t *new_pml4 = clone_page_directory(current_pml4);
 
     process_t *new_process = create_process(0, 0, new_pml4, true);
     new_process->status = TASK_FORKED;
     new_process->queue_next = NULL;
     new_process->rsp = rsp;
     new_process->rbp = rbp;
+    new_process->entry = (void *)rip;
 
     add_process(new_process);
-
-    uint64_t rip = read_rip();
-
-    if (rip == 0) {
-        return 0;
-    } else {
-        new_process->entry = (void *)rip;
-    }
 
     return new_process->pid;
 }
@@ -268,6 +299,9 @@ int64_t execv(regs_t *regs) {
     // For now it should suffice to just set up the page directory and jump to the new process
     // In the future, we need to read args/env before messing with pages
     page_directory_t *old_pml4 = current_pml4;
+
+    serial_dump_mappings(old_pml4, false);
+
     switch_page_directory(kernel_pml4);
     free_page_directory(old_pml4);
 
@@ -280,6 +314,8 @@ int64_t execv(regs_t *regs) {
     for (uint32_t i = 0; i < 0x10000; i += 0x1000) {
         map_page_kmalloc(VIRT_MEM_OFFSET - (i + 0x1000), first_free_page_addr(), false, true, current_pml4);
     }
+
+    serial_dump_mappings(current_pml4, false);
 
     // RBP not set up, do now
     asm volatile ("movq %0, %%rbp" : : "r" (VIRT_MEM_OFFSET));
