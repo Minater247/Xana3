@@ -462,6 +462,37 @@ page_table_entry_t first_free_page()
     return (page_table_entry_t){.pml4 = (addr >> 39) & 0x1FF, .pdpt = (addr >> 30) & 0x1FF, .pd = (addr >> 21) & 0x1FF, .pt = (addr >> 12) & 0x1FF};
 }
 
+serial_heap_verify() {
+    // print out the heap headers' address and length
+    // if there is overlap or leakage, add an entry stating as such
+    heap_header_t *header = kheap;
+    uint64_t last_end = (uint64_t)kheap;
+    while (header != NULL) {
+        serial_printf("--------------------------------------------\n");
+        if ((uint64_t)header < (uint64_t)kheap || (uint64_t)header > kheap_end) {
+            serial_printf("Heap header at 0x%lx is outside of heap bounds\n", header);
+        }
+        if ((uint64_t)header + sizeof(heap_header_t) + header->length > kheap_end) {
+            serial_printf("Heap header at 0x%lx is outside of heap bounds\n", header);
+        }
+        if ((uint64_t)header < last_end) {
+            uint64_t overlap = last_end - (uint64_t)header;
+            serial_printf("Heap header at 0x%lx overlaps with previous header by 0x%lx bytes\n", header, overlap);
+        }
+        if ((uint64_t)header > last_end) {
+            uint64_t leakage = (uint64_t)header - last_end;
+            serial_printf("Heap header at 0x%lx has a gap of 0x%lx bytes from previous header\n", header, leakage);
+        }
+        serial_printf("Header: 0x%lx\n", header);
+        serial_printf("\tLength: 0x%lx\n", header->length);
+        serial_printf("\tFree: %d\n", header->free);
+        serial_printf("\tEnd: 0x%lx\n", (uint64_t)header + sizeof(heap_header_t) + header->length);
+        last_end = (uint64_t)header + sizeof(heap_header_t) + header->length;
+        header = header->next;
+    }
+    serial_printf("--------------------------------------------\n");
+}
+
 page_directory_t *clone_page_directory(page_directory_t *directory)
 {
     page_directory_t *new_directory = (page_directory_t *)kmalloc_a(sizeof(page_directory_t));

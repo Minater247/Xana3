@@ -79,6 +79,7 @@ typedef struct process {
 
     void *tss_stack;
     uint64_t syscall_rsp;
+    void *syscall_stack;
 
     struct process *next;
     struct process *queue_next;

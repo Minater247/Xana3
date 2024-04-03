@@ -11,6 +11,7 @@
 #include <trace.h>
 #include <unused.h>
 #include <process.h>
+#include <string.h>
 
 syscall_t syscall_table[512];
 
@@ -86,14 +87,17 @@ void syscall_init() {
 
 
 extern uint64_t syscall_old_rsp;
+extern void syscall_stack_top;
 void syscall_handler(regs_t *regs)
 {
     current_process->syscall_rsp = regs->rsp;
+
     if (syscall_table[regs->rax] != NULL) {
         regs->rax = syscall_table[regs->rax](regs);
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
         regs->rax = -ENOSYS;
     }
+
     syscall_old_rsp = current_process->syscall_rsp;
 }

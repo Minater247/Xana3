@@ -91,6 +91,7 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->queue_next = NULL;
     new_process->next = NULL;
     new_process->tss_stack = kmalloc(4096);
+    new_process->syscall_stack = kmalloc(4096); // TODO: free this somewhere
 
     if (!has_stack) {
         // Set up the stack
@@ -122,6 +123,8 @@ void process_init() {
     process_list = &idle_process;
 }
 
+bool did_fork = false;
+
 void schedule() {
     // really basic scheduler for now, just switch to the next process in the queue
     if (queue == NULL) {
@@ -149,15 +152,11 @@ void schedule() {
     current_process = new_process;
     new_process->queue_next = NULL;
 
+    // serial_printf("SCHEDULE PML4:\n");
+    // serial_dump_mappings(new_process->pml4, false);
+    // serial_printf("SCHEDULE PML4 DONE\n");
+
     serial_printf("Scheduling process %d\n", new_process->pid);
-
-    if (waiters != NULL && new_process->pid == 1) {
-        BOCHS_BREAKPOINT;
-        asm volatile ("cli");
-    }
-
-    asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
-    current_pml4 = new_process->pml4;
 
     tss_set_rsp0((uint64_t)new_process->tss_stack + 4096);
 
@@ -168,6 +167,9 @@ void schedule() {
         asm volatile ("movq %0, %%rsp" : : "r" (new_process->rsp));
         asm volatile ("movq %0, %%rbp" : : "r" (new_process->rbp));
 
+        asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
+        current_pml4 = new_process->pml4;
+
         // jump to the new process
         jump_to_usermode((uint64_t)new_process->entry, new_process->rsp);
     } else if (new_process->status == TASK_RUNNING) {
@@ -176,11 +178,17 @@ void schedule() {
         asm volatile ("movq %0, %%rsp" : : "r" (new_process->rsp));
         asm volatile ("movq %0, %%rbp" : : "r" (new_process->rbp));
 
+        asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
+        current_pml4 = new_process->pml4;
+
         return;
     } else if (new_process->status == TASK_FORKED) {
         // switch to the new process's stack
         asm volatile ("movq %0, %%rsp" : : "r" (new_process->rsp));
         asm volatile ("movq %0, %%rbp" : : "r" (new_process->rbp));
+
+        asm volatile ("mov %0, %%cr3" : : "r" (new_process->pml4->phys_addr));
+        current_pml4 = new_process->pml4;
 
         new_process->status = TASK_RUNNING;
 
@@ -196,11 +204,19 @@ void schedule() {
     }
 }
 
+
+char fork_stack[0x1000];
+
 void process_exit(int status) {
     current_process->status = TASK_EXITED;
 
     // free the process's memory
     kfree(current_process->tss_stack);
+
+    // switch to the fork stack since we're back to the kernel directory
+    asm volatile ("movq %0, %%rsp" : : "r" ((uint64_t)&fork_stack + 0x1000));
+    asm volatile ("movq %0, %%rbp" : : "r" ((uint64_t)&fork_stack + 0x1000));
+
     switch_page_directory(kernel_pml4);
     free_page_directory(current_process->pml4);
 
@@ -236,12 +252,13 @@ int64_t process_wait(int wait_type, pid_t pid, int *status, int options) {
         waiters = waiter;
     }
 
-    uint64_t rsp;
-    asm volatile ("movq %%rsp, %0;" : "=r" (rsp));
-    printf("WHILE WAITING RSP: 0x%lx\n", rsp);
-
     asm volatile ("sti");
-    while (1);
+    while (!waiter->received) {
+        printf("Waiting for process %d\n", pid);
+        schedule();
+    }
+
+    printf("Done waiting for process %d\n", pid);
 
     *status = waiter->status_ptr;
 
@@ -251,7 +268,6 @@ int64_t process_wait(int wait_type, pid_t pid, int *status, int options) {
 extern uint64_t read_rip();
 
 int64_t fork() {
-
     uint64_t rsp, rbp;
     asm volatile ("movq %%rsp, %0;" : "=r" (rsp));
     asm volatile ("movq %%rbp, %0;" : "=r" (rbp));
@@ -261,7 +277,10 @@ int64_t fork() {
         return 0;
     }
 
+    serial_printf("Forking process %d\n", current_process->pid);
+
     page_directory_t *new_pml4 = clone_page_directory(current_pml4);
+    serial_printf("Cloned PML4 @ 0x%lx to 0x%lx\n", current_pml4, new_pml4);
 
     process_t *new_process = create_process(0, 0, new_pml4, true);
     new_process->status = TASK_FORKED;
@@ -272,6 +291,10 @@ int64_t fork() {
     new_process->syscall_rsp = current_process->syscall_rsp;
 
     add_process(new_process);
+
+    serial_printf("Fork done.\n");
+
+    did_fork = true;
 
     return new_process->pid;
 }
@@ -326,22 +349,30 @@ int64_t execv(regs_t *regs) {
     // In the future, we need to read args/env before messing with pages
     page_directory_t *old_pml4 = current_pml4;
 
-    serial_dump_mappings(old_pml4, false);
+    // switch to the temporary stack
+    asm volatile ("movq %0, %%rsp" : : "r" (fork_stack + 0x1000));
 
-    switch_page_directory(kernel_pml4);
-    free_page_directory(old_pml4);
+    page_directory_t *new_directory = clone_page_directory(kernel_pml4);
 
-    switch_page_directory(clone_page_directory(kernel_pml4));
+    for (uint32_t i = 0; i < 0x10000; i += 0x1000) {
+        map_page_kmalloc(VIRT_MEM_OFFSET - (i + 0x1000), first_free_page_addr(), false, true, new_directory);
+    }
 
-    uint64_t entry = load_elf64(buf);
+    uint64_t entry = load_elf64(buf, new_directory);
+    printf("RECEIVED ENTRY POINT: 0x%lx\n", entry);
     fclose(fd);
     kfree(buf);
 
-    for (uint32_t i = 0; i < 0x10000; i += 0x1000) {
-        map_page_kmalloc(VIRT_MEM_OFFSET - (i + 0x1000), first_free_page_addr(), false, true, current_pml4);
-    }
+    // move the stack to the new process
+    uint64_t new_rsp = VIRT_MEM_OFFSET;
+    uint64_t new_rbp = VIRT_MEM_OFFSET;
+    asm volatile ("movq %0, %%rsp" : : "r" (new_rsp));
+    asm volatile ("movq %0, %%rbp" : : "r" (new_rbp));
 
-    serial_dump_mappings(current_pml4, false);
+    asm volatile ("mov %0, %%cr3" : : "r" (new_directory->phys_addr));
+    current_pml4 = new_directory;
+
+    // free_page_directory(old_pml4);
 
     // RBP not set up, do now
     asm volatile ("movq %0, %%rbp" : : "r" (VIRT_MEM_OFFSET));

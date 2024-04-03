@@ -76,11 +76,13 @@ void kmain() {
         if (read < 0) {
             printf("Failed to read file\n");
         } else {
+            page_directory_t *pml4 = clone_page_directory(current_pml4);
+
             printf("Read %d bytes\n", read);
-            uint64_t entry = load_elf64(buf);
+            uint64_t entry = load_elf64(buf, pml4);
             fclose(fd);
 
-            add_process(create_process((void *)entry, 0x10000, clone_page_directory(current_pml4), false));
+            add_process(create_process((void *)entry, 0x10000, pml4, false));
 
             printf("Loaded ELF, entry point: 0x%lx\n", entry);
 
