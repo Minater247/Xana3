@@ -19,10 +19,12 @@ int64_t syscall_open(regs_t *regs) {
     return fopen((char *)regs->rdi, regs->rsi, regs->rdx);
 }
 
-int64_t syscall_exit(regs_t *regs) {
+int64_t __attribute__((noreturn)) syscall_exit(regs_t *regs) {
     serial_printf("Process %d exited with status %d\n", current_process->pid, regs->rdi);
 
     process_exit(regs->rdi);
+
+    kpanic("Process exited but process_exit() returned");
 }
 
 int64_t syscall_write(regs_t *regs) {

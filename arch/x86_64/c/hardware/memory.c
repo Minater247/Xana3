@@ -462,7 +462,7 @@ page_table_entry_t first_free_page()
     return (page_table_entry_t){.pml4 = (addr >> 39) & 0x1FF, .pdpt = (addr >> 30) & 0x1FF, .pd = (addr >> 21) & 0x1FF, .pt = (addr >> 12) & 0x1FF};
 }
 
-serial_heap_verify() {
+void serial_heap_verify() {
     // print out the heap headers' address and length
     // if there is overlap or leakage, add an entry stating as such
     heap_header_t *header = kheap;

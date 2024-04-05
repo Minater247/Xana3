@@ -150,8 +150,6 @@ void process_init()
     num_2_schedules = 0;
 }
 
-bool did_fork = false;
-
 void schedule()
 {
     // really basic scheduler for now, just switch to the next process in the queue
@@ -188,19 +186,6 @@ void schedule()
     new_process->queue_next = NULL;
 
     tss_set_rsp0((uint64_t)new_process->tss_stack + 4096);
-
-    // if (new_process->pid == 2)
-    // {
-    //     asm volatile("xchg %bx, %bx");
-
-    //     process_t *to_dump = process_list;
-    //     while (to_dump != NULL)
-    //     {
-    //         serial_printf("Process %d PML4: 0x%lx (Phys: 0x%lx)\n", to_dump->pid, to_dump->pml4, to_dump->pml4->phys_addr);
-    //         serial_dump_mappings(to_dump->pml4, false);
-    //         to_dump = to_dump->next;
-    //     }
-    // }
 
     if (new_process->status == TASK_INITIAL)
     {
@@ -347,8 +332,6 @@ int64_t fork()
 
     add_process(new_process);
 
-    did_fork = true;
-
     return new_process->pid;
 }
 
@@ -403,6 +386,8 @@ int64_t execv(regs_t *regs)
     uint64_t new_rbp = VIRT_MEM_OFFSET;
     asm volatile("movq %0, %%rsp" : : "r"(new_rsp));
     asm volatile("movq %0, %%rbp" : : "r"(new_rbp));
+
+    current_process->pml4 = new_directory;
 
     asm volatile("mov %0, %%cr3" : : "r"(new_directory->phys_addr));
     current_pml4 = new_directory;

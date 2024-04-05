@@ -52,23 +52,17 @@ uint32_t load_elf64(char *elf_file, page_directory_t *elf_pml4) {
             }
 
             // Map each page
-            serial_printf("Mapping %d pages\n", num_pages);
             for (int j = 0; j < num_pages; j++) {
                 map_page_kmalloc(phdr->p_vaddr + j * 0x1000, first_free_page_addr(), false, true, elf_pml4);
             }
-            serial_printf("Done.\n");
 
             // Copy the segment to the physical memory address
             memcpy((void *)phdr->p_paddr, (void *)(elf_file + phdr->p_offset), phdr->p_filesz);
-
-            serial_printf("Copied.\n");
 
             // Zero out the remaining memory if the memory size is larger than the file size
             if (phdr->p_memsz > phdr->p_filesz) {
                 memset((void *)(phdr->p_paddr + phdr->p_filesz), 0, phdr->p_memsz - phdr->p_filesz);
             }
-
-            printf("Finalized.");
         }
     }
 
