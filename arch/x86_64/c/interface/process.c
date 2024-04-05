@@ -195,8 +195,8 @@ void schedule()
         current_pml4 = new_process->pml4;
 
         // switch to the new process's stack
-        asm volatile("movq %0, %%rsp" : : "r"(new_process->rsp));
-        asm volatile("movq %0, %%rbp" : : "r"(new_process->rbp));
+        ASM_WRITE_RSP(new_process->rsp);
+        ASM_WRITE_RBP(new_process->rbp);
 
         // jump to the new process
         jump_to_usermode((uint64_t)new_process->entry, new_process->rsp);
@@ -207,8 +207,8 @@ void schedule()
         current_pml4 = new_process->pml4;
 
         // switch to the new process's stack
-        asm volatile("movq %0, %%rsp" : : "r"(new_process->rsp));
-        asm volatile("movq %0, %%rbp" : : "r"(new_process->rbp));
+        ASM_WRITE_RSP(new_process->rsp);
+        ASM_WRITE_RBP(new_process->rbp);
 
         // *should* just pop and return to the assembly handler, not
         // touching variables or registers. Leaving this be until I can
@@ -225,8 +225,8 @@ void schedule()
         new_process->status = TASK_RUNNING;
 
         // switch to the new process's stack
-        asm volatile("movq %0, %%rsp" : : "r"(new_process->rsp));
-        asm volatile("movq %0, %%rbp" : : "r"(new_process->rbp));
+        ASM_WRITE_RSP(new_process->rsp);
+        ASM_WRITE_RBP(new_process->rbp);
 
         // zero out rax
         asm volatile("movq $0, %rax");
@@ -245,14 +245,16 @@ char fork_stack[0x1000];
 
 void process_exit(int status)
 {
+    // switch to the fork stack since we're back to the kernel directory
+    // note: each process should have its own syscall stack! do not do this
+    // TODO: fix this
+    asm volatile("movq %0, %%rsp" : : "r"((uint64_t)&fork_stack + 0x1000));
+    asm volatile("movq %0, %%rbp" : : "r"((uint64_t)&fork_stack + 0x1000));
+
     current_process->status = TASK_EXITED;
 
     // free the process's memory
     kfree(current_process->tss_stack);
-
-    // switch to the fork stack since we're back to the kernel directory
-    asm volatile("movq %0, %%rsp" : : "r"((uint64_t)&fork_stack + 0x1000));
-    asm volatile("movq %0, %%rbp" : : "r"((uint64_t)&fork_stack + 0x1000));
 
     switch_page_directory(kernel_pml4);
     free_page_directory(current_process->pml4);
@@ -287,6 +289,7 @@ int64_t process_wait(int wait_type, pid_t pid, void *status, int options)
 
     ASM_ENABLE_INTERRUPTS;
     while (!WIFTERMINATED(current->exit_status)) {
+        serial_printf("Waiting for process %d...\n", pid);
         schedule();
     }
     ASM_DISABLE_INTERRUPTS;
@@ -304,8 +307,8 @@ extern uint64_t read_rip();
 int64_t fork()
 {
     uint64_t rsp, rbp;
-    asm volatile("movq %%rsp, %0;" : "=r"(rsp));
-    asm volatile("movq %%rbp, %0;" : "=r"(rbp));
+    ASM_READ_RSP(rsp);
+    ASM_READ_RBP(rbp);
 
     uint64_t rip = read_rip();
     if (rip == 0)
@@ -330,6 +333,9 @@ int64_t fork()
 
 int64_t execv(regs_t *regs)
 {
+    // switch to the temporary stack
+    ASM_WRITE_RSP((uint64_t)&fork_stack + 0x1000);
+
     int fd = fopen((char *)regs->rdi, 0, 0);
     if (fd < 0)
     {
@@ -356,9 +362,6 @@ int64_t execv(regs_t *regs)
     // For now it should suffice to just set up the page directory and jump to the new process
     // In the future, we need to read args/env before messing with pages
 
-    // switch to the temporary stack
-    asm volatile("movq %0, %%rsp" : : "r"(fork_stack + 0x1000));
-
     page_directory_t *new_directory = clone_page_directory(kernel_pml4);
 
     for (uint32_t i = 0; i < 0x10000; i += 0x1000)
@@ -372,20 +375,11 @@ int64_t execv(regs_t *regs)
 
     current_process->pml4 = new_directory;
 
-    asm volatile("mov %0, %%cr3" : : "r"(new_directory->phys_addr));
+    ASM_SET_CR3(new_directory->phys_addr);
 
     free_page_directory(current_pml4);
 
     current_pml4 = new_directory;
-
-    // move the stack to the new process
-    uint64_t new_rsp = VIRT_MEM_OFFSET;
-    uint64_t new_rbp = VIRT_MEM_OFFSET;
-    asm volatile("movq %0, %%rsp" : : "r"(new_rsp));
-    asm volatile("movq %0, %%rbp" : : "r"(new_rbp));
-
-    // RBP not set up, do now
-    asm volatile("movq %0, %%rbp" : : "r"(VIRT_MEM_OFFSET));
 
     // jump to the new process
     jump_to_usermode(entry, VIRT_MEM_OFFSET);
