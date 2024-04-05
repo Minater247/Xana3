@@ -7,6 +7,7 @@
 #include <syscall.h>
 #include <process.h>
 #include <display.h>
+#include <system.h>
 
 extern void load_tss();
 extern void load_idt(uint64_t idtr);
@@ -186,21 +187,21 @@ void tables_init()
     tss_init();
 
     // set up the STAR MSR to point to the correct segments
-    asm volatile ("wrmsr" ::"a"(0), "d"(0x230008), "c"(0xC0000081));
+    ASM_WRMSR_ADC(0, 0x230008, 0xC0000081);
 
     // set up the LSTAR MSR to point to the syscall handler
     uint64_t lstar = (uint64_t)&syscall_handler_asm;
-    asm volatile ("wrmsr" ::"a"(lstar), "d"(lstar >> 32), "c"(0xC0000082));
+    ASM_WRMSR_ADC(lstar, lstar >> 32, 0xC0000082);
 
     // set up the FMASK MSR to clear the interrupt flag on syscall
-    asm volatile ("wrmsr" ::"a"(0x200), "d"(0), "c"(0xC0000084));
+    ASM_WRMSR_ADC(0x200, 0, 0xC0000084);
 
 
     // enable syscall/sysret
     uint64_t efer;
-    asm volatile ("rdmsr" : "=a"(efer) : "c"(0xC0000080));
+    ASM_RDMSR(0xC0000080, efer);
     efer |= 1;
-    asm volatile ("wrmsr" ::"a"(efer), "c"(0xC0000080));
+    ASM_WRMSR_ADC(efer, 0, 0xC0000080);
 }
 
 char *exception_messages[] = {
@@ -239,19 +240,19 @@ char *exception_messages[] = {
 
 void page_fault_error(regs_t *r)
 {
-    asm volatile ("cli");
+    ASM_DISABLE_INTERRUPTS;
     // later on we will do some code elsewhere to see if this is actually an error (swapping pages, copy on write etc)
     // but for now, we will just print out information about the page fault
     uint64_t faulting_address;
-    asm volatile("mov %%cr2, %0" : "=r"(faulting_address));
+    ASM_GET_CR2(faulting_address);
     uint32_t flags = r->err_code;
     serial_printf("Page fault! (%s%s%s%s%s) at 0x%lx [0x%lx]\n", (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", (uint64_t)faulting_address, r->rip);
     
     enableBackground(true);
     printf("\033[97;41mPage fault in process %d! (see serial output for details)\033[0m\n", current_process->pid);
     
-    // for now, just sti and while
-    asm volatile("sti");
+    // for now, just sti and while so other processes can continue
+    ASM_ENABLE_INTERRUPTS;
     while (1);
 }
 
@@ -296,35 +297,4 @@ void irq_handler(regs_t *regs)
 void register_interrupt_handler(uint8_t n, isr_handler_t handler)
 {
     isr_handlers[n] = handler;
-}
-
-void jump_to_usermode(uint64_t rip, uint64_t rsp)
-{
-    asm volatile("cli");
-
-    // set the segment registers for user mode
-    // 0x28 | 0x3 = 0x2B for user mode data segment
-    // 0x30 | 0x3 = 0x33 for user mode code segment
-    asm volatile("mov $0x2B, %ax");
-    asm volatile("mov %ax, %ds");
-    asm volatile("mov %ax, %es");
-    asm volatile("mov %ax, %fs");
-    asm volatile("mov %ax, %gs");
-    // SS is handled by iret
-
-    //push data selector
-    asm volatile("pushq $0x2B");
-    //push rsp
-    asm volatile("pushq %0" ::"r"(rsp));
-    //push rflags
-    asm volatile("pushfq");
-    // or the interrupt flag
-    asm volatile("orq $0x200, (%%rsp)" ::);
-    //push code selector
-    asm volatile("pushq $0x33");
-    //push rip
-    asm volatile("pushq %0" ::"r"(rip));
-
-    //iretq
-    asm volatile("iretq");
 }

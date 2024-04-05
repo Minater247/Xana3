@@ -276,7 +276,7 @@ void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t frameb
 
     // We need to read cr3 to locate the current page table
     uint64_t cr3;
-    asm volatile("mov %%cr3, %0" : "=r"(cr3));
+    ASM_GET_CR3(cr3);
     kernel_pml4 = (page_directory_t *)(cr3 + VIRT_MEM_OFFSET);
     current_pml4 = kernel_pml4;
 
@@ -610,28 +610,31 @@ void free_page_directory(page_directory_t *directory)
                             {
                                 if (pt->pt_entry[l] != 0)
                                 {
-                                    free_page(pt->pt_entry[l] & 0xFFFFFFFFFFFFF000, directory);
+                                    // mark the page as free
+                                    uint64_t phys = pt->pt_entry[l] & 0xFFFFFFFFFFFFF000;
+                                    uint64_t page = phys / 0x1000;
+                                    phys_mem_bitmap[page / 8] &= ~(1 << (page % 8));
                                 }
                             }
-                            kfree((void *)pt);
+                            kfree_a((void *)pt);
                         }
                     }
-                    kfree((void *)pd);
+                    kfree_a((void *)pd);
                 }
             }
-            kfree((void *)pdpt);
+            kfree_a((void *)pdpt);
         }
     }
-    kfree((void *)directory);
+    kfree_a((void *)directory);
 }
 
 void switch_page_directory(page_directory_t *directory)
 {
     current_pml4 = directory;
-    asm volatile("mov %0, %%cr3" ::"r"(directory->phys_addr));
+    ASM_SET_CR3(directory->phys_addr);
 }
 
-void free_page(uint64_t virt, page_directory_t *pd)
+void free_page_addr(uint64_t virt, page_directory_t *pd)
 {
     uint64_t phys = virt_to_phys(virt, pd);
     if (phys == (uint64_t)-1)

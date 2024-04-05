@@ -244,3 +244,33 @@ read_rip:
     ; Read the RIP of the calling function
     mov rax, [rsp]
     ret
+
+
+global jump_to_usermode
+jump_to_usermode:
+    cli
+
+    ; set the segment registers for user mode
+    ; 0x28 | 0x3 = 0x2B for user mode data segment
+    ; 0x30 | 0x3 = 0x33 for user mode code segment
+    mov ax, 0x2B
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    ; SS is handled by iret
+
+    ; DS
+    push 0x2B
+    ; RSP
+    push rsi
+    ; RFLAGS
+    pushfq
+    ; OR the interrupt flag
+    or qword [rsp], 0x200
+    ; CS
+    push 0x33
+    ; RIP
+    push rdi
+    ; IRETQ
+    iretq

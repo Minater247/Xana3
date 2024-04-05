@@ -36,7 +36,7 @@ void serial_traceback(size_t depth) {
     traceback_failed = true;
 
     uint64_t *rbp;
-    asm volatile("mov %%rbp, %0" : "=r" (rbp));
+    ASM_READ_RBP(rbp);
     while (rbp != NULL) {
         uint64_t rip = rbp[1];
         serial_printf("0x%lx", rip);
@@ -94,7 +94,7 @@ void traceback(size_t depth) {
     traceback_failed = true;
 
     uint64_t *rbp;
-    asm volatile("mov %%rbp, %0" : "=r" (rbp));
+    ASM_READ_RBP(rbp);
     while (rbp != NULL) {
         uint64_t rip = rbp[1];
         printf("\033[36;40m0x%lx", rip);

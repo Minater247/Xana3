@@ -32,4 +32,28 @@ typedef struct {
    uint64_t ss;
 } __attribute__((packed)) regs_t;
 
+
+// Safe inline assembly functions, to be used in C code
+// Shouldn't be dangerous, but care be taken when using them
+#define ASM_DISABLE_INTERRUPTS asm volatile("cli");
+#define ASM_ENABLE_INTERRUPTS asm volatile("sti");
+
+#define ASM_GET_CR2(reg) asm volatile("mov %%cr2, %0" : "=r"(reg));
+
+#define ASM_GET_CR3(reg) asm volatile("mov %%cr3, %0" : "=r"(reg));
+#define ASM_SET_CR3(reg) asm volatile("mov %0, %%cr3" ::"r"(reg));
+
+#define ASM_READ_RSP(reg) asm volatile("mov %%rsp, %0" : "=r"(reg));
+#define ASM_READ_RBP(reg) asm volatile("mov %%rbp, %0" : "=r"(reg));
+
+// USE WITH GREAT CAUTION!
+#define ASM_WRITE_RSP(reg) asm volatile("mov %0, %%rsp" ::"r"(reg));
+#define ASM_WRITE_RBP(reg) asm volatile("mov %0, %%rbp" ::"r"(reg));
+
+#define ASM_OUTB(port, val) asm volatile("outb %0, %1" :: "a"(val), "Nd"(port));
+#define ASM_INB(port, val) asm volatile("inb %1, %0" : "=a"(val) : "Nd"(port));
+
+#define ASM_WRMSR_ADC(a, d, c) asm volatile("wrmsr" :: "a"(a), "d"(d), "c"(c));
+#define ASM_RDMSR(msr, reg) asm volatile("rdmsr" : "=a"(reg) : "c"(msr));
+
 #endif

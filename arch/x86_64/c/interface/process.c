@@ -157,11 +157,11 @@ void schedule()
     {
         return;
     }
-    asm volatile("cli");
+    ASM_DISABLE_INTERRUPTS;
 
     // Save the current process's rsp and rbp
-    asm volatile("movq %%rsp, %0;" : "=r"(current_process->rsp));
-    asm volatile("movq %%rbp, %0;" : "=r"(current_process->rbp));
+    ASM_READ_RSP(current_process->rsp);
+    ASM_READ_RBP(current_process->rbp);
 
     process_t *new_process = queue;
     queue = queue->queue_next;
@@ -191,38 +191,42 @@ void schedule()
     {
         new_process->status = TASK_RUNNING;
 
+        ASM_SET_CR3(new_process->pml4->phys_addr);
+        current_pml4 = new_process->pml4;
+
         // switch to the new process's stack
         asm volatile("movq %0, %%rsp" : : "r"(new_process->rsp));
         asm volatile("movq %0, %%rbp" : : "r"(new_process->rbp));
-
-        asm volatile("mov %0, %%cr3" : : "r"(new_process->pml4->phys_addr));
-        current_pml4 = new_process->pml4;
 
         // jump to the new process
         jump_to_usermode((uint64_t)new_process->entry, new_process->rsp);
     }
     else if (new_process->status == TASK_RUNNING)
     {
+        ASM_SET_CR3(new_process->pml4->phys_addr);
+        current_pml4 = new_process->pml4;
 
         // switch to the new process's stack
         asm volatile("movq %0, %%rsp" : : "r"(new_process->rsp));
         asm volatile("movq %0, %%rbp" : : "r"(new_process->rbp));
 
-        asm volatile("mov %0, %%cr3" : : "r"(new_process->pml4->phys_addr));
-        current_pml4 = new_process->pml4;
+        // *should* just pop and return to the assembly handler, not
+        // touching variables or registers. Leaving this be until I can
+        // either confirm this works or find a better way to do it.
 
         return;
     }
     else if (new_process->status == TASK_FORKED)
     {
-        // switch to the new process's stack
-        asm volatile("movq %0, %%rsp" : : "r"(new_process->rsp));
-        asm volatile("movq %0, %%rbp" : : "r"(new_process->rbp));
 
-        asm volatile("mov %0, %%cr3" : : "r"(new_process->pml4->phys_addr));
+        ASM_SET_CR3(new_process->pml4->phys_addr);
         current_pml4 = new_process->pml4;
 
         new_process->status = TASK_RUNNING;
+
+        // switch to the new process's stack
+        asm volatile("movq %0, %%rsp" : : "r"(new_process->rsp));
+        asm volatile("movq %0, %%rbp" : : "r"(new_process->rbp));
 
         // zero out rax
         asm volatile("movq $0, %rax");
@@ -291,11 +295,11 @@ int64_t process_wait(int wait_type, pid_t pid, int *status, int options)
         waiters = waiter;
     }
 
-    asm volatile("sti");
+    ASM_ENABLE_INTERRUPTS;
     while (!waiter->received)
     {
     }
-    asm volatile("cli");
+    ASM_DISABLE_INTERRUPTS;
 
     printf("Done waiting for process %d\n", pid);
 
@@ -364,7 +368,6 @@ int64_t execv(regs_t *regs)
 
     // For now it should suffice to just set up the page directory and jump to the new process
     // In the future, we need to read args/env before messing with pages
-    page_directory_t *old_pml4 = current_pml4;
 
     // switch to the temporary stack
     asm volatile("movq %0, %%rsp" : : "r"(fork_stack + 0x1000));
@@ -381,20 +384,19 @@ int64_t execv(regs_t *regs)
     fclose(fd);
     kfree(buf);
 
+    current_process->pml4 = new_directory;
+
+    asm volatile("mov %0, %%cr3" : : "r"(new_directory->phys_addr));
+
+    free_page_directory(current_pml4);
+
+    current_pml4 = new_directory;
+
     // move the stack to the new process
     uint64_t new_rsp = VIRT_MEM_OFFSET;
     uint64_t new_rbp = VIRT_MEM_OFFSET;
     asm volatile("movq %0, %%rsp" : : "r"(new_rsp));
     asm volatile("movq %0, %%rbp" : : "r"(new_rbp));
-
-    current_process->pml4 = new_directory;
-
-    asm volatile("mov %0, %%cr3" : : "r"(new_directory->phys_addr));
-    current_pml4 = new_directory;
-
-
-    // DO NOT CALL YET! Page faults for some reason
-    // free_page_directory(old_pml4);
 
     // RBP not set up, do now
     asm volatile("movq %0, %%rbp" : : "r"(VIRT_MEM_OFFSET));

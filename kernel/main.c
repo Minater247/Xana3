@@ -27,12 +27,12 @@ void kmain() {
 
     // increase RSP/RBP by VIRT_MEM_OFFSET
     uint64_t rsp, rbp;
-    asm volatile ("movq %%rsp, %0;" : "=r" (rsp));
-    asm volatile ("movq %%rbp, %0;" : "=r" (rbp));
+    ASM_READ_RSP(rsp);
+    ASM_READ_RBP(rbp);
     rsp += VIRT_MEM_OFFSET;
     rbp += VIRT_MEM_OFFSET;
-    asm volatile ("movq %0, %%rsp" : : "r" (rsp));
-    asm volatile ("movq %0, %%rbp" : : "r" (rbp));
+    ASM_WRITE_RSP(rsp);
+    ASM_WRITE_RBP(rbp);
 
     video_init((struct multiboot_tag_framebuffer *)((uint64_t)info->framebuffer_tag + VIRT_MEM_OFFSET));
 
@@ -89,14 +89,10 @@ void kmain() {
         kfree(buf);
     }
 
-    asm volatile ("sti");
+    ASM_ENABLE_INTERRUPTS;
 
     // Loop indefinitely
-    while (1) {
-        // asm volatile ("cli");
-        // printf(".");
-        // asm volatile ("sti");
-    }
+    while (1);
 }
 
 void __init(uint32_t kernel_info) {
