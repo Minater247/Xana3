@@ -1,5 +1,4 @@
 *.log
-ramdisk/
 isodir/
 *.o
 *.dbo
@@ -9,3 +8,4 @@ isodir/
 *.out
 *.txt
 !doc/*/*
+!ramdisk/*

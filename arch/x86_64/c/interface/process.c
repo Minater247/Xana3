@@ -408,7 +408,7 @@ int64_t execv(regs_t *regs)
     current_pml4 = new_directory;
 
 
-    // dumb function that page faults
+    // DO NOT CALL YET! Page faults for some reason
     // free_page_directory(old_pml4);
 
     // RBP not set up, do now

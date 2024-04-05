@@ -1,7 +1,5 @@
-- Multitasking
-    - Task structure
-    - Per-Process Interrupt Stack
-    - Task Scheduling
+- Multitasking=
+    - Tie it all together
 - Image drawing
     - Image loading
     - Optimized drawing (avoiding putpixel)
