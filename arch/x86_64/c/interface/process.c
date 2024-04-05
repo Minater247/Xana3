@@ -407,7 +407,9 @@ int64_t execv(regs_t *regs)
     asm volatile("mov %0, %%cr3" : : "r"(new_directory->phys_addr));
     current_pml4 = new_directory;
 
-    free_page_directory(old_pml4);
+
+    // dumb function that page faults
+    // free_page_directory(old_pml4);
 
     // RBP not set up, do now
     asm volatile("movq %0, %%rbp" : : "r"(VIRT_MEM_OFFSET));
