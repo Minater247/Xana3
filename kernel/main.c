@@ -85,11 +85,11 @@ void kmain() {
             add_process(create_process((void *)entry, 0x10000, pml4, false));
 
             printf("Loaded ELF, entry point: 0x%lx\n", entry);
-
-            asm volatile ("sti");
         }
         kfree(buf);
     }
+
+    asm volatile ("sti");
 
     // Loop indefinitely
     while (1) {

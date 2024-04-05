@@ -61,7 +61,7 @@ uint32_t load_elf64(char *elf_file, page_directory_t *elf_pml4) {
             // Copy the segment to the physical memory address
             memcpy((void *)phdr->p_paddr, (void *)(elf_file + phdr->p_offset), phdr->p_filesz);
 
-            serial_printf("Copied.");
+            serial_printf("Copied.\n");
 
             // Zero out the remaining memory if the memory size is larger than the file size
             if (phdr->p_memsz > phdr->p_filesz) {

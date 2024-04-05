@@ -6,6 +6,7 @@
 #include <errors.h>
 #include <syscall.h>
 #include <process.h>
+#include <display.h>
 
 extern void load_tss();
 extern void load_idt(uint64_t idtr);
@@ -238,12 +239,16 @@ char *exception_messages[] = {
 
 void page_fault_error(regs_t *r)
 {
+    asm volatile ("cli");
     // later on we will do some code elsewhere to see if this is actually an error (swapping pages, copy on write etc)
     // but for now, we will just print out information about the page fault
     uint64_t faulting_address;
     asm volatile("mov %%cr2, %0" : "=r"(faulting_address));
     uint32_t flags = r->err_code;
     serial_printf("Page fault! (%s%s%s%s%s) at 0x%lx [0x%lx]\n", (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", (uint64_t)faulting_address, r->rip);
+    
+    enableBackground(true);
+    printf("\033[97;41mPage fault in process %d! (see serial output for details)\033[0m\n", current_process->pid);
     
     // for now, just sti and while
     asm volatile("sti");
