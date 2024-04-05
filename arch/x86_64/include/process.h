@@ -84,7 +84,7 @@ void add_process(process_t *process);
 int64_t fork();
 int64_t execv(regs_t *regs);
 void process_exit(int status);
-int64_t process_wait(int wait_type, pid_t pid, int *status, int options);
+int64_t process_wait(int wait_type, pid_t pid, void *status, int options);
 
 extern process_t *current_process;
 

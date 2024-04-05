@@ -62,7 +62,7 @@ int64_t syscall_execv(regs_t *regs) {
 }
 
 int64_t syscall_waitpid(regs_t *regs) {
-    int *status = (int *)regs->rsi;
+    void *status = (void *)regs->rsi;
     int options = regs->rdx;
     pid_t pid = regs->rdi;
 

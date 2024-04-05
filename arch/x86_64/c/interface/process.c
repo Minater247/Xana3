@@ -265,8 +265,11 @@ void process_exit(int status)
     schedule();
 }
 
-int64_t process_wait(int wait_type, pid_t pid, int *status, int options)
-{   
+int64_t process_wait(int wait_type, pid_t pid, void *status, int options)
+{
+    UNUSED(options);
+    UNUSED(wait_type);
+
     // Locate the process we're waiting on
     process_t *current = process_list;
     while (current != NULL)
@@ -288,9 +291,8 @@ int64_t process_wait(int wait_type, pid_t pid, int *status, int options)
     }
     ASM_DISABLE_INTERRUPTS;
 
-    printf("Done waiting for process %d\n", pid);
-
-    *status = *(int *)&(current->exit_status);
+    exit_status_bits_t *status_bits = (exit_status_bits_t *)status;
+    *status_bits = current->exit_status;
 
     return pid;
 }
@@ -351,8 +353,6 @@ int64_t execv(regs_t *regs)
         return -EIO;
     }
 
-    printf("Read %d bytes\n", read);
-
     // For now it should suffice to just set up the page directory and jump to the new process
     // In the future, we need to read args/env before messing with pages
 
@@ -367,7 +367,6 @@ int64_t execv(regs_t *regs)
     }
 
     uint64_t entry = load_elf64(buf, new_directory);
-    printf("RECEIVED ENTRY POINT: 0x%lx\n", entry);
     fclose(fd);
     kfree(buf);
 
