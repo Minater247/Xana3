@@ -21,8 +21,6 @@ process_t *current_process = NULL;
 
 process_t idle_process;
 
-waiter_t *waiters = NULL;
-
 pid_t first_free_pid()
 {
     pid_t pid = 0;
@@ -107,6 +105,8 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->next = NULL;
     new_process->tss_stack = kmalloc(4096);
     new_process->syscall_stack = kmalloc(4096); // TODO: free this somewhere
+    new_process->exit_status.normal_exit = false;
+    new_process->exit_status.exit_status = 0;
 
     if (!has_stack)
     {
@@ -260,50 +260,37 @@ void process_exit(int status)
     // Update the exit status and waiters
     current_process->exit_status.normal_exit = true;
     current_process->exit_status.exit_status = status;
-
-    waiter_t *current = waiters;
-    while (current != NULL)
-    {
-        if (current->type == WAIT_PID && current->pid == current_process->pid)
-        {
-            current->status_ptr = status;
-            current->received = true;
-        }
-        current = current->next;
-    }
+    current_process->exit_status.has_terminated = true;
 
     schedule();
 }
 
 int64_t process_wait(int wait_type, pid_t pid, int *status, int options)
-{
-    waiter_t *waiter = (waiter_t *)kmalloc(sizeof(waiter_t));
-    waiter->pid = pid;
-    waiter->options = options;
-    waiter->received = false;
-    waiter->type = wait_type;
-    waiter->waiting = current_process->pid;
-    waiter->next = NULL;
-
-    if (waiters == NULL)
+{   
+    // Locate the process we're waiting on
+    process_t *current = process_list;
+    while (current != NULL)
     {
-        waiters = waiter;
+        if (current->pid == pid)
+        {
+            break;
+        }
+        current = current->next;
     }
-    else
+    if (current == NULL)
     {
-        waiter->next = waiters;
-        waiters = waiter;
+        return -ECHILD;
     }
 
     ASM_ENABLE_INTERRUPTS;
-    while (!waiter->received)
-    {
+    while (!WIFTERMINATED(current->exit_status)) {
+        schedule();
     }
     ASM_DISABLE_INTERRUPTS;
 
     printf("Done waiting for process %d\n", pid);
 
-    *status = waiter->status_ptr;
+    *status = *(int *)&(current->exit_status);
 
     return pid;
 }

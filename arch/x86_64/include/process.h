@@ -40,6 +40,7 @@ typedef struct exit_status_bits {
     uint16_t core_dump : 1;    // Bit 22
     uint16_t signal_stop : 1;  // Bit 23
     uint16_t continued : 1;    // Bit 24
+    uint16_t has_terminated : 1; // Bit 25
 } exit_status_bits_t;
 
 #define WIFEXITED(status) (((exit_status_bits_t)status).normal_exit)
@@ -49,20 +50,11 @@ typedef struct exit_status_bits {
 #define WCOREDUMP(status) (((exit_status_bits_t)status).core_dump)
 #define WIFSTOPPED(status) (((exit_status_bits_t)status).signal_stop)
 #define WSTOPSIG(status) (((exit_status_bits_t)status).stop_signal)
-#define WIFCONTINUED(status) (((exit_status_bits_t)status).continued)
+#define WIFCONTINUED(status) (((exit_status_bits_t)status).continued)\
+// custom bit
+#define WIFTERMINATED(status) (((exit_status_bits_t)status).has_terminated)
 
 #define WAIT_PID 0
-
-typedef struct waiter {
-    pid_t pid;
-    gid_t pgid;
-    pid_t waiting;
-    int options;
-    int status_ptr;
-    int type;
-    bool received;
-    struct waiter *next;
-} waiter_t;
 
 typedef struct process {
     pid_t pid;
