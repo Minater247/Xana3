@@ -46,22 +46,18 @@ typedef struct {
 #define ASM_READ_RSP(reg) asm volatile("mov %%rsp, %0" : "=r"(reg));
 #define ASM_READ_RBP(reg) asm volatile("mov %%rbp, %0" : "=r"(reg));
 
-// need to silence deprecation warning, but can mark rsp as clobbered
-// TODO: don't do this, deal with the actual process jump in assembly
-#define ASM_WRITE_RSP(reg) _Pragma("GCC diagnostic push") \
-                     _Pragma("GCC diagnostic ignored \"-Wdeprecated\"") \
-                     asm volatile("mov %0, %%rsp" ::"r"(reg) : "rsp"); \
-                     _Pragma("GCC diagnostic pop")
-
-// NOT SAFE! Does not mark as clobbered. Only move RBP if the stack stays the
+// NOT SAFE! Does not mark as clobbered. Only move RBP/RSP if the stack stays the
 // same, such as the jump from lower to higher memory at initialization, or if
 // the next instruction is a direct jump, call to *assembly*, or return.
 #define ASM_WRITE_RBP(reg) asm volatile("mov %0, %%rbp" ::"r"(reg));
+#define ASM_WRITE_RSP(reg) asm volatile("mov %0, %%rsp" ::"r"(reg));
 
 #define ASM_OUTB(port, val) asm volatile("outb %0, %1" :: "a"(val), "Nd"(port));
 #define ASM_INB(port, val) asm volatile("inb %1, %0" : "=a"(val) : "Nd"(port));
 
 #define ASM_WRMSR_ADC(a, d, c) asm volatile("wrmsr" :: "a"(a), "d"(d), "c"(c));
 #define ASM_RDMSR(msr, reg) asm volatile("rdmsr" : "=a"(reg) : "c"(msr));
+
+#define IRQ0 asm volatile ("int $32")
 
 #endif

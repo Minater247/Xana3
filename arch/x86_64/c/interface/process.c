@@ -130,8 +130,6 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     return new_process;
 }
 
-uint32_t num_2_schedules = 0;
-
 void process_init()
 {
     // create the idle process
@@ -146,8 +144,6 @@ void process_init()
 
     current_process = &idle_process;
     process_list = &idle_process;
-
-    num_2_schedules = 0;
 }
 
 void schedule()
@@ -290,7 +286,7 @@ int64_t process_wait(int wait_type, pid_t pid, void *status, int options)
     ASM_ENABLE_INTERRUPTS;
     while (!WIFTERMINATED(current->exit_status)) {
         serial_printf("Waiting for process %d...\n", pid);
-        schedule();
+        IRQ0;
     }
     ASM_DISABLE_INTERRUPTS;
 
