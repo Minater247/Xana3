@@ -11,6 +11,7 @@
 #include <sys/errno.h>
 #include <filesystem.h>
 #include <elf_loader.h>
+#include <syscall.h>
 
 #include <display.h>
 #include <serial.h>
@@ -103,8 +104,8 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->status = TASK_INITIAL;
     new_process->queue_next = NULL;
     new_process->next = NULL;
-    new_process->tss_stack = kmalloc(4096);
-    new_process->syscall_stack = kmalloc(4096);
+    new_process->tss_stack = kmalloc(SYSCALL_STACK_SIZE);
+    new_process->syscall_stack = kmalloc(SYSCALL_STACK_SIZE);
     new_process->exit_status.normal_exit = false;
     new_process->exit_status.exit_status = 0;
 
@@ -139,8 +140,8 @@ void process_init()
     idle_process.next = NULL;
     idle_process.status = TASK_RUNNING;
     idle_process.queue_next = NULL;
-    idle_process.tss_stack = kmalloc(4096);
-    idle_process.syscall_stack = kmalloc(4096);
+    idle_process.tss_stack = kmalloc(SYSCALL_STACK_SIZE);
+    idle_process.syscall_stack = kmalloc(SYSCALL_STACK_SIZE);
 
     current_process = &idle_process;
     process_list = &idle_process;
@@ -181,7 +182,7 @@ void schedule()
     current_process = new_process;
     new_process->queue_next = NULL;
 
-    tss_set_rsp0((uint64_t)new_process->tss_stack + 4096);
+    tss_set_rsp0((uint64_t)new_process->tss_stack + SYSCALL_STACK_SIZE);
 
     if (new_process->status == TASK_INITIAL)
     {
@@ -238,12 +239,6 @@ char fork_stack[0x1000];
 
 void process_exit(int status)
 {
-    // switch to the fork stack since we're back to the kernel directory
-    // note: each process should have its own syscall stack! do not do this
-    // TODO: fix this
-    asm volatile("movq %0, %%rsp" : : "r"((uint64_t)&fork_stack + 0x1000));
-    asm volatile("movq %0, %%rbp" : : "r"((uint64_t)&fork_stack + 0x1000));
-
     current_process->status = TASK_EXITED;
 
     // free the process's memory

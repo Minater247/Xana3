@@ -200,6 +200,10 @@ extern syscall_handler
 syscall_handler_asm:
     cli ; Disable interrupts
 
+    ; Save the old RSP
+    mov qword [syscall_old_rsp], rsp
+    mov rsp, syscall_stack_top
+
     ; Should be fine to do actual syscall now!
     ; We need to follow the C struct layout for the registers so we can use
     ; the same order in the C code
@@ -218,20 +222,20 @@ syscall_handler_asm:
     mov rdi, rsp
     call syscall_handler
 
+after_syscall:
+
     ; Pop the registers (rax has been set to the return value)
     popa64
 
-    ; Restore the stack
-    ; Each push is 8 bytes, times 7 registers
-    add rsp, 56
+    mov rsp, qword [syscall_old_rsp]
 
     ; Return from the syscall
     o64 sysret
 
 section .data
+global syscall_stack
 global syscall_stack_top
-; TEMP: a small stack for the kernel to use on syscalls, a place to store RSP and error for CF.
-; TODO: make these per-process variables
+; Small temporary stack for syscalls to get to C code
 syscall_stack:
     times 4096 db 0
 syscall_stack_top:

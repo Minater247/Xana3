@@ -33,7 +33,7 @@ void gdt_set_entry(int index, uint64_t base, uint64_t limit, uint8_t access, uin
     gdt_location[index].access = access;
 }
 
-char tss_stack[4096] __attribute__((aligned(16)));
+char tss_stack[SYSCALL_STACK_SIZE] __attribute__((aligned(16)));
 
 void tss_init()
 {

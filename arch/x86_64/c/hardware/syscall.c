@@ -90,9 +90,31 @@ void syscall_init() {
 
 extern uint64_t syscall_old_rsp;
 extern void syscall_stack_top;
+extern void syscall_stack;
 void syscall_handler(regs_t *regs)
 {
     current_process->syscall_rsp = regs->rsp;
+
+    // Copy current stack to process' syscall stack
+    memcpy(current_process->syscall_stack, (void *)&syscall_stack, SYSCALL_STACK_SIZE);
+
+    // Read and adjust rsp and rbp
+    uint64_t rsp, rbp;
+    ASM_READ_RSP(rsp);
+    ASM_READ_RBP(rbp);
+    uint64_t rsp_from_bottom = rsp - (uint64_t)&syscall_stack;
+    uint64_t rbp_from_bottom = rbp - (uint64_t)&syscall_stack;
+
+    // Move to the copied stack.
+    // This is usually a *very bad* idea, but since the stack has been copied
+    // verbatim, we can do this.
+    ASM_WRITE_RSP((uint64_t)current_process->syscall_stack + rsp_from_bottom);
+    ASM_WRITE_RBP((uint64_t)current_process->syscall_stack + rbp_from_bottom);
+
+    // regs was based in the original stack, so we need to adjust it
+    uint64_t offset = (uint64_t)current_process->syscall_stack - (uint64_t)&syscall_stack;
+    regs = (regs_t *)((uint64_t)regs + offset);
+    
 
     if (syscall_table[regs->rax] != NULL) {
         regs->rax = syscall_table[regs->rax](regs);
