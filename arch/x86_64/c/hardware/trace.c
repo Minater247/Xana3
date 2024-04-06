@@ -22,8 +22,8 @@ void traceback_init(uint32_t elf_symbols_addr, uint32_t elf_strings_addr, uint32
     symbol_count = elf_symbol_count;
 }
 
-// TODO: really broken for some reason, tends to page fault
-//       fix this!
+// Keep track of whether or not traceback failed, just in case something goes
+// seriously wrong in the backend
 bool traceback_failed = false;
 
 void serial_traceback(size_t depth) {

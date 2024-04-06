@@ -104,7 +104,7 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->queue_next = NULL;
     new_process->next = NULL;
     new_process->tss_stack = kmalloc(4096);
-    new_process->syscall_stack = kmalloc(4096); // TODO: free this somewhere
+    new_process->syscall_stack = kmalloc(4096);
     new_process->exit_status.normal_exit = false;
     new_process->exit_status.exit_status = 0;
 
@@ -229,12 +229,9 @@ void schedule()
 
         // jump to the new process
         asm volatile("jmp *%0" : : "r"(new_process->entry) : "rax");
-
-        while (true)
-            ;
-
-        return;
     }
+
+    kpanic("Process %d in undefined state! [%d]", new_process->pid, new_process->status);
 }
 
 char fork_stack[0x1000];
@@ -260,7 +257,9 @@ void process_exit(int status)
     current_process->exit_status.exit_status = status;
     current_process->exit_status.has_terminated = true;
 
-    schedule();
+    kfree(current_process->syscall_stack);
+
+    IRQ0;
 }
 
 int64_t process_wait(int wait_type, pid_t pid, void *status, int options)

@@ -359,9 +359,6 @@ void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t frameb
         memset(prealloc_pt, 0, sizeof(page_table_t));
     }
 
-    // MTODO: we need to adjust the virt field of each page directory by VIRT_MEM_OFFSET
-    // we didn't do this in the preloader to avoid 64-bit math in 32-bit mode
-
     serial_printf("Final state: %d%% of memory used\n", (first_free_page_addr() * 100) / total_memory);
     serial_printf("First free page: 0x%lx\n", first_free_page_addr());
 }
@@ -403,7 +400,6 @@ uint64_t first_free_page_addr() {
         }
 
         if (is_in_usable_memory(first_free_bit * 0x1000)) {
-            // TODO: this may skip up to 4KB * 64 = 256kb
             break;
         }
     }
