@@ -235,8 +235,6 @@ void schedule()
     kpanic("Process %d in undefined state! [%d]", new_process->pid, new_process->status);
 }
 
-char fork_stack[0x1000];
-
 void process_exit(int status)
 {
     current_process->status = TASK_EXITED;
@@ -257,10 +255,10 @@ void process_exit(int status)
     IRQ0;
 }
 
-int64_t process_wait(int wait_type, pid_t pid, void *status, int options)
+int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
 {
     UNUSED(options);
-    UNUSED(wait_type);
+    UNUSED(rusage);
 
     // Locate the process we're waiting on
     process_t *current = process_list;
@@ -323,9 +321,6 @@ int64_t fork()
 
 int64_t execv(regs_t *regs)
 {
-    // switch to the temporary stack
-    ASM_WRITE_RSP((uint64_t)&fork_stack + 0x1000);
-
     int fd = fopen((char *)regs->rdi, 0, 0);
     if (fd < 0)
     {

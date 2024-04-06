@@ -1,9 +1,7 @@
-- Multitasking=
-    - Tie it all together
 - Image drawing
     - Image loading
     - Optimized drawing (avoiding putpixel)
 - Filesystem (EXT2, ISO9660)
-- ACPI AML parsing
+- ACPI AML parsingcon
 - PCI Device Enumeration
 - USB Stack

@@ -61,12 +61,13 @@ int64_t syscall_execv(regs_t *regs) {
     return execv(regs);
 }
 
-int64_t syscall_waitpid(regs_t *regs) {
+int64_t syscall_wait4(regs_t *regs) {
     void *status = (void *)regs->rsi;
     int options = regs->rdx;
     pid_t pid = regs->rdi;
+    void *rusage = (void *)regs->r10;
 
-    return process_wait(WAIT_PID, pid, status, options);
+    return process_wait(pid, status, options, rusage);
 }
 
 void syscall_init() {
@@ -81,7 +82,7 @@ void syscall_init() {
     syscall_table[57] = &syscall_fork;
     syscall_table[59] = &syscall_execv;
     syscall_table[60] = &syscall_exit;
-    syscall_table[61] = &syscall_waitpid;
+    syscall_table[61] = &syscall_wait4;
     syscall_table[79] = &syscall_getcwd;
     syscall_table[80] = &syscall_chdir;
     syscall_table[217] = &getdents64;
@@ -89,8 +90,8 @@ void syscall_init() {
 
 
 extern uint64_t syscall_old_rsp;
-extern void syscall_stack_top;
-extern void syscall_stack;
+extern uint8_t syscall_stack_top;
+extern uint8_t syscall_stack;
 void syscall_handler(regs_t *regs)
 {
     current_process->syscall_rsp = regs->rsp;
