@@ -118,11 +118,7 @@ void syscall_handler(regs_t *regs)
     
 
     if (syscall_table[regs->rax] != NULL) {
-        // attempting to re-enable interrupts for proper scheduling
-        // TODO: check if in practice this causes issues (I don't think it should, but...)
-        ASM_ENABLE_INTERRUPTS;
         regs->rax = syscall_table[regs->rax](regs);
-        ASM_DISABLE_INTERRUPTS;
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
         regs->rax = -ENOSYS;
