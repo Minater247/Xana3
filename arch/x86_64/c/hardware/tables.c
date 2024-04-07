@@ -203,7 +203,7 @@ void tables_init()
     ASM_WRMSR_ADC(efer, 0, 0xC0000080);
 }
 
-char *exception_messages[] = {
+const char *exception_messages[] = {
     "Division By Zero",
     "Debug",
     "Non Maskable Interrupt",

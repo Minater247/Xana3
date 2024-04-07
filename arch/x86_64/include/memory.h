@@ -47,6 +47,15 @@ typedef struct {
     uint64_t phys_addr;
 } __attribute__((packed)) page_directory_t;
 
+typedef struct usable_memory_region
+{
+    uint64_t start;
+    uint64_t end;
+    struct usable_memory_region *next;
+} usable_memory_region_t;
+
+#define HEAP_MAGIC 0xFEAF2004
+
 void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t framebuffer_tag_addr);
 void *kmalloc(uint64_t size);
 void *kmalloc_a(uint64_t size);

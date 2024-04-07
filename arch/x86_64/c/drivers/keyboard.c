@@ -25,7 +25,7 @@ bool caps = false;
 
 device_t kbd_device;
 
-char kbdcodes[128] =
+const char kbdcodes[128] =
     {
         0, 27, '1', '2', '3', '4', '5', '6', '7', '8',    /* 9 */
         '9', '0', '-', '=', '\b',                         /* Backspace */
@@ -64,7 +64,7 @@ char kbdcodes[128] =
         0, /* F12 Key */
         0, /* All other keys are undefined */
 };
-char kbdcodes_shifted[128] = {
+const char kbdcodes_shifted[128] = {
     0, 27, '!', '@', '#', '$', '%', '^', '&', '*',    /* 9 */
     '(', ')', '_', '+', '\b',                         /* Backspace */
     '\t',                                             /* Tab */

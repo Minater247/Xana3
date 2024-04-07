@@ -14,15 +14,6 @@
 #include <sys/mman.h>
 #include <sys/errno.h>
 
-#define HEAP_MAGIC 0xFEAF2004
-
-typedef struct usable_memory_region
-{
-    uint64_t start;
-    uint64_t end;
-    struct usable_memory_region *next;
-} usable_memory_region_t;
-
 heap_header_t *kheap = NULL;
 uint64_t kheap_end = 0;
 

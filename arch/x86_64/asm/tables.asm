@@ -223,6 +223,9 @@ syscall_handler_asm:
     call syscall_handler
 
 after_syscall:
+    ; NOTE: I have observed a GP fault here, but I am unable to reproduce it
+    ; since it happened on real hardware and it has not happened since. Will
+    ; be keeping an eye on this.
 
     ; Pop the registers (rax has been set to the return value)
     popa64
