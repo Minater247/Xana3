@@ -179,13 +179,33 @@ size_t device_read(void *data, size_t size, size_t count, device_open_data_t *de
     return device_to_read->device->read(data, size, count, device_to_read->data, device_to_read->device, flags);
 }
 
-int device_close(device_open_data_t *data, device_t *device)
+int device_close(device_open_data_t *data, device_t *this_device)
 {
-    UNUSED(device);
+    UNUSED(this_device);
 
-    device->close(data->data, device);
+    if (data->device->close == NULL)
+    {
+        kfree(data);
+        return 0;
+    }
+
+    int ret = data->device->close(data->data, data->device);
     kfree(data);
-    return 0;
+    return ret;
+}
+
+int device_ioctl(device_open_data_t *data, unsigned long request, void *arg, device_t *this_device)
+{
+    UNUSED(this_device);
+
+    printf("Device IOCTL: 0x%lx\n", data->device->ioctl);
+
+    if (data->device->ioctl == NULL)
+    {
+        return -ENOTTY;
+    }
+
+    return data->device->ioctl(data->data, request, arg, data->device);
 }
 
 void init_device_device()
@@ -198,11 +218,12 @@ void init_device_device()
     // we need to cast the function pointer to return void *, like a function type taking path, flags, and device_t *, and returning a void *
     device_device.open = (open_func_t)device_open;
     device_device.read = (read_func_t)device_read;
-    device_device.close = NULL;
+    device_device.close = (close_func_t)device_close;
     device_device.fcntl = NULL;
     device_device.write = (write_func_t)device_write;
     device_device.file_size = NULL;
     device_device.lseek = NULL;
+    device_device.ioctl = (ioctl_func_t)device_ioctl;
 
     device_device.file_size = NULL;
 

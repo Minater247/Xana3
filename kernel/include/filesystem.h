@@ -118,5 +118,6 @@ size_t fgetdents64(int fd, void *ptr, size_t count);
 int fsetpwd(char *new_pwd);
 int fgetpwd(char *buf, size_t size);
 off_t flseek(int fd, off_t offset, int whence);
+int ioctl(int fd, unsigned long request, void *arg);
 
 #endif

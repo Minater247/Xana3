@@ -332,7 +332,6 @@ size_t fread(void *ptr, size_t size, size_t nmemb, int fd) {
  * @return The number of elements written
 */
 size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd) {
-
     file_descriptor_t *current = file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
@@ -390,7 +389,7 @@ off_t flseek(int fd, off_t offset, int whence) {
             if (current->device->lseek == NULL) {
                 return -ENOTSUP;
             }
-            return current->device->lseek(current->data, offset, whence);
+            return current->device->lseek(current->data, offset, whence, current->device);
         }
         current = current->next;
     }
@@ -497,6 +496,32 @@ int fgetpwd(char *buf, size_t size) {
     strcpy(buf, pwd);
 
     return 0;
+}
+
+/**
+ * IOCTL for a file descriptor.
+ * 
+ * @param fd The file descriptor to run the ioctl on
+ * @param request The request to run
+ * @param arg The argument to the request
+ * 
+ * @return 0 if successful
+ *      -ENOTSUP if the device doesn't support this operation
+ *      -EBADF if the file descriptor is invalid
+ *      -EINVAL if the request is invalid
+ */
+int ioctl(int fd, unsigned long request, void *arg) {
+    file_descriptor_t *current = file_descriptors;
+    while (current != NULL) {
+        if (current->descriptor_id == fd) {
+            if (current->device->ioctl == NULL) {
+                return -ENOTSUP;
+            }
+            return current->device->ioctl(current->data, request, arg, current->device);
+        }
+        current = current->next;
+    }
+    return -EBADF;
 }
 
 /**

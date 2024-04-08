@@ -13,6 +13,8 @@
 #include <errors.h>
 #include <ansi.h>
 #include <filesystem.h>
+#include <sys/ioctl.h>
+#include <sys/errno.h>
 
 void *video;
 uint8_t framebuffer_type = 0;
@@ -706,23 +708,10 @@ size_t fb_write(void *ptr, size_t size, size_t nmemb, void *data, void *device_p
     void *write_pos = (uint32_t *)(video + fb_data->pos);
 
     // write the data depending on bpp (data is to be provided in 32-bit format)
-    switch (framebuffer_bpp)
-    {
-    case 8:
-        kwarn("8 bpp framebuffer not supported\n");
-        break;
-    case 15:
-    case 16:
-        kwarn("15/16 bpp framebuffer not supported\n");
-        break;
-    case 24:
-        kwarn("24 bpp framebuffer not supported\n");
-        break;
-    case 32:
-        // this one is fine
-        memcpy(write_pos, ptr, size * nmemb);
-        break;
-    }
+    memcpy(write_pos, ptr, size * nmemb);
+
+    // update the position
+    fb_data->pos += size * nmemb;
 
     return size * nmemb;
 }
@@ -747,8 +736,10 @@ size_t fb_file_size(void *data, void *device_passed)
     return framebuffer_width * framebuffer_height * framebuffer_bpp / 8;
 }
 
-off_t fb_lseek(void *data, off_t offset, int whence)
+off_t fb_lseek(void *data, off_t offset, int whence, device_t *device_passed)
 {
+    UNUSED(device_passed);
+
     fb_data_t *fb_data = (fb_data_t *)data;
 
     switch (whence)
@@ -767,6 +758,28 @@ off_t fb_lseek(void *data, off_t offset, int whence)
     return fb_data->pos;
 }
 
+int fb_ioctl(void *data, unsigned long request, void *arg, void *device_passed)
+{
+    UNUSED(data);
+    UNUSED(device_passed);
+
+    printf("IOCTL Request: 0x%lx\n", request);
+
+    if (request == FBIOGET_VSCREENINFO) {
+        struct fb_var_screeninfo *vinfo = (struct fb_var_screeninfo *)arg;
+        vinfo->xres = framebuffer_width;
+        vinfo->yres = framebuffer_height;
+        vinfo->xres_virtual = framebuffer_width;
+        vinfo->yres_virtual = framebuffer_height;
+        vinfo->bits_per_pixel = framebuffer_bpp;
+        vinfo->grayscale = 0;
+        printf("Returning zero!\n");
+        return 0;
+    }
+
+    return -ENOTSUP;
+}
+
 device_t *init_fb_device()
 {
     device_t *fb_device = kmalloc(sizeof(device_t));
@@ -781,6 +794,7 @@ device_t *init_fb_device()
     fb_device->fcntl = NULL;
     fb_device->write = (write_func_t)fb_write;
     fb_device->lseek = (lseek_func_t)fb_lseek;
+    fb_device->ioctl = (ioctl_func_t)fb_ioctl;
 
     fb_device->file_size = (file_size_func_t)fb_file_size;
 

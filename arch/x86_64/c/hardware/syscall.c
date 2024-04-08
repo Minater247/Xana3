@@ -74,6 +74,10 @@ int64_t syscall_lseek(regs_t *regs) {
     return flseek(regs->rdi, regs->rsi, regs->rdx);
 }
 
+int64_t syscall_ioctl(regs_t *regs) {
+    return ioctl(regs->rdi, regs->rsi, (void *)regs->rdx);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -84,6 +88,7 @@ void syscall_init() {
     syscall_table[2] = &syscall_open;
     syscall_table[3] = &syscall_close;
     syscall_table[8] = &syscall_lseek;
+    syscall_table[16] = &syscall_ioctl;
     syscall_table[57] = &syscall_fork;
     syscall_table[59] = &syscall_execv;
     syscall_table[60] = &syscall_exit;

@@ -367,7 +367,8 @@ int64_t execv(regs_t *regs)
 
     page_directory_t *new_directory = clone_page_directory(kernel_pml4);
 
-    for (uint32_t i = 0; i < 0x10000; i += 0x1000)
+    // TODO: reduce this to a reasonable amount of pages, and increase on page fault
+    for (uint32_t i = 0; i < 0x200000; i += 0x1000)
     {
         map_page_kmalloc(VIRT_MEM_OFFSET - (i + 0x1000), first_free_page_addr(), false, true, new_directory);
     }
@@ -383,6 +384,8 @@ int64_t execv(regs_t *regs)
     free_page_directory(current_pml4);
 
     current_pml4 = new_directory;
+
+    serial_printf("Jumping to new process at 0x%lx\n", entry);
 
     // jump to the new process
     jump_to_usermode(entry, VIRT_MEM_OFFSET);
