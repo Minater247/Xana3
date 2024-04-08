@@ -73,6 +73,8 @@ typedef struct process {
     uint64_t syscall_rsp;
     void *syscall_stack;
 
+    regs_t registers;
+
     struct process *next;
     struct process *queue_next;
 } process_t;
@@ -82,7 +84,7 @@ void schedule();
 void process_init();
 void add_process(process_t *process);
 int64_t fork();
-int64_t execv(regs_t *regs);
+int64_t execv();
 void process_exit(int status);
 int64_t process_wait(pid_t pid, void *status, int options, void *rstatus);
 void process_exit_abnormal(exit_status_bits_t status);

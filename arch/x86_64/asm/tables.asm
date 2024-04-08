@@ -223,11 +223,9 @@ syscall_handler_asm:
     call syscall_handler
 
 after_syscall:
-    ; NOTE: I have observed a GP fault here, but I am unable to reproduce it
-    ; since it happened on real hardware and it has not happened since. Will
-    ; be keeping an eye on this.
+    mov rsp, rax ; return value is new regs pointer
 
-    ; Pop the registers (rax has been set to the return value)
+    ; Pop the registers (rax in this struct has been set to the return value)
     popa64
 
     mov rsp, qword [syscall_old_rsp]

@@ -268,6 +268,14 @@ void page_fault_error(regs_t *r)
     process_exit_abnormal(status);
 }
 
+void regs_dump(regs_t *regs) {
+    serial_printf("REG DUMP FOR PROCESS:\n");
+    serial_printf("RAX: 0x%lx\n", regs->rax);
+    serial_printf("RSP: 0x%lx\n", regs->rsp);
+    serial_printf("RBP: 0x%lx\n", regs->rbp);
+    serial_printf("RIP: 0x%lx\n", regs->rip);
+}
+
 void fault_handler(regs_t *regs)
 {
     if (regs->int_no == 14)
@@ -276,6 +284,7 @@ void fault_handler(regs_t *regs)
     }
     else
     {
+        regs_dump(regs);
         kpanic("Unhandled exception: %s (error code: %d) [0x%lx]", exception_messages[regs->int_no], regs->err_code, regs->rip);
     }
 }

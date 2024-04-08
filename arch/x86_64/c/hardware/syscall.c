@@ -102,7 +102,7 @@ void syscall_init() {
 extern uint64_t syscall_old_rsp;
 extern uint8_t syscall_stack_top;
 extern uint8_t syscall_stack;
-void syscall_handler(regs_t *regs)
+uint64_t syscall_handler(regs_t *regs)
 {
     current_process->syscall_rsp = regs->rsp;
 
@@ -122,16 +122,16 @@ void syscall_handler(regs_t *regs)
     ASM_WRITE_RSP((uint64_t)current_process->syscall_stack + rsp_from_bottom);
     ASM_WRITE_RBP((uint64_t)current_process->syscall_stack + rbp_from_bottom);
 
-    // regs was based in the original stack, so we need to adjust it
-    uint64_t offset = (uint64_t)current_process->syscall_stack - (uint64_t)&syscall_stack;
-    regs = (regs_t *)((uint64_t)regs + offset);
+    current_process->registers = *regs;
 
     if (syscall_table[regs->rax] != NULL) {
-        regs->rax = syscall_table[regs->rax](regs);
+        current_process->registers.rax = syscall_table[regs->rax](&(current_process->registers));
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
         regs->rax = -ENOSYS;
     }
 
     syscall_old_rsp = current_process->syscall_rsp;
+
+    return (uint64_t)&current_process->registers;
 }

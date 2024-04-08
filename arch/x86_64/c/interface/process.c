@@ -330,6 +330,7 @@ int64_t fork()
     new_process->rbp = rbp;
     new_process->entry = (void *)rip;
     new_process->syscall_rsp = current_process->syscall_rsp;
+    new_process->registers = current_process->registers;
 
     add_process(new_process);
 
