@@ -255,6 +255,24 @@ void process_exit(int status)
     IRQ0;
 }
 
+void process_exit_abnormal(exit_status_bits_t status)
+{
+    current_process->status = TASK_EXITED;
+
+    // free the process's memory
+    kfree(current_process->tss_stack);
+
+    switch_page_directory(kernel_pml4);
+    free_page_directory(current_process->pml4);
+
+    // Update the exit status and waiters
+    current_process->exit_status = status;
+
+    kfree(current_process->syscall_stack);
+
+    IRQ0;
+}
+
 int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
 {
     UNUSED(options);

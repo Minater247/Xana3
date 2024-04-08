@@ -251,9 +251,12 @@ void page_fault_error(regs_t *r)
     printf("\033[97;41mPage fault in process %d! (see serial output for details)\033[0m\n", current_process->pid);
 
     // for now, just sti and while so other processes can continue
-    ASM_ENABLE_INTERRUPTS;
-    while (1)
-        ;
+    exit_status_bits_t status;
+    status.has_terminated = 1;
+    status.normal_exit = 0;
+    status.signal_term = 1;
+    status.term_signal = 11;
+    process_exit_abnormal(status);
 }
 
 void fault_handler(regs_t *regs)

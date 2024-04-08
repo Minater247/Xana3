@@ -70,6 +70,10 @@ int64_t syscall_wait4(regs_t *regs) {
     return process_wait(pid, status, options, rusage);
 }
 
+int64_t syscall_lseek(regs_t *regs) {
+    return flseek(regs->rdi, regs->rsi, regs->rdx);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -79,6 +83,7 @@ void syscall_init() {
     syscall_table[1] = &syscall_write;
     syscall_table[2] = &syscall_open;
     syscall_table[3] = &syscall_close;
+    syscall_table[8] = &syscall_lseek;
     syscall_table[57] = &syscall_fork;
     syscall_table[59] = &syscall_execv;
     syscall_table[60] = &syscall_exit;
@@ -115,7 +120,6 @@ void syscall_handler(regs_t *regs)
     // regs was based in the original stack, so we need to adjust it
     uint64_t offset = (uint64_t)current_process->syscall_stack - (uint64_t)&syscall_stack;
     regs = (regs_t *)((uint64_t)regs + offset);
-    
 
     if (syscall_table[regs->rax] != NULL) {
         regs->rax = syscall_table[regs->rax](regs);

@@ -232,6 +232,7 @@ void keyboard_install()
     kbd_device.close = NULL;
     kbd_device.fcntl = NULL;
     kbd_device.file_size = NULL;
+    kbd_device.lseek = NULL;
 
     register_device(&kbd_device);
 }

@@ -11,14 +11,22 @@
 
 dev_t next_device_id = 0;
 mount_t *mounts = NULL;
-file_descriptor_t *file_descriptors = NULL;
+file_descriptor_t *file_descriptors = NULL; //TODO: This should be per-process
 
 device_t *root_filesystem = NULL;
 
 char resolution_buffer[PATH_MAX];
 
-char pwd[PATH_MAX];
+char pwd[PATH_MAX]; //TODO: This should be per-process
 
+/**
+ * Get the depth of a path (for example, /a/b/c has a depth of 3).
+ * Should be used for absolute paths only.
+ * 
+ * @param path The path to get the depth of
+ * 
+ * @return The depth of the path (0 if the path is empty, 1 if it's just "/" etc.)
+ */
 uint32_t get_path_depth(char *path) {
     uint32_t depth = 0;
     for (uint32_t i = 0; path[i] != '\0'; i++) {
@@ -29,10 +37,15 @@ uint32_t get_path_depth(char *path) {
     return depth;
 }
 
-// Get the part of a path (absolute only!) at a certain depth
-// Caller must ensure that part_num is less than the depth of the path,
-// the buffer is large enough, and that the path is absolute. Behavior is
-// undefined if these conditions are not met.
+/**
+ * Get a part of a path at a certain depth. Caller must ensure part_num < get_path_depth(path),
+ * the buffer is large enough, and the path is absolute. Behavior is undefined if these conditions
+ * are not met.
+ * 
+ * @param path The path to get the part from
+ * @param part The buffer to write the part to
+ * @param part_num The depth to get the part at
+ */
 void get_path_part(char *path, char *part, uint32_t part_num) {
     uint32_t current_part = 0;
     uint32_t j = 0;
@@ -58,6 +71,16 @@ void get_path_part(char *path, char *part, uint32_t part_num) {
     }   
 }
 
+/**
+ * Mount a filesystem device at a certain path.
+ * 
+ * @param path The path to mount the filesystem at
+ * @param device The device to mount
+ * @param filesystemtype The type of the filesystem
+ * @param mountflags Flags to use when mounting
+ * 
+ * @return 0 if successful, -1 if not
+*/
 int mount_at(char *path, device_t *device, char *filesystemtype, unsigned long mountflags) {
     mount_t *mount = (mount_t *)kmalloc(sizeof(mount_t));
     strcpy(mount->filesystemtype, filesystemtype);
@@ -69,7 +92,14 @@ int mount_at(char *path, device_t *device, char *filesystemtype, unsigned long m
     return 0;
 }
 
-
+/**
+ * Get the device mounted at a certain path.
+ * 
+ * @param path The path to get the device for
+ * 
+ * @return .pointer: The device mounted at the path
+ *         .value: The length of the path section that the device is mounted at
+ */
 pointer_int_t get_path_device(char *path) {
     mount_t *current_mount = mounts;
     while (current_mount != NULL) {
@@ -83,6 +113,13 @@ pointer_int_t get_path_device(char *path) {
     return (pointer_int_t){root_filesystem, 0};
 }
 
+/**
+ * Get the path that a device is mounted at.
+ * 
+ * @param device The device to get the path for
+ * 
+ * @return The path that the device is mounted at
+ */
 char *device_to_path(device_t *device) {
     mount_t *current_mount = mounts;
     while (current_mount != NULL) {
@@ -94,6 +131,13 @@ char *device_to_path(device_t *device) {
     return NULL;
 }
 
+/**
+ * Clean up an absolute path.
+ * 
+ * @param path The path to clean up
+ * 
+ * @return The cleaned up path
+*/
 char *abs_path_cleanup(char *path) {
     // remove double slashes, if dotdot is found, remove the previous part
     // this should work in the given buffer, no external space
@@ -134,6 +178,13 @@ char *abs_path_cleanup(char *path) {
     return (char *)path_addr_start;
 }
 
+/**
+ * Resolve a path to an absolute path.
+ * 
+ * @param path The path to resolve
+ * 
+ * @return The resolved path
+*/
 char *resolve_path(char *path) {
     if (path[0] != '/') {
         char *resolved = &resolution_buffer[0];
@@ -153,6 +204,15 @@ char *resolve_path(char *path) {
     return resolution_buffer;
 }
 
+/**
+ * Open a file.
+ * 
+ * @param path The path to the file to open
+ * @param flags The flags to open the file with
+ * @param mode The mode to open the file with
+ * 
+ * @return The file descriptor of the opened file
+*/
 int fopen(char *path, int flags, mode_t mode) {
     UNUSED(mode);
 
@@ -207,6 +267,13 @@ int fopen(char *path, int flags, mode_t mode) {
     return fd->descriptor_id;
 }
 
+/**
+ * Close a file.
+ * 
+ * @param fd The file descriptor to close
+ * 
+ * @return 0 if successful, -1 if not
+*/
 int fclose(int fd) {
     file_descriptor_t *current = file_descriptors;
     file_descriptor_t *prev = NULL;
@@ -229,6 +296,16 @@ int fclose(int fd) {
     return -EBADF;
 }
 
+/**
+ * Read from a file.
+ * 
+ * @param ptr The buffer to read into
+ * @param size The size of each element to read
+ * @param nmemb The number of elements to read
+ * @param fd The file descriptor to read from
+ * 
+ * @return The number of elements read
+*/
 size_t fread(void *ptr, size_t size, size_t nmemb, int fd) {
     file_descriptor_t *current = file_descriptors;
 
@@ -244,7 +321,18 @@ size_t fread(void *ptr, size_t size, size_t nmemb, int fd) {
     return -EBADF;
 }
 
+/**
+ * Write to a file.
+ * 
+ * @param ptr The buffer to write from
+ * @param size The size of each element to write
+ * @param nmemb The number of elements to write
+ * @param fd The file descriptor to write to
+ * 
+ * @return The number of elements written
+*/
 size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd) {
+
     file_descriptor_t *current = file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
@@ -258,6 +346,18 @@ size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd) {
     return -EBADF;
 }
 
+/**
+ * Get the directory entries of a directory.
+ * 
+ * @param fd The file descriptor of the directory
+ * @param ptr The buffer to write the entries to
+ * @param count The number of bytes available in the buffer
+ * 
+ * @return The number of bytes written
+ *        -ENOTSUP if the device doesn't support this operation
+ *        -EBADF if the file descriptor is invalid
+ *        -ENAMETOOLONG if the path is too long
+ */
 size_t fgetdents64(int fd, void *ptr, size_t count) {
     file_descriptor_t *current = file_descriptors;
     while (current != NULL) {
@@ -272,6 +372,40 @@ size_t fgetdents64(int fd, void *ptr, size_t count) {
     return -EBADF;
 }
 
+/**
+ * Seek to a certain position in a file.
+ * 
+ * @param fd The file descriptor to seek in
+ * @param offset The offset to seek to
+ * @param whence The position to seek from
+ * 
+ * @return The new position in the file
+ *        -ENOTSUP if the device doesn't support this operation
+ *        -EBADF if the file descriptor is invalid
+ */
+off_t flseek(int fd, off_t offset, int whence) {
+    file_descriptor_t *current = file_descriptors;
+    while (current != NULL) {
+        if (current->descriptor_id == fd) {
+            if (current->device->lseek == NULL) {
+                return -ENOTSUP;
+            }
+            return current->device->lseek(current->data, offset, whence);
+        }
+        current = current->next;
+    }
+    return -EBADF;
+}
+
+/**
+ * Get the size of a file.
+ * 
+ * @param path The path to the file to get the size of
+ * 
+ * @return The size of the file
+ *        -ENOENT if the file doesn't exist
+ *        -ENOTSUP if the device doesn't support this operation
+ */
 size_t file_size_internal(char *path) {
 
     resolve_path(path);
@@ -290,6 +424,17 @@ size_t file_size_internal(char *path) {
     return device->file_size((char *)((uint64_t)&resolution_buffer + resolution.value), device);
 }
 
+/**
+ * File control parameters for a file.
+ * 
+ * @param fd The file descriptor to control
+ * @param cmd The command to run
+ * @param arg The argument to the command
+ * 
+ * @return 0 if successful
+ *       -ENOTSUP if the device doesn't support this operation
+ *       -EBADF if the file descriptor is invalid
+*/
 int fcntl(int fd, int cmd, long arg) {
     file_descriptor_t *current = file_descriptors;
     while (current != NULL) {
@@ -304,6 +449,14 @@ int fcntl(int fd, int cmd, long arg) {
     return -EBADF;
 }
 
+/**
+ * Change the current working directory.
+ * 
+ * @param new_pwd The new working directory
+ * 
+ * @return 0 if successful
+ *       -ENAMETOOLONG if the path is too long
+*/
 int fsetpwd(char *new_pwd) {
     if (strlen(new_pwd) > PATH_MAX) {
         return -ENAMETOOLONG;
@@ -327,6 +480,15 @@ int fsetpwd(char *new_pwd) {
     return 0;
 }
 
+/**
+ * Get the current working directory.
+ * 
+ * @param buf The buffer to write the working directory to
+ * @param size The size of the buffer
+ * 
+ * @return 0 if successful
+ *       -ENAMETOOLONG if the path is too long
+*/
 int fgetpwd(char *buf, size_t size) {
     if (strlen(pwd) > size) {
         return -ENAMETOOLONG;
@@ -337,6 +499,11 @@ int fgetpwd(char *buf, size_t size) {
     return 0;
 }
 
+/**
+ * Initialize the filesystem.
+ * 
+ * @param ramdisk_device The device to use as the ramdisk
+*/
 void filesystem_init(device_t *ramdisk_device) {
     if (ramdisk_device == NULL) {
         kpanic("Ramdisk device not found, boot can't continue\n");

@@ -13,6 +13,7 @@
 device_t *xandisk_devices = NULL;
 device_t *simpleo_devices = NULL;
 device_t *keyboard_devices = NULL;
+device_t *framebuffer_devices = NULL;
 
 device_t device_device;
 
@@ -61,6 +62,19 @@ device_t *register_device(device_t *device_to_register)
         if (current_device == NULL)
         {
             keyboard_devices = device_to_register;
+            device_to_register->id = 0;
+        }
+        else
+        {
+            insert_device(current_device, device_to_register);
+        }
+    }
+    else if (device_to_register->type == DEVICE_TYPE_FRMEBUF)
+    {
+        device_t *current_device = framebuffer_devices;
+        if (current_device == NULL)
+        {
+            framebuffer_devices = device_to_register;
             device_to_register->id = 0;
         }
         else
@@ -142,6 +156,10 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed)
         {
             return device_open_helper(keyboard_devices, part, first_number, path, flags);
         }
+        else if (strncmp(part, "fb", 2) == 0)
+        {
+            return device_open_helper(framebuffer_devices, part, first_number, path, flags);
+        }
     }
 
     return (pointer_int_t){NULL, -ENODEV};
@@ -183,6 +201,8 @@ void init_device_device()
     device_device.close = NULL;
     device_device.fcntl = NULL;
     device_device.write = (write_func_t)device_write;
+    device_device.file_size = NULL;
+    device_device.lseek = NULL;
 
     device_device.file_size = NULL;
 

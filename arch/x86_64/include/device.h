@@ -17,6 +17,7 @@ typedef struct
 #define DEVICE_TYPE_XANDISK 0x1
 #define DEVICE_TYPE_SIMPLOU 0x2
 #define DEVICE_TYPE_KYBOARD 0x3
+#define DEVICE_TYPE_FRMEBUF 0x4
 
 typedef pointer_int_t (*open_func_t)(const char *, uint64_t, void *);
 typedef size_t (*read_func_t)(void *, size_t, size_t, void *, void *, uint64_t);
@@ -25,6 +26,7 @@ typedef int (*fcntl_func_t)(int, long, void *, void *);
 typedef size_t (*file_size_func_t)(const char *, void *);
 typedef size_t (*write_func_t)(void *, size_t, size_t, void *, void *, uint64_t);
 typedef size_t (*getdents64_func_t)(void *, size_t, void *, void *);
+typedef off_t (*lseek_func_t)(void *, off_t, int);
 
 typedef struct device
 {
@@ -40,6 +42,7 @@ typedef struct device
 	fcntl_func_t fcntl;
     write_func_t write;
 	getdents64_func_t getdents64;
+	lseek_func_t lseek;
 
 	file_size_func_t file_size;
 

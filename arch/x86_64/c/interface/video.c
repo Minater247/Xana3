@@ -12,6 +12,7 @@
 #include <unused.h>
 #include <errors.h>
 #include <ansi.h>
+#include <filesystem.h>
 
 void *video;
 uint8_t framebuffer_type = 0;
@@ -670,10 +671,120 @@ device_t *init_simple_output()
     simple_output_device.close = NULL;
     simple_output_device.fcntl = NULL;
     simple_output_device.write = (write_func_t)simple_output_write;
+    simple_output_device.lseek = NULL;
 
     simple_output_device.file_size = NULL;
 
     simple_output_device.type = DEVICE_TYPE_SIMPLOU;
 
     return register_device(&simple_output_device);
+}
+
+typedef struct {
+    uint64_t pos; // read/write position within framebuffer
+} fb_data_t;
+
+pointer_int_t fb_open(char *path, uint64_t flags, void *device_passed)
+{
+    UNUSED(path);
+    UNUSED(flags);
+    UNUSED(device_passed);
+
+    fb_data_t *data = kmalloc(sizeof(fb_data_t));
+    data->pos = 0;
+
+    return (pointer_int_t){data, 0};
+}
+
+size_t fb_write(void *ptr, size_t size, size_t nmemb, void *data, void *device_passed, uint64_t flags)
+{
+    UNUSED(device_passed);
+    UNUSED(flags);
+
+    // calculate where to write to
+    fb_data_t *fb_data = (fb_data_t *)data;
+    void *write_pos = (uint32_t *)(video + fb_data->pos);
+
+    // write the data depending on bpp (data is to be provided in 32-bit format)
+    switch (framebuffer_bpp)
+    {
+    case 8:
+        kwarn("8 bpp framebuffer not supported\n");
+        break;
+    case 15:
+    case 16:
+        kwarn("15/16 bpp framebuffer not supported\n");
+        break;
+    case 24:
+        kwarn("24 bpp framebuffer not supported\n");
+        break;
+    case 32:
+        // this one is fine
+        memcpy(write_pos, ptr, size * nmemb);
+        break;
+    }
+
+    return size * nmemb;
+}
+
+size_t fb_read(void *ptr, size_t size, size_t nmemb, void *data, void *device_passed, uint64_t flags)
+{
+    UNUSED(ptr);
+    UNUSED(size);
+    UNUSED(nmemb);
+    UNUSED(data);
+    UNUSED(device_passed);
+    UNUSED(flags);
+
+    return 0;
+}
+
+size_t fb_file_size(void *data, void *device_passed)
+{
+    UNUSED(data);
+    UNUSED(device_passed);
+
+    return framebuffer_width * framebuffer_height * framebuffer_bpp / 8;
+}
+
+off_t fb_lseek(void *data, off_t offset, int whence)
+{
+    fb_data_t *fb_data = (fb_data_t *)data;
+
+    switch (whence)
+    {
+    case SEEK_SET:
+        fb_data->pos = offset;
+        break;
+    case SEEK_CUR:
+        fb_data->pos += offset;
+        break;
+    case SEEK_END:
+        fb_data->pos = framebuffer_width * framebuffer_height + offset;
+        break;
+    }
+
+    return fb_data->pos;
+}
+
+device_t *init_fb_device()
+{
+    device_t *fb_device = kmalloc(sizeof(device_t));
+    strcpy(fb_device->name, "fb");
+    fb_device->flags = 0;
+    fb_device->data = NULL;
+    fb_device->next = NULL;
+
+    fb_device->open = (open_func_t)fb_open;
+    fb_device->read = (read_func_t)fb_read;
+    fb_device->close = NULL;
+    fb_device->fcntl = NULL;
+    fb_device->write = (write_func_t)fb_write;
+    fb_device->lseek = (lseek_func_t)fb_lseek;
+
+    fb_device->file_size = (file_size_func_t)fb_file_size;
+
+    fb_device->type = DEVICE_TYPE_FRMEBUF;
+
+    return register_device(fb_device);
 }

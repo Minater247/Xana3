@@ -18,6 +18,7 @@
 #include <keyboard.h>
 #include <trace.h>
 #include <process.h>
+#include <errors.h>
 
 uint32_t passed_info;
 
@@ -50,6 +51,7 @@ void kmain() {
     filesystem_init(init_ramdisk_device((uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET));
     init_device_device();
     init_simple_output();
+    init_fb_device();
     keyboard_install();
 
     process_init();

@@ -289,6 +289,7 @@ device_t *init_ramdisk_device(uint64_t addr)
     ramdisk_device.close = (close_func_t)ramdisk_close;
     ramdisk_device.fcntl = (fcntl_func_t)fnctl;
     ramdisk_device.getdents64 = (getdents64_func_t)ramdisk_read_dirents64;
+    ramdisk_device.lseek = NULL;
 
     ramdisk_device.file_size = (file_size_func_t)file_size;
 

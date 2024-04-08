@@ -29,5 +29,6 @@ void fb_video_clear();
 void fb_video_clear_up();
 void fb_video_clear_down();
 void video_set_cursor(uint32_t x, uint32_t y);
+device_t *init_fb_device();
 
 #endif

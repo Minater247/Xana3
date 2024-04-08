@@ -32,6 +32,10 @@
 
 #define F_GETPATH 50
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 typedef struct
 {
 	char name[NAME_MAX];
@@ -113,5 +117,6 @@ size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd);
 size_t fgetdents64(int fd, void *ptr, size_t count);
 int fsetpwd(char *new_pwd);
 int fgetpwd(char *buf, size_t size);
+off_t flseek(int fd, off_t offset, int whence);
 
 #endif
