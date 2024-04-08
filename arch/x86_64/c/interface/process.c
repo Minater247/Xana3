@@ -295,7 +295,6 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
 
     ASM_ENABLE_INTERRUPTS;
     while (!WIFTERMINATED(current->exit_status)) {
-        serial_printf("Waiting for process %d...\n", pid);
         IRQ0;
     }
     ASM_DISABLE_INTERRUPTS;
@@ -339,6 +338,8 @@ int64_t fork()
 
 int64_t execv(regs_t *regs)
 {
+    serial_printf("execv\n");
+
     int fd = fopen((char *)regs->rdi, 0, 0);
     if (fd < 0)
     {
@@ -368,7 +369,7 @@ int64_t execv(regs_t *regs)
     page_directory_t *new_directory = clone_page_directory(kernel_pml4);
 
     // TODO: reduce this to a reasonable amount of pages, and increase on page fault
-    for (uint32_t i = 0; i < 0x200000; i += 0x1000)
+    for (uint32_t i = 0; i < 0x800000; i += 0x1000)
     {
         map_page_kmalloc(VIRT_MEM_OFFSET - (i + 0x1000), first_free_page_addr(), false, true, new_directory);
     }

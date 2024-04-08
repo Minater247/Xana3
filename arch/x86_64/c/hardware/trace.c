@@ -56,7 +56,7 @@ void serial_traceback(size_t depth) {
         // find the symbol that contains the RIP
         for (size_t i = 0; i < symbol_count; i++) {
             if (rip >= symbol_table[i].st_value && rip < symbol_table[i].st_value + symbol_table[i].st_size) {
-                printf("  %s+0x%lx\n", string_table + symbol_table[i].st_name, rip - symbol_table[i].st_value);
+                serial_printf("  %s+0x%lx\n", string_table + symbol_table[i].st_name, rip - symbol_table[i].st_value);
                 found = true;
                 break;
             }

@@ -247,6 +247,15 @@ void page_fault_error(regs_t *r)
     uint32_t flags = r->err_code;
     serial_printf("Page fault! (%s%s%s%s%s) at 0x%lx [0x%lx]\n", (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", (uint64_t)faulting_address, r->rip);
 
+    serial_dump_mappings(current_pml4, false);
+
+    if (current_process == NULL)
+    {
+        kpanic("Page fault in kernel space! (see serial output for details)");
+    } else if (current_process->pid == 0) {
+        kpanic("Page fault in idle process! (see serial output for details)");
+    }
+
     enableBackground(true);
     printf("\033[97;41mPage fault in process %d! (see serial output for details)\033[0m\n", current_process->pid);
 

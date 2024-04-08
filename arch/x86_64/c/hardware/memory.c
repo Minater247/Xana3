@@ -549,8 +549,6 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
     new_directory->entries[511] = directory->entries[511];
     new_directory->is_full[511] = directory->is_full[511];
 
-    printf("Done!\n");
-
     return new_directory;
 }
 
