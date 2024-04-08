@@ -274,6 +274,7 @@ void regs_dump(regs_t *regs) {
     serial_printf("RSP: 0x%lx\n", regs->rsp);
     serial_printf("RBP: 0x%lx\n", regs->rbp);
     serial_printf("RIP: 0x%lx\n", regs->rip);
+    serial_printf("R12: 0x%lx\n", regs->r12);
 }
 
 void fault_handler(regs_t *regs)

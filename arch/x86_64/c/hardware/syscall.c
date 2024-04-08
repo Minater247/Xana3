@@ -125,13 +125,20 @@ uint64_t syscall_handler(regs_t *regs)
     current_process->registers = *regs;
 
     if (syscall_table[regs->rax] != NULL) {
-        current_process->registers.rax = syscall_table[regs->rax](&(current_process->registers));
+        uint64_t raxval = syscall_table[regs->rax]((regs_t *)&(current_process->registers));
+        current_process->registers.rax = raxval;
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
-        regs->rax = -ENOSYS;
+        current_process->registers.rax = -ENOSYS;
     }
 
     syscall_old_rsp = current_process->syscall_rsp;
 
-    return (uint64_t)&current_process->registers;
+    // move the address of the current process registers to rax
+    asm volatile("mov %0, %%rax" ::"r"(&current_process->registers));
+    // jump to after_syscall
+    asm volatile("jmp after_syscall");
+
+    while (1)
+        ;
 }

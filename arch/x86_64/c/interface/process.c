@@ -18,7 +18,7 @@
 
 process_t *process_list = NULL;
 process_t *queue = NULL;
-process_t *current_process = NULL;
+volatile process_t *current_process = NULL;
 
 process_t idle_process;
 
@@ -147,6 +147,7 @@ void process_init()
     process_list = &idle_process;
 }
 
+extern uint64_t syscall_old_rsp;
 void schedule()
 {
     // really basic scheduler for now, just switch to the next process in the queue
@@ -167,7 +168,7 @@ void schedule()
     {
         if (queue == NULL)
         {
-            queue = current_process;
+            queue = (process_t *)current_process;
         }
         else
         {
@@ -176,7 +177,7 @@ void schedule()
             {
                 current = current->queue_next;
             }
-            current->queue_next = current_process;
+            current->queue_next = (process_t *)current_process;
         }
     }
     current_process = new_process;
@@ -192,6 +193,7 @@ void schedule()
         current_pml4 = new_process->pml4;
 
         // switch to the new process's stack
+        // since we jump straight to assembly code, this is fine
         ASM_WRITE_RSP(new_process->rsp);
         ASM_WRITE_RBP(new_process->rbp);
 
@@ -203,7 +205,7 @@ void schedule()
         ASM_SET_CR3(new_process->pml4->phys_addr);
         current_pml4 = new_process->pml4;
 
-        // switch to the new process's stack
+        // switch to the new process's stack ( see below comment )
         ASM_WRITE_RSP(new_process->rsp);
         ASM_WRITE_RBP(new_process->rbp);
 
@@ -221,15 +223,15 @@ void schedule()
 
         new_process->status = TASK_RUNNING;
 
-        // switch to the new process's stack
-        ASM_WRITE_RSP(new_process->rsp);
-        ASM_WRITE_RBP(new_process->rbp);
-
         // zero out rax
-        asm volatile("movq $0, %rax");
+        current_process->registers.rax = 0;
 
-        // jump to the new process
-        asm volatile("jmp *%0" : : "r"(new_process->entry) : "rax");
+        syscall_old_rsp = current_process->syscall_rsp;
+
+        // move the address of the current process registers to rax
+        asm volatile("mov %0, %%rax" ::"r"(&(current_process->registers)));
+        // jump to after_syscall
+        asm volatile("jmp after_syscall");
     }
 
     kpanic("Process %d in undefined state! [%d]", new_process->pid, new_process->status);
@@ -318,7 +320,6 @@ int64_t fork()
     uint64_t rip = read_rip();
     if (rip == 0)
     {
-        return 0;
     }
 
     page_directory_t *new_pml4 = clone_page_directory(current_pml4);
@@ -326,8 +327,7 @@ int64_t fork()
     process_t *new_process = create_process(0, 0, new_pml4, true);
     new_process->status = TASK_FORKED;
     new_process->queue_next = NULL;
-    new_process->rsp = rsp;
-    new_process->rbp = rbp;
+    
     new_process->entry = (void *)rip;
     new_process->syscall_rsp = current_process->syscall_rsp;
     new_process->registers = current_process->registers;

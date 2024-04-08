@@ -222,6 +222,7 @@ syscall_handler_asm:
     mov rdi, rsp
     call syscall_handler
 
+global after_syscall
 after_syscall:
     mov rsp, rax ; return value is new regs pointer
 

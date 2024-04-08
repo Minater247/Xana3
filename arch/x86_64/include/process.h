@@ -89,6 +89,6 @@ void process_exit(int status);
 int64_t process_wait(pid_t pid, void *status, int options, void *rstatus);
 void process_exit_abnormal(exit_status_bits_t status);
 
-extern process_t *current_process;
+extern volatile process_t *current_process;
 
 #endif
