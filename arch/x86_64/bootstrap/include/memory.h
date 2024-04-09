@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define KERNEL_LOAD_ADDR 0x800000
+
 typedef struct {
     uint64_t entries[512];
     uint64_t virt[512]; //virtual addresses of the page tables

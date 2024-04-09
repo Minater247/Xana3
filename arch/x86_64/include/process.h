@@ -9,6 +9,9 @@
 #include <system.h>
 #include <filesystem.h>
 
+#define PROCESS_INITIAL_STACK 0x10000
+#define MAX_STACK_SIZE 0x100000
+
 #define TASK_RUNNING 0
 #define TASK_STOPPED 1
 #define TASK_INITIAL 2
@@ -78,6 +81,8 @@ typedef struct process {
 
     file_descriptor_t *file_descriptors;
     char pwd[PATH_MAX];
+
+    uint64_t stack_low;
 
     struct process *next;
     struct process *queue_next;

@@ -9,6 +9,7 @@
 #include <string.h>
 #include <ramdisk.h>
 #include <video.h>
+#include <memory.h>
 
 bool has_framebuffer = false;
 uint32_t framebuffer_tag = 0;
@@ -135,7 +136,7 @@ bool load_multiboot(uint32_t magic, void *mbd)
     serial_printf("Total memory: %ldMB\n", multiboot_total_memory / 1024 / 1024);
     serial_printf("Max address: 0x%lx\n", multiboot_max_addr);
 
-    kassert(multiboot_max_addr < 0x800000); //64-bit kernel expects to be loaded at 4MB, so we can't have other stuff above that
+    kassert(multiboot_max_addr < KERNEL_LOAD_ADDR);
 
     return true;
 }

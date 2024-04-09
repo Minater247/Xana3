@@ -11,7 +11,7 @@ page_directory_t *pml4_addr = NULL;
 
 uint32_t kmalloc(uint32_t size) {
     // really basic bootstrap kmalloc
-    kassert_msg(kheap_loc + size < 0x400000, "Out of memory");
+    kassert_msg(kheap_loc + size < KERNEL_LOAD_ADDR, "Out of memory");
     uint32_t ret = kheap_loc;
     kheap_loc += size;
     return ret;
@@ -20,7 +20,7 @@ uint32_t kmalloc(uint32_t size) {
 uint32_t kmalloc_a(uint32_t size, uint32_t align) {
     // really basic bootstrap kmalloc (but now aligned)
     uint32_t aligned = (kheap_loc + align - 1) & ~(align - 1);
-    kassert_msg((aligned + size) < 0x400000, "Out of memory");
+    kassert_msg((aligned + size) < KERNEL_LOAD_ADDR, "Out of memory");
     kheap_loc = aligned + size;
     return aligned;
 }

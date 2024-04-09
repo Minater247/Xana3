@@ -103,7 +103,7 @@ const char kbdcodes_shifted[128] = {
     0, /* All other keys are undefined */
 };
 
-// keyboard (hardware keyboard, not USB/PS2/etc)
+// keyboard (hardware keyboard, uninitialized PS2 at the moment)
 void keyboard_interrupt_handler(regs_t *r)
 {
     UNUSED(r);

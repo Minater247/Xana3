@@ -123,6 +123,8 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
             map_page_kmalloc(VIRT_MEM_OFFSET - ((i + 1) * 0x1000), phys, false, true, pml4);
         }
 
+        new_process->stack_low = VIRT_MEM_OFFSET - (stack_size_pages * 0x1000);
+
         new_process->rsp = VIRT_MEM_OFFSET;
         new_process->rbp = VIRT_MEM_OFFSET;
     }
@@ -331,6 +333,8 @@ int64_t fork()
     new_process->syscall_rsp = current_process->syscall_rsp;
     new_process->registers = current_process->registers;
 
+    new_process->stack_low = current_process->stack_low;
+
     strcpy(new_process->pwd, (const char *)current_process->pwd);
 
     add_process(new_process);
@@ -370,11 +374,12 @@ int64_t execv(regs_t *regs)
 
     page_directory_t *new_directory = clone_page_directory(kernel_pml4);
 
-    // TODO: reduce this to a reasonable amount of pages, and increase on page fault
-    for (uint32_t i = 0; i < 0x800000; i += 0x1000)
+    for (uint32_t i = 0; i < PROCESS_INITIAL_STACK; i += 0x1000)
     {
         map_page_kmalloc(VIRT_MEM_OFFSET - (i + 0x1000), first_free_page_addr(), false, true, new_directory);
     }
+
+    current_process->stack_low = VIRT_MEM_OFFSET - PROCESS_INITIAL_STACK;
 
     uint64_t entry = load_elf64(buf, new_directory);
     fclose(fd);

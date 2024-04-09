@@ -8,6 +8,7 @@
 #include <process.h>
 #include <display.h>
 #include <system.h>
+#include <memory.h>
 
 extern void load_tss();
 extern void load_idt(uint64_t idtr);
@@ -242,9 +243,28 @@ void page_fault_error(regs_t *r)
     ASM_DISABLE_INTERRUPTS;
     // later on we will do some code elsewhere to see if this is actually an error (swapping pages, copy on write etc)
     // but for now, we will just print out information about the page fault
+
+    //TODO: this may be an acceptable fault (we know it's mapped, but haven't actually done it in the page tables yet)
+    // We need to check for this and adjust accordingly.
+
     uint64_t faulting_address;
     ASM_GET_CR2(faulting_address);
     uint32_t flags = r->err_code;
+
+    if (current_process != NULL) {
+        if (faulting_address < VIRT_MEM_OFFSET && faulting_address > VIRT_MEM_OFFSET - MAX_STACK_SIZE) {
+            // Stack fault, we can fix this
+            uint64_t low_addr = faulting_address & ~(uint64_t)0xFFF;
+
+            for (uint64_t i = low_addr; i < current_process->stack_low; i += 0x1000) {
+                serial_printf("Mapping 0x%lx to 0x%lx\n", i, first_free_page_addr());
+                map_page_kmalloc(i, first_free_page_addr(), false, true, current_process->pml4);
+            }
+
+            return;
+        }
+    }
+
     serial_printf("Page fault! (%s%s%s%s%s) at 0x%lx [0x%lx]\n", (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", (uint64_t)faulting_address, r->rip);
 
     serial_dump_mappings(current_pml4, false);
