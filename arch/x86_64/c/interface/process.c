@@ -12,6 +12,7 @@
 #include <filesystem.h>
 #include <elf_loader.h>
 #include <syscall.h>
+#include <string.h>
 
 #include <display.h>
 #include <serial.h>
@@ -108,6 +109,9 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->syscall_stack = kmalloc(SYSCALL_STACK_SIZE);
     new_process->exit_status.normal_exit = false;
     new_process->exit_status.exit_status = 0;
+
+    new_process->file_descriptors = NULL;
+    strcpy((char *)new_process->pwd, "/");
 
     if (!has_stack)
     {
@@ -326,6 +330,8 @@ int64_t fork()
     new_process->entry = (void *)rip;
     new_process->syscall_rsp = current_process->syscall_rsp;
     new_process->registers = current_process->registers;
+
+    strcpy(new_process->pwd, (const char *)current_process->pwd);
 
     add_process(new_process);
 

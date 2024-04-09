@@ -8,16 +8,14 @@
 #include <memory.h>
 #include <errors.h>
 #include <unused.h>
+#include <string.h>
 
 dev_t next_device_id = 0;
 mount_t *mounts = NULL;
-file_descriptor_t *file_descriptors = NULL; //TODO: This should be per-process
 
 device_t *root_filesystem = NULL;
 
 char resolution_buffer[PATH_MAX];
-
-char pwd[PATH_MAX]; //TODO: This should be per-process
 
 /**
  * Get the depth of a path (for example, /a/b/c has a depth of 3).
@@ -189,10 +187,10 @@ char *resolve_path(char *path) {
     if (path[0] != '/') {
         char *resolved = &resolution_buffer[0];
         // ensure the paths are short enough to fit in the buffer
-        if (strlen(pwd) + strlen(path) + 2 > PATH_MAX) {
+        if (strlen((const char *)current_process->pwd) + strlen(path) + 2 > PATH_MAX) {
             kpanic("Path too long to resolve\n");
         }
-        strcpy(resolved, pwd);
+        strcpy(resolved, (const char *)current_process->pwd);
         strcat(resolved, "/");
         strcat(resolved, path);
         return resolved;
@@ -236,7 +234,7 @@ int fopen(char *path, int flags, mode_t mode) {
 
     file_descriptor_t *fd = (file_descriptor_t *)kmalloc(sizeof(file_descriptor_t));
 
-    file_descriptor_t *current = file_descriptors;
+    file_descriptor_t *current = current_process->file_descriptors;
     if (current == NULL) {
         fd->descriptor_id = 0;
         fd->next = NULL;
@@ -251,7 +249,7 @@ int fopen(char *path, int flags, mode_t mode) {
                     current = current->next;
                 }
             } else {
-                fd->descriptor_id = file_descriptors->descriptor_id + 1;
+                fd->descriptor_id = current_process->file_descriptors->descriptor_id + 1;
                 fd->next = NULL;
                 break;
             }
@@ -261,8 +259,8 @@ int fopen(char *path, int flags, mode_t mode) {
     fd->flags = flags;
     fd->device = device;
     fd->data = returned.pointer;
-    fd->next = file_descriptors;
-    file_descriptors = fd;
+    fd->next = current_process->file_descriptors;
+    current_process->file_descriptors = fd;
 
     return fd->descriptor_id;
 }
@@ -275,7 +273,7 @@ int fopen(char *path, int flags, mode_t mode) {
  * @return 0 if successful, -1 if not
 */
 int fclose(int fd) {
-    file_descriptor_t *current = file_descriptors;
+    file_descriptor_t *current = current_process->file_descriptors;
     file_descriptor_t *prev = NULL;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
@@ -283,7 +281,7 @@ int fclose(int fd) {
                 current->device->close(current->data, current->device);
             }
             if (prev == NULL) {
-                file_descriptors = current->next;
+                current_process->file_descriptors = current->next;
             } else {
                 prev->next = current->next;
             }
@@ -307,7 +305,7 @@ int fclose(int fd) {
  * @return The number of elements read
 */
 size_t fread(void *ptr, size_t size, size_t nmemb, int fd) {
-    file_descriptor_t *current = file_descriptors;
+    file_descriptor_t *current = current_process->file_descriptors;
 
     while (current != NULL) {
         if (current->descriptor_id == fd) {
@@ -332,7 +330,7 @@ size_t fread(void *ptr, size_t size, size_t nmemb, int fd) {
  * @return The number of elements written
 */
 size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd) {
-    file_descriptor_t *current = file_descriptors;
+    file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->write == NULL) {
@@ -358,7 +356,7 @@ size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd) {
  *        -ENAMETOOLONG if the path is too long
  */
 size_t fgetdents64(int fd, void *ptr, size_t count) {
-    file_descriptor_t *current = file_descriptors;
+    file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->getdents64 == NULL) {
@@ -383,7 +381,7 @@ size_t fgetdents64(int fd, void *ptr, size_t count) {
  *        -EBADF if the file descriptor is invalid
  */
 off_t flseek(int fd, off_t offset, int whence) {
-    file_descriptor_t *current = file_descriptors;
+    file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->lseek == NULL) {
@@ -435,7 +433,7 @@ size_t file_size_internal(char *path) {
  *       -EBADF if the file descriptor is invalid
 */
 int fcntl(int fd, int cmd, long arg) {
-    file_descriptor_t *current = file_descriptors;
+    file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->fcntl == NULL) {
@@ -474,7 +472,7 @@ int fsetpwd(char *new_pwd) {
     }
     abs_path_cleanup(resolution_buffer);
 
-    strcpy(pwd, resolution_buffer);
+    strcpy((char *)current_process->pwd, resolution_buffer);
 
     return 0;
 }
@@ -489,11 +487,11 @@ int fsetpwd(char *new_pwd) {
  *       -ENAMETOOLONG if the path is too long
 */
 int fgetpwd(char *buf, size_t size) {
-    if (strlen(pwd) > size) {
+    if (strlen((const char *)current_process->pwd) > size) {
         return -ENAMETOOLONG;
     }
 
-    strcpy(buf, pwd);
+    strcpy(buf, (const char *)current_process->pwd);
 
     return 0;
 }
@@ -511,7 +509,7 @@ int fgetpwd(char *buf, size_t size) {
  *      -EINVAL if the request is invalid
  */
 int ioctl(int fd, unsigned long request, void *arg) {
-    file_descriptor_t *current = file_descriptors;
+    file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->ioctl == NULL) {
@@ -534,11 +532,11 @@ void filesystem_init(device_t *ramdisk_device) {
         kpanic("Ramdisk device not found, boot can't continue\n");
     }
 
-    strcpy(pwd, "/");
+    strcpy((char *)current_process->pwd, "/");
 
     // Mount the ramdisk
     mount_at("/mnt/ramdisk", ramdisk_device, "xandisk", 0);
 
     root_filesystem = NULL;
-    file_descriptors = NULL;
+    current_process->file_descriptors = NULL;
 }

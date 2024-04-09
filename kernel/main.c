@@ -47,14 +47,14 @@ void kmain() {
 
     printf("Hello from a 64-bit graphical kernel!!\n");
 
+    process_init();
+
     // Adjust ramdisk accordingly
     filesystem_init(init_ramdisk_device((uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET));
     init_device_device();
     init_simple_output();
     init_fb_device();
     keyboard_install();
-
-    process_init();
 
     // test printing in ANSI color
     printf("\033[1;31mThis is red text\033[0m\n");

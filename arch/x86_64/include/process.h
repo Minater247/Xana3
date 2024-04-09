@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <memory.h>
 #include <system.h>
+#include <filesystem.h>
 
 #define TASK_RUNNING 0
 #define TASK_STOPPED 1
@@ -74,6 +75,9 @@ typedef struct process {
     void *syscall_stack;
 
     regs_t registers;
+
+    file_descriptor_t *file_descriptors;
+    char pwd[PATH_MAX];
 
     struct process *next;
     struct process *queue_next;
