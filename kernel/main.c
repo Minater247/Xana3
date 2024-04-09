@@ -90,6 +90,8 @@ void kmain() {
         kfree(buf);
     }
 
+    enableBackground(true);
+
     ASM_ENABLE_INTERRUPTS;
 
     // Loop indefinitely

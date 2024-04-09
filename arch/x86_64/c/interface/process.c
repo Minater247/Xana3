@@ -192,11 +192,6 @@ void schedule()
         ASM_SET_CR3(new_process->pml4->phys_addr);
         current_pml4 = new_process->pml4;
 
-        // switch to the new process's stack
-        // since we jump straight to assembly code, this is fine
-        ASM_WRITE_RSP(new_process->rsp);
-        ASM_WRITE_RBP(new_process->rbp);
-
         // jump to the new process
         jump_to_usermode((uint64_t)new_process->entry, new_process->rsp);
     }

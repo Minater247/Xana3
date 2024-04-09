@@ -270,7 +270,7 @@ jump_to_usermode:
     push 0x2B
     ; RSP
     push rsi
-    ; Also set RBP to the same value
+    ; RBP
     mov rbp, rsi
     ; RFLAGS
     pushfq
