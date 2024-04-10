@@ -517,7 +517,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
     memset(new_directory, 0, sizeof(page_directory_t));
     new_directory->phys_addr = virt_to_phys((uint64_t)new_directory, kernel_pml4);
 
-    serial_printf("Cloning page directory 0x%lx [P 0x%lx] to 0x%lx [P 0x%lx]\n", directory, directory->phys_addr, new_directory, new_directory->phys_addr);
+    // serial_printf("Cloning page directory 0x%lx [P 0x%lx] to 0x%lx [P 0x%lx]\n", directory, directory->phys_addr, new_directory, new_directory->phys_addr);
 
     for (uint64_t i = 0; i < 511; i++) {
         // actually copy everything not in the last entry (the kernel space)
@@ -558,7 +558,7 @@ page_directory_t *clone_page_directory(page_directory_t *directory)
                                     // copy the old page to the new page
                                     memcpy((void *)(new_phys + VIRT_MEM_OFFSET), (void *)((pt->pt_entry[l] & 0xFFFFFFFFFFFFF000) + VIRT_MEM_OFFSET), 0x1000);
 
-                                    serial_printf("0x%lx -> 0x%lx\n", pt->pt_entry[l] & 0xFFFFFFFFFFFFF000, new_phys);
+                                    // serial_printf("0x%lx -> 0x%lx\n", pt->pt_entry[l] & 0xFFFFFFFFFFFFF000, new_phys);
 
                                     // mark the new page as used
                                     uint64_t page = new_phys / 0x1000;

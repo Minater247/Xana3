@@ -784,6 +784,7 @@ int fb_ioctl(void *data, unsigned long request, void *arg, void *device_passed)
         vinfo->yres_virtual = framebuffer_height;
         vinfo->bits_per_pixel = framebuffer_bpp;
         vinfo->grayscale = 0;
+        vinfo->pitch = framebuffer_pitch;
         printf("Returning zero!\n");
         return 0;
     }

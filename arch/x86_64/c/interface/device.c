@@ -208,6 +208,18 @@ int device_ioctl(device_open_data_t *data, unsigned long request, void *arg, dev
     return data->device->ioctl(data->data, request, arg, data->device);
 }
 
+off_t device_lseek(device_open_data_t *data, off_t offset, int whence, device_t *this_device)
+{
+    UNUSED(this_device);
+
+    if (data->device->lseek == NULL)
+    {
+        return -ENOTSUP;
+    }
+    
+    return data->device->lseek(data->data, offset, whence, data->device);
+}
+
 void init_device_device()
 {
     strcpy(device_device.name, "devices");
@@ -222,7 +234,7 @@ void init_device_device()
     device_device.fcntl = NULL;
     device_device.write = (write_func_t)device_write;
     device_device.file_size = NULL;
-    device_device.lseek = NULL;
+    device_device.lseek = (lseek_func_t)device_lseek;
     device_device.ioctl = (ioctl_func_t)device_ioctl;
 
     device_device.file_size = NULL;

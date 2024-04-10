@@ -44,8 +44,8 @@ elf_info_t load_elf64(char *elf_file, page_directory_t *elf_pml4) {
     // Load the program headers
     for (int i = 0; i < header->e_phnum; i++) {
         Elf64_Phdr *phdr = (Elf64_Phdr *)(elf_file + header->e_phoff + (i * header->e_phentsize));
-        serial_printf("Program header %d: type %d, offset 0x%lx, vaddr 0x%lx, paddr 0x%lx, filesz 0x%lx, memsz 0x%lx, flags 0x%x, align 0x%lx\n",
-               i, phdr->p_type, phdr->p_offset, phdr->p_vaddr, phdr->p_paddr, phdr->p_filesz, phdr->p_memsz, phdr->p_flags, phdr->p_align);
+        // serial_printf("Program header %d: type %d, offset 0x%lx, vaddr 0x%lx, paddr 0x%lx, filesz 0x%lx, memsz 0x%lx, flags 0x%x, align 0x%lx\n",
+        //        i, phdr->p_type, phdr->p_offset, phdr->p_vaddr, phdr->p_paddr, phdr->p_filesz, phdr->p_memsz, phdr->p_flags, phdr->p_align);
 
         if (phdr->p_type == PT_LOAD) {
             // Calculate the number of pages
