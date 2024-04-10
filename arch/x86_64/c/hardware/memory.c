@@ -269,6 +269,7 @@ bool is_page_free(uint64_t virt) {
 
 }
 
+extern char KERNEL_END;
 void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t framebuffer_tag_addr)
 {
     kheap_end = old_kheap_end + VIRT_MEM_OFFSET;
@@ -327,7 +328,7 @@ void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t frameb
     // 64-bit writes make this significantly faster
     uint64_t *bitmap_as_64 = (uint64_t *)phys_mem_bitmap;
     // align kheap_end to a page boundary
-    kheap_end = (kheap_end & 0xFFF) ? (kheap_end & 0xFFFFFFFFFFFFF000) + 0x1000 : kheap_end;
+    kheap_end = ((uint64_t)&KERNEL_END & 0xFFF) ? ((uint64_t)&KERNEL_END & 0xFFFFFFFFFFFFF000) + 0x1000 : (uint64_t)&KERNEL_END;
     uint64_t pages_to_fill = (kheap_end - VIRT_MEM_OFFSET) / 0x1000 + 1;
     uint64_t pages_filled = 0;
     while (pages_filled + 64 < pages_to_fill) {

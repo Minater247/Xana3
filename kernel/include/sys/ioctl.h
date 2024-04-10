@@ -18,8 +18,6 @@ struct fb_var_screeninfo {
     uint32_t bits_per_pixel; // bits per pixel
     uint32_t grayscale; // 0 = color, 1 = grayscale
 
-    uint64_t pitch; // length of a line in bytes
-
     // other stuff to be defined later
 };
 

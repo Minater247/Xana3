@@ -109,6 +109,7 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->syscall_stack = kmalloc(SYSCALL_STACK_SIZE);
     new_process->exit_status.normal_exit = false;
     new_process->exit_status.exit_status = 0;
+    new_process->exit_status.has_terminated = false;
 
     new_process->file_descriptors = NULL;
     strcpy((char *)new_process->pwd, "/");
@@ -148,6 +149,9 @@ void process_init()
     idle_process.queue_next = NULL;
     idle_process.tss_stack = kmalloc(SYSCALL_STACK_SIZE);
     idle_process.syscall_stack = kmalloc(SYSCALL_STACK_SIZE);
+    idle_process.exit_status.normal_exit = false;
+    idle_process.exit_status.exit_status = 0;
+    idle_process.exit_status.has_terminated = false;
 
     current_process = &idle_process;
     process_list = &idle_process;
@@ -334,7 +338,8 @@ int64_t fork()
     new_process->registers = current_process->registers;
 
     new_process->stack_low = current_process->stack_low;
-
+    
+    // TODO: copy file descriptors
     strcpy(new_process->pwd, (const char *)current_process->pwd);
 
     add_process(new_process);

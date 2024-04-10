@@ -104,10 +104,10 @@ void printf(const char *format, ...)
                         video_setbg(RGB2COLOR(0, 0, 0));
                         break;
                     case 1:
-                        //bold (attribs TODO)
+                        //bold (attribs not available in bootstrap)
                         break;
                     case 4:
-                        //underline (attribs TODO)
+                        //underline (attribs not available in bootstrap)
                         break;
                     case 30:
                         //black fg

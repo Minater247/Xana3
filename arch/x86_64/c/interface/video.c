@@ -27,6 +27,8 @@ uint32_t framebuffer_palette_num_colors = 0;
 uint32_t video_fg;
 uint32_t video_bg;
 
+void *user_framebuffer;
+
 struct psf1_header *header;
 uint32_t char_pos_x = 0;
 uint32_t char_pos_y = 0;
@@ -698,6 +700,8 @@ pointer_int_t fb_open(char *path, uint64_t flags, void *device_passed)
     return (pointer_int_t){data, 0};
 }
 
+// TODO: the user framebuffer works, but copying is slow, especially when we do it every write.
+// This will require some fancy math. This *works*, but it's horribly slow.
 size_t fb_write(void *ptr, size_t size, size_t nmemb, void *data, void *device_passed, uint64_t flags)
 {
     UNUSED(device_passed);
@@ -705,10 +709,24 @@ size_t fb_write(void *ptr, size_t size, size_t nmemb, void *data, void *device_p
 
     // calculate where to write to
     fb_data_t *fb_data = (fb_data_t *)data;
-    void *write_pos = (uint32_t *)(video + fb_data->pos);
+    void *write_pos = (uint32_t *)(user_framebuffer + fb_data->pos);
+
+    // copy actual framebuffer to user framebuffer
+    // Pitch may be different, so we copy line by line
+    for (uint32_t i = 0; i < framebuffer_height; i++)
+    {
+        memcpy(user_framebuffer + i * framebuffer_width * framebuffer_bpp / 8, video + i * framebuffer_pitch, framebuffer_width * framebuffer_bpp / 8);
+    }
 
     // write the data depending on bpp (data is to be provided in 32-bit format)
     memcpy(write_pos, ptr, size * nmemb);
+
+    // Copy user framebuffer to actual framebuffer
+    // Pitch may be different, so we copy line by line
+    for (uint32_t i = 0; i < framebuffer_height; i++)
+    {
+        memcpy(video + i * framebuffer_pitch, user_framebuffer + i * framebuffer_width * framebuffer_bpp / 8, framebuffer_width * framebuffer_bpp / 8);
+    }
 
     // update the position
     fb_data->pos += size * nmemb;
@@ -723,7 +741,7 @@ size_t fb_read(void *ptr, size_t size, size_t nmemb, void *data, void *device_pa
 
     // calculate where to read from
     fb_data_t *fb_data = (fb_data_t *)data;
-    void *read_pos = (uint32_t *)(video + fb_data->pos);
+    void *read_pos = (uint32_t *)(user_framebuffer + fb_data->pos);
     uint64_t num_bytes = size * nmemb;
     if (fb_data->pos + num_bytes > framebuffer_width * framebuffer_height * framebuffer_bpp / 8)
     {
@@ -784,7 +802,6 @@ int fb_ioctl(void *data, unsigned long request, void *arg, void *device_passed)
         vinfo->yres_virtual = framebuffer_height;
         vinfo->bits_per_pixel = framebuffer_bpp;
         vinfo->grayscale = 0;
-        vinfo->pitch = framebuffer_pitch;
         printf("Returning zero!\n");
         return 0;
     }
@@ -811,6 +828,8 @@ device_t *init_fb_device()
     fb_device->file_size = (file_size_func_t)fb_file_size;
 
     fb_device->type = DEVICE_TYPE_FRMEBUF;
+
+    user_framebuffer = kmalloc(framebuffer_width * framebuffer_height * framebuffer_bpp / 8); // no pitch difference, for userland
 
     return register_device(fb_device);
 }
