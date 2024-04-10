@@ -83,6 +83,7 @@ typedef struct process {
     char pwd[PATH_MAX];
 
     uint64_t stack_low;
+    uint64_t brk_start;
 
     struct process *next;
     struct process *queue_next;
@@ -97,6 +98,7 @@ int64_t execv();
 void process_exit(int status);
 int64_t process_wait(pid_t pid, void *status, int options, void *rstatus);
 void process_exit_abnormal(exit_status_bits_t status);
+uint64_t brk(uint64_t increment);
 
 extern volatile process_t *current_process;
 

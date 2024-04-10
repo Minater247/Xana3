@@ -395,6 +395,32 @@ off_t flseek(int fd, off_t offset, int whence) {
 }
 
 /**
+ * Read the stat of a file.
+ * 
+ * @param fd The file descriptor to get the stat of
+ * @param buf The buffer to write the stat to
+ * 
+ * @return 0 if successful
+ *        -ENOTSUP if the device doesn't support this operation
+ *        -EBADF if the file descriptor is invalid
+ */
+int fstat(int fd, struct stat *buf) {
+    file_descriptor_t *current = current_process->file_descriptors;
+    while (current != NULL) {
+        if (current->descriptor_id == fd) {
+            if (current->device->stat == NULL) {
+                serial_printf("Stat not supported on device!\n");
+                return -ENOTSUP;
+            }
+            serial_printf("Stat OK, running...\n");
+            return current->device->stat(current->data, buf, current->device);
+        }
+        current = current->next;
+    }
+    return -EBADF;
+}
+
+/**
  * Get the size of a file.
  * 
  * @param path The path to the file to get the size of

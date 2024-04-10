@@ -718,14 +718,25 @@ size_t fb_write(void *ptr, size_t size, size_t nmemb, void *data, void *device_p
 
 size_t fb_read(void *ptr, size_t size, size_t nmemb, void *data, void *device_passed, uint64_t flags)
 {
-    UNUSED(ptr);
-    UNUSED(size);
-    UNUSED(nmemb);
-    UNUSED(data);
     UNUSED(device_passed);
     UNUSED(flags);
 
-    return 0;
+    // calculate where to read from
+    fb_data_t *fb_data = (fb_data_t *)data;
+    void *read_pos = (uint32_t *)(video + fb_data->pos);
+    uint64_t num_bytes = size * nmemb;
+    if (fb_data->pos + num_bytes > framebuffer_width * framebuffer_height * framebuffer_bpp / 8)
+    {
+        num_bytes = framebuffer_width * framebuffer_height * framebuffer_bpp / 8 - fb_data->pos;
+    }
+
+    // read the data depending on bpp (data is to be provided in 32-bit format)
+    memcpy(ptr, read_pos, num_bytes);
+
+    // update the position
+    fb_data->pos += num_bytes;
+
+    return num_bytes;
 }
 
 size_t fb_file_size(void *data, void *device_passed)

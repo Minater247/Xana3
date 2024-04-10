@@ -26,6 +26,9 @@ typedef	int32_t		segsz_t;    // segment size
 typedef	int32_t		swblk_t;    // swap offset
 typedef	uint32_t	uid_t;	    // user id
 
+typedef uint32_t blksize_t;
+typedef uint32_t blkcnt_t;
+
 
 typedef int64_t fpos_t;
 

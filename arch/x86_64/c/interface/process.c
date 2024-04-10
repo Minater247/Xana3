@@ -381,11 +381,21 @@ int64_t execv(regs_t *regs)
 
     current_process->stack_low = VIRT_MEM_OFFSET - PROCESS_INITIAL_STACK;
 
-    uint64_t entry = load_elf64(buf, new_directory);
+    elf_info_t info = load_elf64(buf, new_directory);
+    
     fclose(fd);
     kfree(buf);
 
+    if (info.status != 0)
+    {
+        free_page_directory(new_directory);
+        printf("Failed to load ELF\n");
+        return -ENOEXEC;
+    }
+
     current_process->pml4 = new_directory;
+
+    current_process->brk_start = info.max_addr;
 
     ASM_SET_CR3(new_directory->phys_addr);
 
@@ -393,11 +403,36 @@ int64_t execv(regs_t *regs)
 
     current_pml4 = new_directory;
 
-    serial_printf("Jumping to new process at 0x%lx\n", entry);
+    serial_printf("Jumping to new process at 0x%lx\n", info.entry);
 
     // jump to the new process
-    jump_to_usermode(entry, VIRT_MEM_OFFSET);
+    jump_to_usermode(info.entry, VIRT_MEM_OFFSET);
 
     while (1)
         ;
+}
+
+uint64_t brk(uint64_t location) {
+    if (location < current_process->brk_start) {
+        return current_process->brk_start;
+    }
+
+    uint64_t old_brk = current_process->brk_start;
+    current_process->brk_start = location;
+
+    // did we cross a page boundary?
+    uint64_t old_brk_page = old_brk & 0xFFFFFFFFFFFFF000;
+    uint64_t new_brk_page = location & 0xFFFFFFFFFFFFF000;
+    if (old_brk_page == new_brk_page) {
+        return 0;
+    }
+
+    // free pages
+    uint64_t start = old_brk_page + 0x1000;
+    uint64_t end = new_brk_page;
+    for (uint64_t i = start; i < end; i += 0x1000) {
+        free_page(i, current_process->pml4);
+    }
+
+    return 0;
 }

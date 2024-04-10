@@ -33,13 +33,6 @@ typedef struct {
     uint64_t pt_entry[512];
 } __attribute__((packed)) page_table_t;
 
-typedef struct bitmap_pagetable
-{
-    uint8_t bitmap[512 / 8];
-    uint64_t start_phys;
-    struct bitmap_pagetable *next;
-} __attribute__((packed)) bitmap_pagetable_t;
-
 typedef struct {
     uint64_t entries[512];
     uint64_t virt[512]; //virtual addresses of the page tables

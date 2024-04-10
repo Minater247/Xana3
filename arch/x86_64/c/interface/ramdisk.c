@@ -270,6 +270,25 @@ int fnctl(int cmd, long arg, void *file_entry, void *device)
     return -ENOTSUP;
 }
 
+int ramdisk_stat(void *file_entry, void *buf, void *device_passed)
+{
+    UNUSED(device_passed);
+    ramdisk_file_entry_t *entry = (ramdisk_file_entry_t *)file_entry;
+    ramdisk_file_t *file = entry->file;
+
+    struct stat *statbuf = (struct stat *)buf;
+    statbuf->st_dev = 0;
+    statbuf->st_ino = 0;
+    statbuf->st_mode = file->magic == FILE_ENTRY ? S_IFREG : S_IFDIR;
+    statbuf->st_nlink = 1;
+    statbuf->st_uid = 0;
+    statbuf->st_gid = 0;
+    statbuf->st_rdev = 0;
+    statbuf->st_size = file->size;
+
+    return 0;
+}
+
 device_t *init_ramdisk_device(uint64_t addr)
 {
     ramdisk_info_32_t *info = (ramdisk_info_32_t *)addr;
@@ -290,6 +309,7 @@ device_t *init_ramdisk_device(uint64_t addr)
     ramdisk_device.fcntl = (fcntl_func_t)fnctl;
     ramdisk_device.getdents64 = (getdents64_func_t)ramdisk_read_dirents64;
     ramdisk_device.lseek = NULL;
+    ramdisk_device.stat = ramdisk_stat;
 
     ramdisk_device.file_size = (file_size_func_t)file_size;
 

@@ -15,11 +15,11 @@
 
 syscall_t syscall_table[512];
 
-int64_t syscall_open(regs_t *regs) {
-    return fopen((char *)regs->rdi, regs->rsi, regs->rdx);
+uint64_t syscall_open(regs_t *regs) {
+    return (uint64_t)fopen((char *)regs->rdi, regs->rsi, regs->rdx);
 }
 
-int64_t __attribute__((noreturn)) syscall_exit(regs_t *regs) {
+uint64_t __attribute__((noreturn)) syscall_exit(regs_t *regs) {
     serial_printf("Process %d exited with status %d\n", current_process->pid, regs->rdi);
 
     process_exit(regs->rdi);
@@ -27,55 +27,63 @@ int64_t __attribute__((noreturn)) syscall_exit(regs_t *regs) {
     kpanic("Process exited but process_exit() returned");
 }
 
-int64_t syscall_write(regs_t *regs) {
-    return fwrite((void *)regs->rsi, regs->rdx, 1, regs->rdi);
+uint64_t syscall_write(regs_t *regs) {
+    return (uint64_t)fwrite((void *)regs->rsi, regs->rdx, 1, regs->rdi);
 }
 
-int64_t syscall_close(regs_t *regs) {
-    return fclose(regs->rdi);
+uint64_t syscall_close(regs_t *regs) {
+    return (uint64_t)fclose(regs->rdi);
 }
 
-int64_t syscall_read(regs_t *regs) {
-    return fread((void *)regs->rsi, regs->rdx, 1, regs->rdi);
+uint64_t syscall_read(regs_t *regs) {
+    return (uint64_t)fread((void *)regs->rsi, regs->rdx, 1, regs->rdi);
 }
 
-int64_t getdents64(regs_t *regs) {
-    return fgetdents64(regs->rdi, (void *)regs->rsi, regs->rdx);
+uint64_t getdents64(regs_t *regs) {
+    return (uint64_t)fgetdents64(regs->rdi, (void *)regs->rsi, regs->rdx);
 }
 
-int64_t syscall_chdir(regs_t *regs) {
-    return fsetpwd((char *)regs->rdi);
+uint64_t syscall_chdir(regs_t *regs) {
+    return (uint64_t)fsetpwd((char *)regs->rdi);
 }
 
-int64_t syscall_getcwd(regs_t *regs) {
-    return fgetpwd((char *)regs->rdi, regs->rsi);
+uint64_t syscall_getcwd(regs_t *regs) {
+    return (uint64_t)fgetpwd((char *)regs->rdi, regs->rsi);
 }
 
-int64_t syscall_fork(regs_t *regs) {
+uint64_t syscall_fork(regs_t *regs) {
     UNUSED(regs);
 
-    return fork();
+    return (uint64_t)fork();
 }
 
-int64_t syscall_execv(regs_t *regs) {
-    return execv(regs);
+uint64_t syscall_execv(regs_t *regs) {
+    return (uint64_t)execv(regs);
 }
 
-int64_t syscall_wait4(regs_t *regs) {
+uint64_t syscall_wait4(regs_t *regs) {
     void *status = (void *)regs->rsi;
     int options = regs->rdx;
     pid_t pid = regs->rdi;
     void *rusage = (void *)regs->r10;
 
-    return process_wait(pid, status, options, rusage);
+    return (uint64_t)process_wait(pid, status, options, rusage);
 }
 
-int64_t syscall_lseek(regs_t *regs) {
-    return flseek(regs->rdi, regs->rsi, regs->rdx);
+uint64_t syscall_lseek(regs_t *regs) {
+    return (uint64_t)flseek(regs->rdi, regs->rsi, regs->rdx);
 }
 
-int64_t syscall_ioctl(regs_t *regs) {
-    return ioctl(regs->rdi, regs->rsi, (void *)regs->rdx);
+uint64_t syscall_ioctl(regs_t *regs) {
+    return (uint64_t)ioctl(regs->rdi, regs->rsi, (void *)regs->rdx);
+}
+
+uint64_t syscall_brk(regs_t *regs) {
+    return (uint64_t)brk(regs->rdi);
+}
+
+uint64_t syscall_fstat(regs_t *regs) {
+    return (uint64_t)fstat(regs->rdi, (struct stat *)regs->rsi);
 }
 
 void syscall_init() {
@@ -87,7 +95,9 @@ void syscall_init() {
     syscall_table[1] = &syscall_write;
     syscall_table[2] = &syscall_open;
     syscall_table[3] = &syscall_close;
+    syscall_table[5] = &syscall_fstat;
     syscall_table[8] = &syscall_lseek;
+    syscall_table[12] = &syscall_brk;
     syscall_table[16] = &syscall_ioctl;
     syscall_table[57] = &syscall_fork;
     syscall_table[59] = &syscall_execv;
@@ -129,7 +139,7 @@ uint64_t syscall_handler(regs_t *regs)
         current_process->registers.rax = raxval;
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
-        current_process->registers.rax = -ENOSYS;
+        current_process->registers.rax = (uint64_t)-ENOSYS;
     }
 
     syscall_old_rsp = current_process->syscall_rsp;

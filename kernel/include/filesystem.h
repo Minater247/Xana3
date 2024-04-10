@@ -36,6 +36,9 @@
 #define SEEK_CUR 1
 #define SEEK_END 2
 
+#define S_IFDIR 0x4000
+#define S_IFREG 0x8000
+
 typedef struct
 {
 	char name[NAME_MAX];
@@ -52,30 +55,6 @@ typedef struct
 	void *filesystem;
 	uint32_t flags;
 } dir_t;
-
-typedef struct stat
-{
-	dev_t st_dev;		 /* inode's device */
-	ino_t st_ino;		 /* inode's number */
-	mode_t st_mode;		 /* inode protection mode */
-	nlink_t st_nlink;	 /* number of hard links */
-	uid_t st_uid;		 /* user ID of the file's owner */
-	gid_t st_gid;		 /* group ID of the file's group */
-	dev_t st_rdev;		 /* device type */
-	time_t st_atime;	 /* time of last access */
-	long st_atimensec;	 /* nsec of last access */
-	time_t st_mtime;	 /* time of last data modification */
-	long st_mtimensec;	 /* nsec of last data modification */
-	time_t st_ctime;	 /* time of last file status change */
-	long st_ctimensec;	 /* nsec of last file status change */
-	off_t st_size;		 /* file size, in bytes */
-	int64_t st_blocks;	 /* blocks allocated for file */
-	uint32_t st_blksize; /* optimal blocksize for I/O */
-	uint32_t st_flags;	 /* user defined flags for file */
-	uint32_t st_gen;	 /* file generation number */
-	int32_t st_lspare;
-	int64_t st_qspare[2];
-} stat_t;
 
 typedef struct mount
 {
@@ -103,6 +82,23 @@ struct dirent64
 	char d_name[];		   /* filename */
 };
 
+struct stat
+{
+    dev_t st_dev;
+    ino_t st_ino;
+    mode_t st_mode;
+    nlink_t st_nlink;
+    uid_t st_uid;
+    gid_t st_gid;
+    dev_t st_rdev;
+    off_t st_size;
+    blksize_t st_blksize;
+    blkcnt_t st_blocks;
+    time_t st_atime;
+    time_t st_mtime;
+    time_t st_ctime;
+};
+
 uint32_t get_path_depth(char *path);
 void get_path_part(char *path, char *part, uint32_t part_num);
 void filesystem_init(device_t *ramdisk_device);
@@ -119,5 +115,6 @@ int fsetpwd(char *new_pwd);
 int fgetpwd(char *buf, size_t size);
 off_t flseek(int fd, off_t offset, int whence);
 int ioctl(int fd, unsigned long request, void *arg);
+int fstat(int fd, struct stat *buf);
 
 #endif

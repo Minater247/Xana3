@@ -205,6 +205,37 @@ bool map_page_prealloc(uint64_t virt, uint64_t phys, bool is_kernel, bool is_wri
     return true;
 }
 
+void free_page(uint64_t virt, page_directory_t *pml4) {
+    uint64_t pml4_index = (virt >> 39) & 0x1FF;
+    uint64_t pdpt_index = (virt >> 30) & 0x1FF;
+    uint64_t pd_index = (virt >> 21) & 0x1FF;
+    uint64_t pt_index = (virt >> 12) & 0x1FF;
+
+    if (pml4->virt[pml4_index] == 0) {
+        return;
+    }
+
+    page_directory_t *pdpt = (page_directory_t *)(pml4->virt[pml4_index]);
+    if (pdpt->virt[pdpt_index] == 0) {
+        return;
+    }
+
+    page_directory_t *pd = (page_directory_t *)(pdpt->virt[pdpt_index]);
+    if (pd->virt[pd_index] == 0) {
+        return;
+    }
+
+    page_table_t *pt = (page_table_t *)(pd->virt[pd_index]);
+    if (pt->pt_entry[pt_index] == 0) {
+        return;
+    }
+
+    uint64_t phys = pt->pt_entry[pt_index] & 0xFFFFFFFFFFFFF000;
+    uint64_t page = phys / 0x1000;
+    phys_mem_bitmap[page / 8] &= ~(1 << (page % 8));
+    pt->pt_entry[pt_index] = 0;
+}
+
 bool is_page_free(uint64_t virt) {
     uint64_t pml4_index = (virt >> 39) & 0x1FF;
     uint64_t pdpt_index = (virt >> 30) & 0x1FF;

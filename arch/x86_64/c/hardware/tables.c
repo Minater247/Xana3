@@ -238,28 +238,32 @@ const char *exception_messages[] = {
     "Reserved",
     "Reserved"};
 
-void page_fault_error(regs_t *r)
+void page_fault_error(regs_t *r, uint64_t faulting_address)
 {
     ASM_DISABLE_INTERRUPTS;
-    // later on we will do some code elsewhere to see if this is actually an error (swapping pages, copy on write etc)
-    // but for now, we will just print out information about the page fault
 
-    //TODO: this may be an acceptable fault (we know it's mapped, but haven't actually done it in the page tables yet)
-    // We need to check for this and adjust accordingly.
-
-    uint64_t faulting_address;
-    ASM_GET_CR2(faulting_address);
     uint32_t flags = r->err_code;
 
+    // Check whether this is an acceptable fault that we can recover from
     if (current_process != NULL) {
         if (faulting_address < VIRT_MEM_OFFSET && faulting_address > VIRT_MEM_OFFSET - MAX_STACK_SIZE) {
             // Stack fault, we can fix this
+            serial_printf("Stack fault! Attemped to access 0x%lx, min mapped was 0x%lx\n", faulting_address, current_process->stack_low);
+
             uint64_t low_addr = faulting_address & ~(uint64_t)0xFFF;
 
             for (uint64_t i = low_addr; i < current_process->stack_low; i += 0x1000) {
-                serial_printf("Mapping 0x%lx to 0x%lx\n", i, first_free_page_addr());
                 map_page_kmalloc(i, first_free_page_addr(), false, true, current_process->pml4);
             }
+
+            return;
+        } else if (faulting_address < current_process->brk_start) {
+            // Heap fault, we can fix this
+            serial_printf("Heap fault! Attemped to access 0x%lx, max mapped was 0x%lx\n", faulting_address, current_process->brk_start);
+
+            uint64_t low_addr = faulting_address & ~(uint64_t)0xFFF;
+
+            map_page_kmalloc(low_addr, first_free_page_addr(), false, true, current_process->pml4);
 
             return;
         }
@@ -297,11 +301,11 @@ void regs_dump(regs_t *regs) {
     serial_printf("R12: 0x%lx\n", regs->r12);
 }
 
-void fault_handler(regs_t *regs)
+void fault_handler(regs_t *regs, uint64_t faulting_address)
 {
     if (regs->int_no == 14)
     {
-        page_fault_error(regs);
+        page_fault_error(regs, faulting_address);
     }
     else
     {

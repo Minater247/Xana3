@@ -4,35 +4,38 @@
 #include <string.h>
 #include <serial.h>
 #include <memory.h>
+#include <elf_loader.h>
+#include <errors.h>
 
-uint32_t load_elf64(char *elf_file, page_directory_t *elf_pml4) {
+elf_info_t load_elf64(char *elf_file, page_directory_t *elf_pml4) {
     Elf64_Ehdr *header = (Elf64_Ehdr *)elf_file;
+    uint64_t max_addr = 0;
     if (header->e_ident[0] != 0x7F || header->e_ident[1] != 'E' || header->e_ident[2] != 'L' || header->e_ident[3] != 'F') {
-        return (uint32_t)-1;
+        return (elf_info_t){0, 0, -1};
     }
 
     if (header->e_ident[EI_CLASS] != ELFCLASS64) {
-        return (uint32_t)-2;
+        return (elf_info_t){0, 0, -2};
     }
 
     if (header->e_ident[EI_DATA] != ELFDATA2LSB) {
-        return (uint32_t)-3;
+        return (elf_info_t){0, 0, -3};
     }
 
     if (header->e_ident[EI_VERSION] != EV_CURRENT) {
-        return (uint32_t)-4;
+        return (elf_info_t){0, 0, -4};
     }
 
     if (header->e_type != ET_EXEC) {
-        return (uint32_t)-5;
+        return (elf_info_t){0, 0, -5};
     }
 
     if (header->e_machine != EM_X86_64) {
-        return (uint32_t)-6;
+        return (elf_info_t){0, 0, -6};
     }
 
     if (header->e_version != EV_CURRENT) {
-        return (uint32_t)-7;
+        return (elf_info_t){0, 0, -7};
     }
 
     page_directory_t *old_pml4 = current_pml4;
@@ -63,10 +66,20 @@ uint32_t load_elf64(char *elf_file, page_directory_t *elf_pml4) {
             if (phdr->p_memsz > phdr->p_filesz) {
                 memset((void *)(phdr->p_paddr + phdr->p_filesz), 0, phdr->p_memsz - phdr->p_filesz);
             }
+
+            // Keep track of the highest address we've loaded
+            if (phdr->p_vaddr + phdr->p_memsz > max_addr) {
+                max_addr = phdr->p_vaddr + phdr->p_memsz;
+            }
         }
     }
 
     switch_page_directory(old_pml4);
 
-    return header->e_entry;
+    elf_info_t info;
+    info.entry = header->e_entry;
+    info.max_addr = max_addr;
+    info.status = 0;
+
+    return info;
 }

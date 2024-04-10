@@ -80,12 +80,22 @@ void kmain() {
             page_directory_t *pml4 = clone_page_directory(current_pml4);
 
             printf("Read %d bytes\n", read);
-            uint64_t entry = load_elf64(buf, pml4);
+            elf_info_t info = load_elf64(buf, pml4);
             fclose(fd);
 
-            add_process(create_process((void *)entry, 0x10000, pml4, false));
+            if (info.status != 0) {
+                printf("Failed to load ELF: %d\n", info.status);
+                kfree(buf);
+                return;
+            }
 
-            printf("Loaded ELF, entry point: 0x%lx\n", entry);
+            process_t *new = create_process((void *)info.entry, 0x10000, pml4, false);
+
+            new->brk_start = info.max_addr;
+
+            add_process(new);
+
+            printf("Loaded ELF, entry point: 0x%lx\n", info.entry);
         }
         kfree(buf);
     }
