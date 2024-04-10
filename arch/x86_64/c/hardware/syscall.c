@@ -128,7 +128,8 @@ uint64_t syscall_handler(regs_t *regs)
 
     // Move to the copied stack.
     // This is usually a *very bad* idea, but since the stack has been copied
-    // verbatim, we can do this.
+    // verbatim, and we don't really have to care about previous base pointer
+    // values here, this should be fine.
     ASM_WRITE_RSP((uint64_t)current_process->syscall_stack + rsp_from_bottom);
     ASM_WRITE_RBP((uint64_t)current_process->syscall_stack + rbp_from_bottom);
 

@@ -216,7 +216,8 @@ void schedule()
 
         // *should* just pop and return to the assembly handler, not
         // touching variables or registers. Leaving this be until I can
-        // either confirm this works or find a better way to do it.
+        // either confirm this works and is limited as such per specifcation,
+        // or find a better way to do it.
 
         return;
     }

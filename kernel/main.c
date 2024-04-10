@@ -19,13 +19,9 @@
 #include <trace.h>
 #include <process.h>
 #include <errors.h>
+#include <unused.h>
 
-uint32_t passed_info;
-
-void kmain() {
-    
-    kernel_info_t *info = (kernel_info_t *)(uint64_t)passed_info;
-
+void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     // increase RSP/RBP by VIRT_MEM_OFFSET
     uint64_t rsp, rbp;
     ASM_READ_RSP(rsp);
@@ -86,7 +82,7 @@ void kmain() {
             if (info.status != 0) {
                 printf("Failed to load ELF: %d\n", info.status);
                 kfree(buf);
-                return;
+                while (1);
             }
 
             process_t *new = create_process((void *)info.entry, 0x10000, pml4, false);
@@ -108,9 +104,10 @@ void kmain() {
     while (1);
 }
 
-void __init(uint32_t kernel_info) {
+void __attribute__((noreturn)) __init(uint32_t kernel_info) {
+    UNUSED(kernel_info);
     // We still need a jump up from identity-mapped memory
-    passed_info = kernel_info;
-    uint64_t kmain_addr = (uint64_t)kmain;
-    asm volatile("jmp *%0" : : "r"(kmain_addr));
+    asm volatile("jmp *%0" : : "b"((uint64_t)kmain));
+
+    while (1);
 }
