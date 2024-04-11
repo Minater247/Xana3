@@ -301,11 +301,9 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
         return -ECHILD;
     }
 
-    ASM_ENABLE_INTERRUPTS;
     while (!WIFTERMINATED(current->exit_status)) {
         IRQ0;
     }
-    ASM_DISABLE_INTERRUPTS;
 
     exit_status_bits_t *status_bits = (exit_status_bits_t *)status;
     *status_bits = current->exit_status;

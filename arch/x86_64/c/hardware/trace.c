@@ -20,6 +20,11 @@ void traceback_init(uint32_t elf_symbols_addr, uint32_t elf_strings_addr, uint32
     string_table = (char *)((uint64_t)elf_strings_addr + VIRT_MEM_OFFSET);
     symbol_table = (Elf64_Sym *)((uint64_t)elf_symbols_addr + VIRT_MEM_OFFSET);
     symbol_count = elf_symbol_count;
+
+    // if any are null, warn
+    if (string_table == NULL || symbol_table == NULL) {
+        kwarn("Failed to initialize traceback: string table or symbol table is NULL\n");
+    }
 }
 
 // Keep track of whether or not traceback failed, just in case something goes

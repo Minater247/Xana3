@@ -13,6 +13,7 @@ typedef struct {
     uint32_t elf_symbols_addr;
     uint32_t elf_strings_addr;
     uint32_t elf_symbol_count;
+    uint32_t acpi;
 } kernel_info_t;
 
 #endif

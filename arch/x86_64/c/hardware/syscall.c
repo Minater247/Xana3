@@ -135,6 +135,8 @@ uint64_t syscall_handler(regs_t *regs)
 
     current_process->registers = *regs;
 
+    ASM_ENABLE_INTERRUPTS;
+
     if (syscall_table[regs->rax] != NULL) {
         uint64_t raxval = syscall_table[regs->rax]((regs_t *)&(current_process->registers));
         current_process->registers.rax = raxval;
@@ -142,6 +144,8 @@ uint64_t syscall_handler(regs_t *regs)
         serial_printf("Unknown syscall: %d\n", regs->rax);
         current_process->registers.rax = (uint64_t)-ENOSYS;
     }
+
+    ASM_DISABLE_INTERRUPTS;
 
     syscall_old_rsp = current_process->syscall_rsp;
 

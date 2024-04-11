@@ -20,6 +20,7 @@
 #include <process.h>
 #include <errors.h>
 #include <unused.h>
+#include <acpi.h>
 
 void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     // increase RSP/RBP by VIRT_MEM_OFFSET
@@ -31,6 +32,8 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     ASM_WRITE_RSP(rsp);
     ASM_WRITE_RBP(rbp);
 
+    info = (kernel_info_t *)((uint64_t)info + VIRT_MEM_OFFSET);
+
     video_init((struct multiboot_tag_framebuffer *)((uint64_t)info->framebuffer_tag + VIRT_MEM_OFFSET));
 
     tables_init();
@@ -41,8 +44,6 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
 
     traceback_init(info->elf_symbols_addr, info->elf_strings_addr, info->elf_symbol_count);
 
-    printf("Hello from a 64-bit graphical kernel!!\n");
-
     process_init();
 
     // Adjust ramdisk accordingly
@@ -52,11 +53,9 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     init_fb_device();
     keyboard_install();
 
-    // test printing in ANSI color
-    printf("\033[1;31mThis is red text\033[0m\n");
+    acpi_init((uint64_t)info->acpi_tag + VIRT_MEM_OFFSET);
 
     printf("\n\nBefore we jump to the usermode program, roadmap:\n");
-    printf("  - Image drawing\n");
     printf("  - Filesystem (EXT2, ISO9660)\n");
     printf("  - ACPI AML parsing\n");
     printf("  - PCI device enumeration\n");

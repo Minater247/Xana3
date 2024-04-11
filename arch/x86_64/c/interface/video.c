@@ -844,7 +844,5 @@ device_t *init_fb_device()
 
     user_pitch = framebuffer_width * framebuffer_bpp / 8;
 
-    printf("Framebuffer BPP: %d\n", framebuffer_bpp);
-
     return register_device(fb_device);
 }
