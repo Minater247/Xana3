@@ -52,6 +52,8 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     init_fb_device();
     keyboard_install();
 
+    mouse_init();
+
     // test printing in ANSI color
     printf("\033[1;31mThis is red text\033[0m\n");
 
