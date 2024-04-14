@@ -933,13 +933,12 @@ void kfree_int(void *ptr, bool unaligned)
     }
     else
     {
-        // TODO: magic number searching may cause security issues if the data contains the magic number
-        // the header may be up to 0xFFF bytes before the pointer
+        // the header may be up to sizeof(heap_header_t) bytes before the pointer
         while (header->magic != HEAP_MAGIC)
         {
             header = (heap_header_t *)((uint64_t)header - 1);
         }
-        if ((uint64_t)ptr - (uint64_t)header > 0xFFF)
+        if ((uint64_t)ptr - (uint64_t)header > sizeof(heap_header_t))
         {
             kpanic("Header too far away!");
         }
