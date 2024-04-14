@@ -86,6 +86,16 @@ uint64_t syscall_fstat(regs_t *regs) {
     return (uint64_t)fstat(regs->rdi, (struct stat *)regs->rsi);
 }
 
+uint64_t syscall_rt_sigaction(regs_t *regs) {
+    return (uint64_t)rt_sigaction(regs->rdi, (const struct sigaction *)regs->rsi, (struct sigaction *)regs->rdx);
+}
+
+uint64_t __attribute__((noreturn)) syscall_rt_sigret(regs_t *regs) {
+    UNUSED(regs);
+    rt_sigret();
+    kpanic("rt_sigret() returned");
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -98,6 +108,8 @@ void syscall_init() {
     syscall_table[5] = &syscall_fstat;
     syscall_table[8] = &syscall_lseek;
     syscall_table[12] = &syscall_brk;
+    syscall_table[13] = &syscall_rt_sigaction;
+    syscall_table[15] = &syscall_rt_sigret;
     syscall_table[16] = &syscall_ioctl;
     syscall_table[57] = &syscall_fork;
     syscall_table[59] = &syscall_execv;
@@ -133,20 +145,24 @@ uint64_t syscall_handler(regs_t *regs)
     ASM_WRITE_RSP((uint64_t)current_process->syscall_stack + rsp_from_bottom);
     ASM_WRITE_RBP((uint64_t)current_process->syscall_stack + rbp_from_bottom);
 
-    current_process->registers = *regs;
+    current_process->syscall_registers = *regs;
+    serial_printf("Syscall %d started with RSP %lx\n", regs->rax, current_process->syscall_rsp);
 
     if (syscall_table[regs->rax] != NULL) {
-        uint64_t raxval = syscall_table[regs->rax]((regs_t *)&(current_process->registers));
-        current_process->registers.rax = raxval;
+        current_process->in_syscall = true;
+        uint64_t raxval = syscall_table[regs->rax]((regs_t *)&(current_process->syscall_registers));
+        current_process->syscall_registers.rax = raxval;
+        current_process->in_syscall = false;
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
-        current_process->registers.rax = (uint64_t)-ENOSYS;
+        process_exit_abnormal((exit_status_bits_t){.exit_status = 0, .stop_signal = SIGSYS, .normal_exit = false});
     }
 
     syscall_old_rsp = current_process->syscall_rsp;
+    serial_printf("...finished with RSP %lx\n", syscall_old_rsp);
 
     // move the address of the current process registers to rax
-    asm volatile("mov %0, %%rax" ::"r"(&current_process->registers));
+    asm volatile("mov %0, %%rax" ::"r"(&current_process->syscall_registers));
     // jump to after_syscall
     asm volatile("jmp after_syscall");
 

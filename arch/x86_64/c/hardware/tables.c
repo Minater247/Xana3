@@ -303,6 +303,10 @@ void regs_dump(regs_t *regs) {
 
 void fault_handler(regs_t *regs, uint64_t faulting_address)
 {
+    if (current_process) {
+        current_process->interrupt_registers = *regs;
+    }
+
     if (regs->int_no == 14)
     {
         page_fault_error(regs, faulting_address);
@@ -312,10 +316,20 @@ void fault_handler(regs_t *regs, uint64_t faulting_address)
         regs_dump(regs);
         kpanic("Unhandled exception: %s (error code: %d) [0x%lx]", exception_messages[regs->int_no], regs->err_code, regs->rip);
     }
+
+    if (current_process != NULL)
+    {
+        *regs = current_process->interrupt_registers;
+    }
 }
 
 void irq_handler(regs_t *regs)
 {
+    if (current_process != NULL)
+    {
+        current_process->interrupt_registers = *regs;
+    }
+
     if (regs->int_no - 32 == 0)
     {
         // timer interrupt
@@ -335,6 +349,10 @@ void irq_handler(regs_t *regs)
     }
 
     outb(0x20, 0x20);
+    if (current_process != NULL)
+    {
+        *regs = current_process->interrupt_registers;
+    }
 }
 
 void register_interrupt_handler(uint8_t n, isr_handler_t handler)

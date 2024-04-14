@@ -124,7 +124,7 @@ isr_common_stub:
     mov rsi, cr2 ; Get address of fault, if there was a page fault
     call fault_handler
     popa64
-    ; For some reason there's 16 bytes of information pushed outside of pusha64
+    ; Jump over the error code and the interrupt number
     add rsp, 0x10
     iretq
 

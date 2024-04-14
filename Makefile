@@ -74,7 +74,7 @@ debug_no_uefi: debug_iso
 	@qemu-system-x86_64 -cdrom debug_os.iso -monitor stdio -d int,cpu_reset -accel tcg -D qemu-log.txt -cpu SandyBridge -serial file:serial.log -s -S
 
 debug_term:
-	@gdb -ex "target remote localhost:1234" -ex "symbol-file dbg_kernel.bin"
+	@gdb -q -ex "target remote localhost:1234" -ex "symbol-file dbg_kernel.bin"
 
 bochs: iso
 	@"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f bochsrc.txt -q

@@ -60,6 +60,41 @@ typedef struct exit_status_bits {
 
 #define WAIT_PID 0
 
+#define SIGSEGV 11
+#define SIGSYS 12
+#define SIG_MAX 32
+
+typedef struct signal {
+    regs_t registers; // return context for when the signal is handled
+
+    int signal_number;
+    int signal_error;
+    int signal_code;
+
+    pid_t sender_pid;
+    uid_t sender_uid;
+
+    int exit_status;
+
+    void *fault_address;
+
+    regs_t syscall_registers;
+    regs_t interrupt_registers;
+    void *syscall_stack;
+    void *tss_stack;
+    uint64_t syscall_rsp;
+
+    struct signal *next;
+} signal_t;
+
+typedef uint64_t sigset_t;
+
+struct sigaction {
+    void (*signal_handler)(int, signal_t *, void *);
+    sigset_t sa_mask;
+    int sa_flags;
+} __attribute__((packed));
+
 typedef struct process {
     pid_t pid;
     gid_t pgid;
@@ -76,11 +111,17 @@ typedef struct process {
     void *tss_stack;
     uint64_t syscall_rsp;
     void *syscall_stack;
+    bool in_syscall;
+    bool in_signal_handler;
 
-    regs_t registers;
+    regs_t syscall_registers;
+    regs_t interrupt_registers;
 
     file_descriptor_t *file_descriptors;
     char pwd[PATH_MAX];
+
+    signal_t *queued_signals;
+    struct sigaction signal_handlers[SIG_MAX];
 
     uint64_t stack_low;
     uint64_t brk_start;
@@ -99,6 +140,7 @@ void process_exit(int status);
 int64_t process_wait(pid_t pid, void *status, int options, void *rstatus);
 void process_exit_abnormal(exit_status_bits_t status);
 uint64_t brk(uint64_t increment);
+int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
 
 extern volatile process_t *current_process;
 

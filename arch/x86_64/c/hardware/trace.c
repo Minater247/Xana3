@@ -38,6 +38,10 @@ void serial_traceback(size_t depth) {
     uint64_t *rbp;
     ASM_READ_RBP(rbp);
     while (rbp != NULL) {
+        if (rbp == NULL || rbp < (uint64_t *)VIRT_MEM_OFFSET) {
+            break;
+        }
+
         uint64_t rip = rbp[1];
         serial_printf("0x%lx", rip);
         rbp = (uint64_t *)rbp[0];
@@ -96,6 +100,10 @@ void traceback(size_t depth) {
     uint64_t *rbp;
     ASM_READ_RBP(rbp);
     while (rbp != NULL) {
+        if (rbp == NULL || rbp < (uint64_t *)VIRT_MEM_OFFSET) {
+            break;
+        }
+
         uint64_t rip = rbp[1];
         printf("\033[36;40m0x%lx", rip);
         rbp = (uint64_t *)rbp[0];

@@ -31,15 +31,22 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     ASM_WRITE_RSP(rsp);
     ASM_WRITE_RBP(rbp);
 
+    serial_printf("Initializing video...\n");
     video_init((struct multiboot_tag_framebuffer *)((uint64_t)info->framebuffer_tag + VIRT_MEM_OFFSET));
 
+    serial_printf("Initializing system tables...\n");
     tables_init();
 
+    serial_printf("Initializing memory...\n");
     memory_init(info->kheap_end, info->mmap_tag_addr, (uint64_t)info->framebuffer_tag + VIRT_MEM_OFFSET);
 
+    serial_printf("Initializing syscall table...\n");
     syscall_init();
 
+    serial_printf("Initializing traceback...\n");
     traceback_init(info->elf_symbols_addr, info->elf_strings_addr, info->elf_symbol_count);
+
+    serial_printf("Setup complete\n");
 
     printf("Hello from a 64-bit graphical kernel!!\n");
 
@@ -93,7 +100,7 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
 
             add_process(new);
 
-            printf("Loaded ELF, entry point: 0x%lx\n", info.entry);
+            serial_printf("Loaded ELF, entry point: 0x%lx\n", info.entry);
         }
         kfree(buf);
     }

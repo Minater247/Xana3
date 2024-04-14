@@ -110,6 +110,9 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->exit_status.normal_exit = false;
     new_process->exit_status.exit_status = 0;
     new_process->exit_status.has_terminated = false;
+    new_process->in_syscall = false;
+    new_process->in_signal_handler = false;
+    new_process->queued_signals = NULL;
 
     new_process->file_descriptors = NULL;
     strcpy((char *)new_process->pwd, "/");
@@ -152,67 +155,135 @@ void process_init()
     idle_process.exit_status.normal_exit = false;
     idle_process.exit_status.exit_status = 0;
     idle_process.exit_status.has_terminated = false;
+    idle_process.queued_signals = NULL;
 
     current_process = &idle_process;
     process_list = &idle_process;
 }
 
-extern uint64_t syscall_old_rsp;
-void schedule()
+void signal_process(pid_t pid, signal_t *signal)
 {
-    // really basic scheduler for now, just switch to the next process in the queue
-    if (queue == NULL)
+    process_t *current = process_list;
+    while (current != NULL)
+    {
+        if (current->pid == pid)
+        {
+            break;
+        }
+        current = current->next;
+    }
+    if (current == NULL)
     {
         return;
     }
-    ASM_DISABLE_INTERRUPTS;
 
-    // Save the current process's rsp and rbp
-    ASM_READ_RSP(current_process->rsp);
-    ASM_READ_RBP(current_process->rbp);
-
-    process_t *new_process = queue;
-    queue = queue->queue_next;
-    // add the current process back to the queue
-    if (current_process->status != TASK_EXITED && current_process->status != TASK_WAITING)
+    signal_t *current_signal = current->queued_signals;
+    if (current_signal == NULL)
     {
+        current->queued_signals = signal;
+    }
+    else
+    {
+        while (current_signal->next != NULL)
+        {
+            current_signal = current_signal->next;
+        }
+        current_signal->next = signal;
+    }
+}
+
+signal_t test_signal;
+
+bool min_schedule = false;
+
+extern uint64_t syscall_old_rsp;
+extern void run_signal(uint64_t rsp, void *handler, int signal, signal_t *signal_info, void *context);
+void schedule()
+{
+    if (!min_schedule) {
+        // really basic scheduler for now, just switch to the next process in the queue
         if (queue == NULL)
         {
-            queue = (process_t *)current_process;
+            return;
         }
-        else
+        ASM_DISABLE_INTERRUPTS;
+
+        // Save the current process's rsp and rbp
+        ASM_READ_RSP(current_process->rsp);
+        ASM_READ_RBP(current_process->rbp);
+
+        process_t *new_process = queue;
+        queue = queue->queue_next;
+        // add the current process back to the queue
+        if (current_process->status != TASK_EXITED && current_process->status != TASK_WAITING)
         {
-            process_t *current = queue;
-            while (current->queue_next != NULL)
+            if (queue == NULL)
             {
-                current = current->queue_next;
+                queue = (process_t *)current_process;
             }
-            current->queue_next = (process_t *)current_process;
+            else
+            {
+                process_t *current = queue;
+                while (current->queue_next != NULL)
+                {
+                    current = current->queue_next;
+                }
+                current->queue_next = (process_t *)current_process;
+            }
         }
+        current_process = new_process;
+        current_process->queue_next = NULL;
+
+        tss_set_rsp0((uint64_t)current_process->tss_stack + SYSCALL_STACK_SIZE);
+
+        ASM_SET_CR3(current_process->pml4->phys_addr);
+        current_pml4 = current_process->pml4;
+
+        serial_printf("Switching to process %d\n", current_process->pid);
+        serial_printf("Signal: %d\n", current_process->queued_signals);
+
+        if (current_process->queued_signals && !current_process->in_syscall && !current_process->in_signal_handler) {
+
+            if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler) {
+                kpanic("Process %d has signal %d but no handler!", current_process->pid, current_process->queued_signals->signal_number);
+            }
+
+            signal_t *signal = current_process->queued_signals;
+
+            signal->interrupt_registers = current_process->interrupt_registers;
+            signal->syscall_registers = current_process->syscall_registers;
+
+            signal->tss_stack = (void *)kmalloc(SYSCALL_STACK_SIZE);
+            signal->syscall_stack = (void *)kmalloc(SYSCALL_STACK_SIZE);
+            memcpy(signal->tss_stack, current_process->tss_stack, SYSCALL_STACK_SIZE);
+            memcpy(signal->syscall_stack, current_process->syscall_stack, SYSCALL_STACK_SIZE);
+            signal->syscall_rsp = current_process->syscall_rsp;
+
+            printf("New RSP for signal: %lx\n", current_process->interrupt_registers.rsp);
+
+            current_process->in_signal_handler = true;
+
+            run_signal(current_process->interrupt_registers.rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
+
+            kpanic("Process %d has signals!", current_process->pid);
+        }
+    } else {
+        min_schedule = false;
     }
-    current_process = new_process;
-    new_process->queue_next = NULL;
 
-    tss_set_rsp0((uint64_t)new_process->tss_stack + SYSCALL_STACK_SIZE);
-
-    if (new_process->status == TASK_INITIAL)
+    if (current_process->status == TASK_INITIAL)
     {
-        new_process->status = TASK_RUNNING;
-
-        ASM_SET_CR3(new_process->pml4->phys_addr);
-        current_pml4 = new_process->pml4;
+        current_process->status = TASK_RUNNING;
 
         // jump to the new process
-        jump_to_usermode((uint64_t)new_process->entry, new_process->rsp);
+        jump_to_usermode((uint64_t)current_process->entry, current_process->rsp);
     }
-    else if (new_process->status == TASK_RUNNING)
+    else if (current_process->status == TASK_RUNNING)
     {
-        ASM_SET_CR3(new_process->pml4->phys_addr);
-        current_pml4 = new_process->pml4;
 
         // switch to the new process's stack ( see below comment )
-        ASM_WRITE_RSP(new_process->rsp);
-        ASM_WRITE_RBP(new_process->rbp);
+        ASM_WRITE_RSP(current_process->rsp);
+        ASM_WRITE_RBP(current_process->rbp);
 
         // *should* just pop and return to the assembly handler, not
         // touching variables or registers. Leaving this be until I can
@@ -221,26 +292,80 @@ void schedule()
 
         return;
     }
-    else if (new_process->status == TASK_FORKED)
+    else if (current_process->status == TASK_FORKED)
     {
+        // Test - send SIGSEGV to process 1
+        test_signal.signal_number = 11;
+        test_signal.sender_pid = 0;
+        test_signal.sender_uid = 0;
+        test_signal.fault_address = 0;
+        test_signal.next = NULL;
+        signal_process(1, &test_signal);
 
-        ASM_SET_CR3(new_process->pml4->phys_addr);
-        current_pml4 = new_process->pml4;
-
-        new_process->status = TASK_RUNNING;
+        current_process->status = TASK_RUNNING;
 
         // zero out rax
-        current_process->registers.rax = 0;
+        current_process->syscall_registers.rax = 0;
 
         syscall_old_rsp = current_process->syscall_rsp;
 
         // move the address of the current process registers to rax
-        asm volatile("mov %0, %%rax" ::"r"(&(current_process->registers)));
+        asm volatile("mov %0, %%rax" ::"r"(&(current_process->syscall_registers)));
         // jump to after_syscall
         asm volatile("jmp after_syscall");
     }
 
-    kpanic("Process %d in undefined state! [%d]", new_process->pid, new_process->status);
+    kpanic("Process %d in undefined state! [%d]", current_process->pid, current_process->status);
+}
+
+int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
+{
+    if (signum >= SIG_MAX)
+    {
+        return -EINVAL;
+    }
+
+    // if (oldact != NULL)
+    // {
+    //     *oldact = current_process->signal_handlers[signum];
+    // }
+
+    if (act != NULL)
+    {
+        current_process->signal_handlers[signum] = *act;
+        serial_printf("Set signal %d to %d, process %d\n", signum, act->signal_handler, current_process->pid);
+    }
+
+    return 0;
+}
+
+char sigret_stack[0x1000];
+void rt_sigret() {
+    // switch to the sigret stack temporarily
+    ASM_WRITE_RSP((uint64_t)sigret_stack + 0x1000);
+
+    current_process->in_signal_handler = false;
+    serial_printf("rt_sigret called: returning to RSP %lx\n", current_process->interrupt_registers.rsp);
+
+    memcpy(current_process->tss_stack, current_process->queued_signals->tss_stack, SYSCALL_STACK_SIZE);
+    memcpy(current_process->syscall_stack, current_process->queued_signals->syscall_stack, SYSCALL_STACK_SIZE);
+    kfree(current_process->queued_signals->tss_stack);
+    kfree(current_process->queued_signals->syscall_stack);
+
+    current_process->syscall_rsp = current_process->queued_signals->syscall_rsp;
+    current_process->interrupt_registers = current_process->queued_signals->interrupt_registers;
+    current_process->syscall_registers = current_process->queued_signals->syscall_registers;
+
+    signal_t *next = current_process->queued_signals->next;
+    // not yet allocated so free would fail
+    // kfree(current_process->queued_signals);
+    current_process->queued_signals = next;
+
+    min_schedule = true;
+
+    schedule();
+
+    kpanic("rt_sigret called!");
 }
 
 void process_exit(int status)
@@ -266,6 +391,8 @@ void process_exit(int status)
 void process_exit_abnormal(exit_status_bits_t status)
 {
     current_process->status = TASK_EXITED;
+
+    serial_printf("Process %d exited abnormally with status %d\n", current_process->pid, status.exit_status);
 
     // free the process's memory
     kfree(current_process->tss_stack);
@@ -336,9 +463,11 @@ int64_t fork()
     
     new_process->entry = (void *)rip;
     new_process->syscall_rsp = current_process->syscall_rsp;
-    new_process->registers = current_process->registers;
+    new_process->syscall_registers = current_process->syscall_registers;
 
     new_process->stack_low = current_process->stack_low;
+
+    new_process->queued_signals = NULL;
     
     // TODO: copy file descriptors
     strcpy(new_process->pwd, (const char *)current_process->pwd);
