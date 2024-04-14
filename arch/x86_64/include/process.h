@@ -141,6 +141,8 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rstatus);
 void process_exit_abnormal(exit_status_bits_t status);
 uint64_t brk(uint64_t increment);
 int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+void rt_sigret();
+void signal_process(pid_t pid, signal_t *signal);
 
 extern volatile process_t *current_process;
 

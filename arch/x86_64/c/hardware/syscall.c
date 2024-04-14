@@ -146,12 +146,13 @@ uint64_t syscall_handler(regs_t *regs)
     ASM_WRITE_RBP((uint64_t)current_process->syscall_stack + rbp_from_bottom);
 
     current_process->syscall_registers = *regs;
-    serial_printf("Syscall %d started with RSP %lx\n", regs->rax, current_process->syscall_rsp);
 
     if (syscall_table[regs->rax] != NULL) {
         current_process->in_syscall = true;
+        ASM_ENABLE_INTERRUPTS;
         uint64_t raxval = syscall_table[regs->rax]((regs_t *)&(current_process->syscall_registers));
         current_process->syscall_registers.rax = raxval;
+        ASM_DISABLE_INTERRUPTS;
         current_process->in_syscall = false;
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
@@ -159,7 +160,6 @@ uint64_t syscall_handler(regs_t *regs)
     }
 
     syscall_old_rsp = current_process->syscall_rsp;
-    serial_printf("...finished with RSP %lx\n", syscall_old_rsp);
 
     // move the address of the current process registers to rax
     asm volatile("mov %0, %%rax" ::"r"(&current_process->syscall_registers));

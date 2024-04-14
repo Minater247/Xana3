@@ -933,6 +933,7 @@ void kfree_int(void *ptr, bool unaligned)
     }
     else
     {
+        // TODO: magic number searching may cause security issues if the data contains the magic number
         // the header may be up to 0xFFF bytes before the pointer
         while (header->magic != HEAP_MAGIC)
         {

@@ -280,16 +280,12 @@ void page_fault_error(regs_t *r, uint64_t faulting_address)
         kpanic("Page fault in idle process! (see serial output for details)");
     }
 
-    enableBackground(true);
-    printf("\033[97;41mPage fault in process %d! (see serial output for details)\033[0m\n", current_process->pid);
-
-    // for now, just sti and while so other processes can continue
-    exit_status_bits_t status;
-    status.has_terminated = 1;
-    status.normal_exit = 0;
-    status.signal_term = 1;
-    status.term_signal = 11;
-    process_exit_abnormal(status);
+    signal_t *sig = (signal_t *)kmalloc(sizeof(signal_t));
+    sig->signal_number = SIGSEGV;
+    sig->signal_error = 0;
+    sig->signal_code = 0; // TODO: figure out what this should be (SEGV_MAPERR?)
+    sig->fault_address = (void *)faulting_address;
+    signal_process(current_process->pid, sig);
 }
 
 void regs_dump(regs_t *regs) {

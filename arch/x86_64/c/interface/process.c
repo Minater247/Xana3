@@ -201,7 +201,6 @@ extern void run_signal(uint64_t rsp, void *handler, int signal, signal_t *signal
 void schedule()
 {
     if (!min_schedule) {
-        // really basic scheduler for now, just switch to the next process in the queue
         if (queue == NULL)
         {
             return;
@@ -239,9 +238,6 @@ void schedule()
         ASM_SET_CR3(current_process->pml4->phys_addr);
         current_pml4 = current_process->pml4;
 
-        serial_printf("Switching to process %d\n", current_process->pid);
-        serial_printf("Signal: %d\n", current_process->queued_signals);
-
         if (current_process->queued_signals && !current_process->in_syscall && !current_process->in_signal_handler) {
 
             if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler) {
@@ -259,13 +255,9 @@ void schedule()
             memcpy(signal->syscall_stack, current_process->syscall_stack, SYSCALL_STACK_SIZE);
             signal->syscall_rsp = current_process->syscall_rsp;
 
-            printf("New RSP for signal: %lx\n", current_process->interrupt_registers.rsp);
-
             current_process->in_signal_handler = true;
 
             run_signal(current_process->interrupt_registers.rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
-
-            kpanic("Process %d has signals!", current_process->pid);
         }
     } else {
         min_schedule = false;
@@ -280,7 +272,6 @@ void schedule()
     }
     else if (current_process->status == TASK_RUNNING)
     {
-
         // switch to the new process's stack ( see below comment )
         ASM_WRITE_RSP(current_process->rsp);
         ASM_WRITE_RBP(current_process->rbp);
@@ -294,20 +285,14 @@ void schedule()
     }
     else if (current_process->status == TASK_FORKED)
     {
-        // Test - send SIGSEGV to process 1
-        test_signal.signal_number = 11;
-        test_signal.sender_pid = 0;
-        test_signal.sender_uid = 0;
-        test_signal.fault_address = 0;
-        test_signal.next = NULL;
-        signal_process(1, &test_signal);
-
         current_process->status = TASK_RUNNING;
 
         // zero out rax
         current_process->syscall_registers.rax = 0;
 
         syscall_old_rsp = current_process->syscall_rsp;
+
+        current_process->in_syscall = false;
 
         // move the address of the current process registers to rax
         asm volatile("mov %0, %%rax" ::"r"(&(current_process->syscall_registers)));
@@ -333,7 +318,7 @@ int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *
     if (act != NULL)
     {
         current_process->signal_handlers[signum] = *act;
-        serial_printf("Set signal %d to %d, process %d\n", signum, act->signal_handler, current_process->pid);
+        serial_printf("Set signal %d to 0x%lx, process %d\n", signum, act->signal_handler, current_process->pid);
     }
 
     return 0;
@@ -345,7 +330,6 @@ void rt_sigret() {
     ASM_WRITE_RSP((uint64_t)sigret_stack + 0x1000);
 
     current_process->in_signal_handler = false;
-    serial_printf("rt_sigret called: returning to RSP %lx\n", current_process->interrupt_registers.rsp);
 
     memcpy(current_process->tss_stack, current_process->queued_signals->tss_stack, SYSCALL_STACK_SIZE);
     memcpy(current_process->syscall_stack, current_process->queued_signals->syscall_stack, SYSCALL_STACK_SIZE);
@@ -364,8 +348,6 @@ void rt_sigret() {
     min_schedule = true;
 
     schedule();
-
-    kpanic("rt_sigret called!");
 }
 
 void process_exit(int status)
