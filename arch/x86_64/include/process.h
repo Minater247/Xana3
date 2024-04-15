@@ -111,6 +111,8 @@ typedef struct signal {
     void *syscall_stack;
     uint64_t syscall_rsp;
 
+    bool handled;
+
     struct signal *next;
 } signal_t;
 
@@ -171,6 +173,7 @@ int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *
 void rt_sigret();
 void signal_process(pid_t pid, signal_t *signal);
 int process_kill(pid_t pid, int signal);
+void check_signals(bool is_after_syscall);
 
 extern volatile process_t *current_process;
 

@@ -187,24 +187,13 @@ void signal_process(pid_t pid, signal_t *signal)
         return;
     }
 
-    signal_t *current_signal = current->queued_signals;
-    if (current_signal == NULL)
-    {
-        current->queued_signals = signal;
-    }
-    else
-    {
-        while (current_signal->next != NULL)
-        {
-            current_signal = current_signal->next;
-        }
-        current_signal->next = signal;
-    }
+    signal->next = current->queued_signals;
+    current->queued_signals = signal;
 
     serial_printf("Sent signal %d to process %d\n", signal->signal_number, pid);
 
-    signal->next = NULL;
     signal->syscall_stack = NULL;
+    signal->handled = false;
 }
 
 int process_kill(pid_t pid, int signal)
@@ -234,6 +223,45 @@ bool min_schedule = false;
 
 extern uint64_t syscall_old_rsp;
 extern void run_signal(uint64_t rsp, void *handler, int signal, signal_t *signal_info, void *context);
+extern void run_signal_syscall(uint64_t rsp, void *handler, int signal, signal_t *signal_info, void *context);
+void check_signals(bool is_after_syscall) {
+    if (current_process->queued_signals) {
+        if (!current_process->queued_signals->handled && !current_process->in_syscall) {
+            serial_printf("Handling signal %d!\n", current_process->queued_signals->signal_number);
+
+            // Check for special signals
+            if (current_process->queued_signals->signal_number == SIGKILL) {
+                process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = SIGKILL, .exit_status = 0});
+            }
+
+            if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler) {
+                kpanic("Process %d has signal %d but no handler!", current_process->pid, current_process->queued_signals->signal_number);
+            }
+
+            signal_t *signal = current_process->queued_signals;
+
+            signal->interrupt_registers = current_process->interrupt_registers;
+            signal->syscall_registers = current_process->syscall_registers;
+
+            signal->syscall_stack = (void *)kmalloc(SYSCALL_STACK_SIZE);
+            memcpy(signal->syscall_stack, current_process->syscall_stack, SYSCALL_STACK_SIZE);
+            signal->syscall_rsp = current_process->syscall_rsp;
+
+            signal->handled = true;
+
+            current_process->in_signal_handler = true;
+
+            if (is_after_syscall) {
+                serial_printf("Post-syscall signal at RSP 0x%lx\n", syscall_old_rsp);
+                run_signal_syscall(syscall_old_rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
+            } else {
+                serial_printf("Normal signal at RSP 0x%lx\n", current_process->interrupt_registers.rsp);
+                run_signal(current_process->interrupt_registers.rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
+            }
+        }
+    }
+}
+
 void schedule()
 {
     if (!min_schedule) {
@@ -276,33 +304,10 @@ void schedule()
         min_schedule = false;
     }
     
+    // spaces should ensure serial transmission of process number before system poweroff, if things do go so awry
     serial_printf("Scheduling process %d    \n", current_process->pid);
 
-    if (current_process->queued_signals && !current_process->in_signal_handler && !current_process->in_syscall) {
-        // Check for special signals
-        if (current_process->queued_signals->signal_number == SIGKILL) {
-            process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = SIGKILL, .exit_status = 0});
-        }
-
-        if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler) {
-            kpanic("Process %d has signal %d but no handler!", current_process->pid, current_process->queued_signals->signal_number);
-        }
-
-        signal_t *signal = current_process->queued_signals;
-
-        signal->interrupt_registers = current_process->interrupt_registers;
-        signal->syscall_registers = current_process->syscall_registers;
-
-        signal->syscall_stack = (void *)kmalloc(SYSCALL_STACK_SIZE);
-        memcpy(signal->syscall_stack, current_process->syscall_stack, SYSCALL_STACK_SIZE);
-        signal->syscall_rsp = current_process->syscall_rsp;
-
-        serial_printf("Running signal %d on RSP: 0x%lx\n", signal->signal_number, current_process->interrupt_registers.rsp);
-
-        current_process->in_signal_handler = true;
-
-        run_signal(current_process->interrupt_registers.rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
-    }
+    check_signals(false);
 
     if (current_process->status == TASK_INITIAL)
     {
@@ -370,46 +375,27 @@ int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *
 }
 
 void rt_sigret(uint64_t type) { // 0 -> normal, 1 -> after syscall
+    // switch to the sigret stack temporarily
+    ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
+
+    current_process->in_signal_handler = false;
+
+    memcpy(current_process->syscall_stack, current_process->queued_signals->syscall_stack, SYSCALL_STACK_SIZE);
+    kfree(current_process->queued_signals->syscall_stack);
+
+    current_process->syscall_rsp = current_process->queued_signals->syscall_rsp;
+    current_process->interrupt_registers = current_process->queued_signals->interrupt_registers;
+    current_process->syscall_registers = current_process->queued_signals->syscall_registers;
+
+    signal_t *next = current_process->queued_signals->next;
+    kfree(current_process->queued_signals);
+    current_process->queued_signals = next;
+
     if (type == 0) {
-        // switch to the sigret stack temporarily
-        ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
-
-        current_process->in_signal_handler = false;
-
-        memcpy(current_process->syscall_stack, current_process->queued_signals->syscall_stack, SYSCALL_STACK_SIZE);
-        kfree(current_process->queued_signals->syscall_stack);
-
-        current_process->syscall_rsp = current_process->queued_signals->syscall_rsp;
-        current_process->interrupt_registers = current_process->queued_signals->interrupt_registers;
-        current_process->syscall_registers = current_process->queued_signals->syscall_registers;
-
-        signal_t *next = current_process->queued_signals->next;
-        kfree(current_process->queued_signals);
-        current_process->queued_signals = next;
-
         min_schedule = true;
 
         schedule();
     } else {
-        // switch to the sigret stack temporarily
-        ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
-
-        current_process->in_signal_handler = false;
-
-        memcpy(current_process->syscall_stack, current_process->queued_signals->syscall_stack, SYSCALL_STACK_SIZE);
-        kfree(current_process->queued_signals->syscall_stack);
-
-        current_process->syscall_rsp = current_process->queued_signals->syscall_rsp;
-        current_process->interrupt_registers = current_process->queued_signals->interrupt_registers;
-        current_process->syscall_registers = current_process->queued_signals->syscall_registers;
-
-        signal_t *next = current_process->queued_signals->next;
-        kfree(current_process->queued_signals);
-        current_process->queued_signals = next;
-
-        regs_dump(&current_process->syscall_registers);
-        serial_printf("Value at 0x%lx after sigret: 0x%lx\n", current_process->syscall_registers.rsp, *(uint64_t *)current_process->syscall_registers.rsp);
-
         syscall_old_rsp = current_process->syscall_rsp;
 
         // move the address of the current process registers to rax
