@@ -96,6 +96,10 @@ uint64_t __attribute__((noreturn)) syscall_rt_sigret(regs_t *regs) {
     kpanic("rt_sigret() returned");
 }
 
+uint64_t syscall_kill(regs_t *regs) {
+    return (uint64_t)process_kill(regs->rdi, regs->rsi);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -115,6 +119,7 @@ void syscall_init() {
     syscall_table[59] = &syscall_execv;
     syscall_table[60] = &syscall_exit;
     syscall_table[61] = &syscall_wait4;
+    syscall_table[62] = &syscall_kill;
     syscall_table[79] = &syscall_getcwd;
     syscall_table[80] = &syscall_chdir;
     syscall_table[217] = &getdents64;
@@ -149,10 +154,8 @@ uint64_t syscall_handler(regs_t *regs)
 
     if (syscall_table[regs->rax] != NULL) {
         current_process->in_syscall = true;
-        ASM_ENABLE_INTERRUPTS;
         uint64_t raxval = syscall_table[regs->rax]((regs_t *)&(current_process->syscall_registers));
         current_process->syscall_registers.rax = raxval;
-        ASM_DISABLE_INTERRUPTS;
         current_process->in_syscall = false;
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
@@ -160,6 +163,8 @@ uint64_t syscall_handler(regs_t *regs)
     }
 
     syscall_old_rsp = current_process->syscall_rsp;
+
+    // TODO: check if we have signals that should be called before returning to normal code
 
     // move the address of the current process registers to rax
     asm volatile("mov %0, %%rax" ::"r"(&current_process->syscall_registers));

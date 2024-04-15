@@ -287,8 +287,6 @@ void page_fault_error(regs_t *r, uint64_t faulting_address)
     sig->signal_code = 0; // TODO: figure out what this should be (SEGV_MAPERR?)
     sig->fault_address = (void *)faulting_address;
     sig->sender_pid = current_process->pid;
-    sig->syscall_stack = NULL;
-    sig->tss_stack = NULL;
     serial_printf("Sending SIGSEGV to process %d\n", current_process->pid);
     signal_process(current_process->pid, sig);
 
@@ -318,7 +316,7 @@ void fault_handler(regs_t *regs, uint64_t faulting_address)
     else
     {
         regs_dump(regs);
-        kpanic("Unhandled exception: %s (error code: %d) [0x%lx]", exception_messages[regs->int_no], regs->err_code, regs->rip);
+        kpanic("Unhandled exception in process %d: %s (error code: %d) [0x%lx]", current_process ? current_process->pid : -1, exception_messages[regs->int_no], regs->err_code, regs->rip);
     }
 
     if (current_process != NULL)

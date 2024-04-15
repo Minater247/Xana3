@@ -110,9 +110,13 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->exit_status.normal_exit = false;
     new_process->exit_status.exit_status = 0;
     new_process->exit_status.has_terminated = false;
-    new_process->in_syscall = false;
     new_process->in_signal_handler = false;
     new_process->queued_signals = NULL;
+    // clear the signal handlers
+    for (int i = 0; i < SIG_MAX; i++)
+    {
+        new_process->signal_handlers[i].signal_handler = NULL;
+    }
 
     new_process->file_descriptors = NULL;
     strcpy((char *)new_process->pwd, "/");
@@ -141,6 +145,7 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     return new_process;
 }
 
+extern char tss_stack[SYSCALL_STACK_SIZE];
 void process_init()
 {
     // create the idle process
@@ -150,12 +155,17 @@ void process_init()
     idle_process.next = NULL;
     idle_process.status = TASK_RUNNING;
     idle_process.queue_next = NULL;
-    idle_process.tss_stack = kmalloc(SYSCALL_STACK_SIZE);
+    idle_process.tss_stack = tss_stack;
     idle_process.syscall_stack = kmalloc(SYSCALL_STACK_SIZE);
     idle_process.exit_status.normal_exit = false;
     idle_process.exit_status.exit_status = 0;
     idle_process.exit_status.has_terminated = false;
     idle_process.queued_signals = NULL;
+    idle_process.in_signal_handler = false;
+    for (int i = 0; i < SIG_MAX; i++)
+    {
+        idle_process.signal_handlers[i].signal_handler = NULL;
+    }
 
     current_process = &idle_process;
     process_list = &idle_process;
@@ -191,9 +201,31 @@ void signal_process(pid_t pid, signal_t *signal)
         current_signal->next = signal;
     }
 
+    serial_printf("Sent signal %d to process %d\n", signal->signal_number, pid);
+
     signal->next = NULL;
     signal->syscall_stack = NULL;
-    signal->tss_stack = NULL;
+}
+
+int process_kill(pid_t pid, int signal)
+{
+    if (pid == 0)
+    {
+        return -EPERM;
+    }
+
+    signal_t *signal_info = (signal_t *)kmalloc(sizeof(signal_t));
+    signal_info->signal_number = signal;
+    signal_info->signal_error = 0;
+    signal_info->signal_code = 0;
+    signal_info->sender_pid = current_process->pid;
+    signal_info->sender_uid = 0;
+    signal_info->fault_address = NULL;
+    signal_info->next = NULL;
+
+    signal_process(pid, signal_info);
+
+    return 0;
 }
 
 signal_t test_signal;
@@ -205,47 +237,48 @@ extern void run_signal(uint64_t rsp, void *handler, int signal, signal_t *signal
 void schedule()
 {
     if (!min_schedule) {
-        if (queue == NULL)
-        {
-            return;
-        }
         ASM_DISABLE_INTERRUPTS;
-
+    
         // Save the current process's rsp and rbp
         ASM_READ_RSP(current_process->rsp);
         ASM_READ_RBP(current_process->rbp);
 
-        process_t *new_process = queue;
-        queue = queue->queue_next;
-        // add the current process back to the queue
-        if (current_process->status != TASK_EXITED && current_process->status != TASK_WAITING)
-        {
-            if (queue == NULL)
+        if (queue != NULL) {
+
+            process_t *new_process = queue;
+            queue = queue->queue_next;
+            // add the current process back to the queue
+            if (current_process->status != TASK_EXITED && current_process->status != TASK_WAITING)
             {
-                queue = (process_t *)current_process;
-            }
-            else
-            {
-                process_t *current = queue;
-                while (current->queue_next != NULL)
+                if (queue == NULL)
                 {
-                    current = current->queue_next;
+                    queue = (process_t *)current_process;
                 }
-                current->queue_next = (process_t *)current_process;
+                else
+                {
+                    process_t *current = queue;
+                    while (current->queue_next != NULL)
+                    {
+                        current = current->queue_next;
+                    }
+                    current->queue_next = (process_t *)current_process;
+                }
             }
+            current_process = new_process;
+            current_process->queue_next = NULL;
+
+            tss_set_rsp0((uint64_t)current_process->tss_stack + SYSCALL_STACK_SIZE);
+
+            ASM_SET_CR3(current_process->pml4->phys_addr);
+            current_pml4 = current_process->pml4;
         }
-        current_process = new_process;
-        current_process->queue_next = NULL;
-
-        tss_set_rsp0((uint64_t)current_process->tss_stack + SYSCALL_STACK_SIZE);
-
-        ASM_SET_CR3(current_process->pml4->phys_addr);
-        current_pml4 = current_process->pml4;
     } else {
         min_schedule = false;
     }
+    
+    serial_printf("Scheduling process %d    \n", current_process->pid);
 
-    if (current_process->queued_signals && !current_process->in_syscall && !current_process->in_signal_handler) {
+    if (current_process->queued_signals && !current_process->in_signal_handler && !current_process->in_syscall) {
         // Check for special signals
         if (current_process->queued_signals->signal_number == SIGKILL) {
             process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = SIGKILL, .exit_status = 0});
@@ -260,11 +293,11 @@ void schedule()
         signal->interrupt_registers = current_process->interrupt_registers;
         signal->syscall_registers = current_process->syscall_registers;
 
-        signal->tss_stack = (void *)kmalloc(SYSCALL_STACK_SIZE);
         signal->syscall_stack = (void *)kmalloc(SYSCALL_STACK_SIZE);
-        memcpy(signal->tss_stack, current_process->tss_stack, SYSCALL_STACK_SIZE);
         memcpy(signal->syscall_stack, current_process->syscall_stack, SYSCALL_STACK_SIZE);
         signal->syscall_rsp = current_process->syscall_rsp;
+
+        serial_printf("Running signal %d on RSP: 0x%lx\n", signal->signal_number, current_process->interrupt_registers.rsp);
 
         current_process->in_signal_handler = true;
 
@@ -293,14 +326,14 @@ void schedule()
     }
     else if (current_process->status == TASK_FORKED)
     {
+        process_kill(1, SIGTERM);
+
         current_process->status = TASK_RUNNING;
 
         // zero out rax
         current_process->syscall_registers.rax = 0;
 
         syscall_old_rsp = current_process->syscall_rsp;
-
-        current_process->in_syscall = false;
 
         // move the address of the current process registers to rax
         asm volatile("mov %0, %%rax" ::"r"(&(current_process->syscall_registers)));
@@ -342,9 +375,7 @@ void rt_sigret() {
 
     current_process->in_signal_handler = false;
 
-    memcpy(current_process->tss_stack, current_process->queued_signals->tss_stack, SYSCALL_STACK_SIZE);
     memcpy(current_process->syscall_stack, current_process->queued_signals->syscall_stack, SYSCALL_STACK_SIZE);
-    kfree(current_process->queued_signals->tss_stack);
     kfree(current_process->queued_signals->syscall_stack);
 
     current_process->syscall_rsp = current_process->queued_signals->syscall_rsp;
@@ -366,8 +397,6 @@ void process_exit(int status)
     current_process->status = TASK_EXITED;
 
     // free the process's memory
-    kfree(current_process->tss_stack);
-
     switch_page_directory(kernel_pml4);
     free_page_directory(current_process->pml4);
 
@@ -381,11 +410,6 @@ void process_exit(int status)
     while (current_signal != NULL)
     {
         signal_t *next = current_signal->next;
-        if (current_signal->tss_stack != NULL)
-        {
-            serial_printf("Freeing signal tss stack @ 0x%lx\n", current_signal->tss_stack);
-            kfree(current_signal->tss_stack);
-        }
         if (current_signal->syscall_stack != NULL)
         {
             serial_printf("Freeing signal syscall stack @ 0x%lx\n", current_signal->syscall_stack);
@@ -408,8 +432,6 @@ void process_exit_abnormal(exit_status_bits_t status)
     serial_printf("Process %d exited abnormally with status %d\n", current_process->pid, status.exit_status);
 
     // free the process's memory
-    kfree(current_process->tss_stack);
-
     switch_page_directory(kernel_pml4);
     free_page_directory(current_process->pml4);
 
@@ -421,10 +443,6 @@ void process_exit_abnormal(exit_status_bits_t status)
     while (current_signal != NULL)
     {
         signal_t *next = current_signal->next;
-        if (current_signal->tss_stack != NULL)
-        {
-            kfree(current_signal->tss_stack);
-        }
         if (current_signal->syscall_stack != NULL)
         {
             kfree(current_signal->syscall_stack);

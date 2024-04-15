@@ -31,5 +31,7 @@ run_signal:
     mov rsi, rbx ; signal info
     mov rdx, r8 ; ucontext
 
+    ; TODO: do this in *user mode*!
+
     ; Call signal handler
     jmp rax

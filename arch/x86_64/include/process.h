@@ -104,14 +104,11 @@ typedef struct signal {
     pid_t sender_pid;
     uid_t sender_uid;
 
-    int exit_status;
-
     void *fault_address;
 
     regs_t syscall_registers;
     regs_t interrupt_registers;
     void *syscall_stack;
-    void *tss_stack;
     uint64_t syscall_rsp;
 
     struct signal *next;
@@ -173,6 +170,7 @@ uint64_t brk(uint64_t increment);
 int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
 void rt_sigret();
 void signal_process(pid_t pid, signal_t *signal);
+int process_kill(pid_t pid, int signal);
 
 extern volatile process_t *current_process;
 
