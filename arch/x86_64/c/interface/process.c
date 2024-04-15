@@ -219,14 +219,12 @@ int process_kill(pid_t pid, int signal)
 
 signal_t test_signal;
 
-bool min_schedule = false;
-
 extern uint64_t syscall_old_rsp;
 extern void run_signal(uint64_t rsp, void *handler, int signal, signal_t *signal_info, void *context);
 extern void run_signal_syscall(uint64_t rsp, void *handler, int signal, signal_t *signal_info, void *context);
 void check_signals(bool is_after_syscall) {
     if (current_process->queued_signals) {
-        if (!current_process->queued_signals->handled && !current_process->in_syscall) {
+        if (!current_process->queued_signals->handled) {
             serial_printf("Handling signal %d!\n", current_process->queued_signals->signal_number);
 
             // Check for special signals
@@ -255,8 +253,15 @@ void check_signals(bool is_after_syscall) {
                 serial_printf("Post-syscall signal at RSP 0x%lx\n", syscall_old_rsp);
                 run_signal_syscall(syscall_old_rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
             } else {
-                serial_printf("Normal signal at RSP 0x%lx\n", current_process->interrupt_registers.rsp);
-                run_signal(current_process->interrupt_registers.rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
+
+                uint64_t rsp = current_process->interrupt_registers.rsp;
+                if (rsp >= VIRT_MEM_OFFSET) {
+                    serial_printf("Signal at RSP 0x%lx is in kernel space, moving to user space\n", rsp);
+                    rsp = current_process->user_rsp;
+                }
+                serial_printf("Normal signal at RSP 0x%lx\n", rsp);
+
+                run_signal(rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
             }
         }
     }
@@ -264,44 +269,40 @@ void check_signals(bool is_after_syscall) {
 
 void schedule()
 {
-    if (!min_schedule) {
-        ASM_DISABLE_INTERRUPTS;
-    
-        // Save the current process's rsp and rbp
-        ASM_READ_RSP(current_process->rsp);
-        ASM_READ_RBP(current_process->rbp);
+    ASM_DISABLE_INTERRUPTS; // In case we aren't called from an interrupt
 
-        if (queue != NULL) {
+    // Save the current process's rsp and rbp
+    ASM_READ_RSP(current_process->rsp);
+    ASM_READ_RBP(current_process->rbp);
 
-            process_t *new_process = queue;
-            queue = queue->queue_next;
-            // add the current process back to the queue
-            if (current_process->status != TASK_EXITED && current_process->status != TASK_WAITING)
+    if (queue != NULL) {
+
+        process_t *new_process = queue;
+        queue = queue->queue_next;
+        // add the current process back to the queue
+        if (current_process->status != TASK_EXITED && current_process->status != TASK_WAITING)
+        {
+            if (queue == NULL)
             {
-                if (queue == NULL)
-                {
-                    queue = (process_t *)current_process;
-                }
-                else
-                {
-                    process_t *current = queue;
-                    while (current->queue_next != NULL)
-                    {
-                        current = current->queue_next;
-                    }
-                    current->queue_next = (process_t *)current_process;
-                }
+                queue = (process_t *)current_process;
             }
-            current_process = new_process;
-            current_process->queue_next = NULL;
-
-            tss_set_rsp0((uint64_t)current_process->tss_stack + SYSCALL_STACK_SIZE);
-
-            ASM_SET_CR3(current_process->pml4->phys_addr);
-            current_pml4 = current_process->pml4;
+            else
+            {
+                process_t *current = queue;
+                while (current->queue_next != NULL)
+                {
+                    current = current->queue_next;
+                }
+                current->queue_next = (process_t *)current_process;
+            }
         }
-    } else {
-        min_schedule = false;
+        current_process = new_process;
+        current_process->queue_next = NULL;
+
+        tss_set_rsp0((uint64_t)current_process->tss_stack + SYSCALL_STACK_SIZE);
+
+        ASM_SET_CR3(current_process->pml4->phys_addr);
+        current_pml4 = current_process->pml4;
     }
     
     // spaces should ensure serial transmission of process number before system poweroff, if things do go so awry
@@ -331,7 +332,7 @@ void schedule()
     }
     else if (current_process->status == TASK_FORKED)
     {
-        process_kill(1, SIGALRM);
+        process_kill(1, SIGTERM);
 
         current_process->status = TASK_RUNNING;
 
@@ -392,8 +393,6 @@ void rt_sigret(uint64_t type) { // 0 -> normal, 1 -> after syscall
     current_process->queued_signals = next;
 
     if (type == 0) {
-        min_schedule = true;
-
         schedule();
     } else {
         syscall_old_rsp = current_process->syscall_rsp;
@@ -490,6 +489,8 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
         return -ECHILD;
     }
 
+    serial_printf("BEFORE OPENING TO INTERRUPTS, SYSCALL RSP: 0x%lx\n", current_process->syscall_rsp);
+
     ASM_ENABLE_INTERRUPTS;
     while (!WIFTERMINATED(current->exit_status)) {
         IRQ0;
@@ -530,6 +531,11 @@ int64_t fork()
     new_process->stack_low = current_process->stack_low;
 
     new_process->queued_signals = NULL;
+    new_process->in_signal_handler = false;
+    for (int i = 0; i < SIG_MAX; i++)
+    {
+        new_process->signal_handlers[i].signal_handler = current_process->signal_handlers[i].signal_handler;
+    }
     
     // TODO: copy file descriptors
     strcpy(new_process->pwd, (const char *)current_process->pwd);

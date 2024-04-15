@@ -140,6 +140,7 @@ typedef struct process {
     void *tss_stack;
     uint64_t syscall_rsp;
     void *syscall_stack;
+    uint64_t user_rsp;
     bool in_syscall;
     bool in_signal_handler;
 

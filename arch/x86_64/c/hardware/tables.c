@@ -238,7 +238,6 @@ const char *exception_messages[] = {
     "Reserved",
     "Reserved"};
 
-extern bool min_schedule;
 void page_fault_error(regs_t *r, uint64_t faulting_address)
 {
     ASM_DISABLE_INTERRUPTS;
@@ -290,7 +289,6 @@ void page_fault_error(regs_t *r, uint64_t faulting_address)
     serial_printf("Sending SIGSEGV to process %d\n", current_process->pid);
     signal_process(current_process->pid, sig);
 
-    min_schedule = true;
     schedule();
 }
 
@@ -324,6 +322,9 @@ void fault_handler(regs_t *regs, uint64_t faulting_address)
 {
     if (current_process) {
         current_process->interrupt_registers = *regs;
+        if (current_process->interrupt_registers.rsp < VIRT_MEM_OFFSET) {
+            current_process->user_rsp = current_process->interrupt_registers.rsp;
+        }
     }
 
     if (regs->int_no == 14)
@@ -347,6 +348,10 @@ void irq_handler(regs_t *regs)
     if (current_process != NULL)
     {
         current_process->interrupt_registers = *regs;
+        if (current_process->interrupt_registers.rsp < VIRT_MEM_OFFSET)
+        {
+            current_process->user_rsp = current_process->interrupt_registers.rsp;
+        }
     }
 
     if (regs->int_no - 32 == 0)
