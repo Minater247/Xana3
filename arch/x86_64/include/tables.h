@@ -75,6 +75,7 @@ void register_interrupt_handler(uint8_t n, isr_handler_t handler);
 void tss_set_rsp(uint64_t rsp);
 void gdt_set_entry(int index, uint64_t base, uint64_t limit, uint8_t access, uint8_t granularity, gdt_entry_t *gdt_location);
 void tss_set_rsp0(uint64_t rsp0);
+void regs_dump(regs_t *regs);
 
 extern void load_gdt(uint64_t gdtr);
 

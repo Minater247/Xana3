@@ -92,7 +92,7 @@ uint64_t syscall_rt_sigaction(regs_t *regs) {
 
 uint64_t __attribute__((noreturn)) syscall_rt_sigret(regs_t *regs) {
     UNUSED(regs);
-    rt_sigret();
+    rt_sigret(regs->rdi); // Custom: rdi contains 0 if this was a regular signal, or 1 if this was an after-syscall signal
     kpanic("rt_sigret() returned");
 }
 
@@ -129,6 +129,7 @@ void syscall_init() {
 extern uint64_t syscall_old_rsp;
 extern uint8_t syscall_stack_top;
 extern uint8_t syscall_stack;
+extern void run_signal_syscall(uint64_t rsp, void *handler, int signal, signal_t *signal_info, void *context);
 uint64_t syscall_handler(regs_t *regs)
 {
     current_process->syscall_rsp = regs->rsp;
@@ -164,7 +165,34 @@ uint64_t syscall_handler(regs_t *regs)
 
     syscall_old_rsp = current_process->syscall_rsp;
 
-    // TODO: check if we have signals that should be called before returning to normal code
+    if (current_process->queued_signals != NULL && !current_process->in_signal_handler) {
+        // Check for special signals
+        if (current_process->queued_signals->signal_number == SIGKILL) {
+            process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = SIGKILL, .exit_status = 0});
+        }
+
+        if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler) {
+            kpanic("Process %d has signal %d but no handler!", current_process->pid, current_process->queued_signals->signal_number);
+        }
+
+        signal_t *signal = current_process->queued_signals;
+
+        signal->interrupt_registers = current_process->interrupt_registers;
+        signal->syscall_registers = current_process->syscall_registers;
+
+        signal->syscall_stack = (void *)kmalloc(SYSCALL_STACK_SIZE);
+        memcpy(signal->syscall_stack, current_process->syscall_stack, SYSCALL_STACK_SIZE);
+        signal->syscall_rsp = current_process->syscall_rsp;
+
+        serial_printf("Running signal after syscall, %d on RSP: 0x%lx\n", signal->signal_number, current_process->syscall_registers.rsp);
+
+        current_process->in_signal_handler = true;
+        
+        regs_dump(&current_process->syscall_registers);
+        serial_printf("Value at 0x%lx: 0x%lx", current_process->syscall_registers.rsp, *(uint64_t *)current_process->syscall_registers.rsp);
+
+        run_signal_syscall(syscall_old_rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
+    }
 
     // move the address of the current process registers to rax
     asm volatile("mov %0, %%rax" ::"r"(&current_process->syscall_registers));

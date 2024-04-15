@@ -326,7 +326,7 @@ void schedule()
     }
     else if (current_process->status == TASK_FORKED)
     {
-        process_kill(1, SIGTERM);
+        process_kill(1, SIGALRM);
 
         current_process->status = TASK_RUNNING;
 
@@ -369,27 +369,55 @@ int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *
     return 0;
 }
 
-void rt_sigret() {
-    // switch to the sigret stack temporarily
-    ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
+void rt_sigret(uint64_t type) { // 0 -> normal, 1 -> after syscall
+    if (type == 0) {
+        // switch to the sigret stack temporarily
+        ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
 
-    current_process->in_signal_handler = false;
+        current_process->in_signal_handler = false;
 
-    memcpy(current_process->syscall_stack, current_process->queued_signals->syscall_stack, SYSCALL_STACK_SIZE);
-    kfree(current_process->queued_signals->syscall_stack);
+        memcpy(current_process->syscall_stack, current_process->queued_signals->syscall_stack, SYSCALL_STACK_SIZE);
+        kfree(current_process->queued_signals->syscall_stack);
 
-    current_process->syscall_rsp = current_process->queued_signals->syscall_rsp;
-    current_process->interrupt_registers = current_process->queued_signals->interrupt_registers;
-    current_process->syscall_registers = current_process->queued_signals->syscall_registers;
+        current_process->syscall_rsp = current_process->queued_signals->syscall_rsp;
+        current_process->interrupt_registers = current_process->queued_signals->interrupt_registers;
+        current_process->syscall_registers = current_process->queued_signals->syscall_registers;
 
-    signal_t *next = current_process->queued_signals->next;
-    // not yet allocated so free would fail
-    kfree(current_process->queued_signals);
-    current_process->queued_signals = next;
+        signal_t *next = current_process->queued_signals->next;
+        kfree(current_process->queued_signals);
+        current_process->queued_signals = next;
 
-    min_schedule = true;
+        min_schedule = true;
 
-    schedule();
+        schedule();
+    } else {
+        // switch to the sigret stack temporarily
+        ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
+
+        current_process->in_signal_handler = false;
+
+        memcpy(current_process->syscall_stack, current_process->queued_signals->syscall_stack, SYSCALL_STACK_SIZE);
+        kfree(current_process->queued_signals->syscall_stack);
+
+        current_process->syscall_rsp = current_process->queued_signals->syscall_rsp;
+        current_process->interrupt_registers = current_process->queued_signals->interrupt_registers;
+        current_process->syscall_registers = current_process->queued_signals->syscall_registers;
+
+        signal_t *next = current_process->queued_signals->next;
+        kfree(current_process->queued_signals);
+        current_process->queued_signals = next;
+
+        regs_dump(&current_process->syscall_registers);
+        serial_printf("Value at 0x%lx after sigret: 0x%lx\n", current_process->syscall_registers.rsp, *(uint64_t *)current_process->syscall_registers.rsp);
+
+        syscall_old_rsp = current_process->syscall_rsp;
+
+        // move the address of the current process registers to rax
+        asm volatile("mov %0, %%rax" ::"r"(&(current_process->syscall_registers)));
+
+        // jump to after_syscall
+        asm volatile("jmp after_syscall");
+    }
 }
 
 void process_exit(int status)

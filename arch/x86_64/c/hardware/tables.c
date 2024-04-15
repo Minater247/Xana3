@@ -296,11 +296,28 @@ void page_fault_error(regs_t *r, uint64_t faulting_address)
 
 void regs_dump(regs_t *regs) {
     serial_printf("REG DUMP FOR PROCESS:\n");
-    serial_printf("RAX: 0x%lx\n", regs->rax);
-    serial_printf("RSP: 0x%lx\n", regs->rsp);
-    serial_printf("RBP: 0x%lx\n", regs->rbp);
-    serial_printf("RIP: 0x%lx\n", regs->rip);
+    serial_printf("R15: 0x%lx\n", regs->r15);
+    serial_printf("R14: 0x%lx\n", regs->r14);
+    serial_printf("R13: 0x%lx\n", regs->r13);
     serial_printf("R12: 0x%lx\n", regs->r12);
+    serial_printf("R11: 0x%lx\n", regs->r11);
+    serial_printf("R10: 0x%lx\n", regs->r10);
+    serial_printf("R9: 0x%lx\n", regs->r9);
+    serial_printf("R8: 0x%lx\n", regs->r8);
+    serial_printf("RDI: 0x%lx\n", regs->rdi);
+    serial_printf("RSI: 0x%lx\n", regs->rsi);
+    serial_printf("RBP: 0x%lx\n", regs->rbp);
+    serial_printf("RBX: 0x%lx\n", regs->rbx);
+    serial_printf("RDX: 0x%lx\n", regs->rdx);
+    serial_printf("RCX: 0x%lx\n", regs->rcx);
+    serial_printf("RAX: 0x%lx\n", regs->rax);
+    serial_printf("INT_NO: 0x%lx\n", regs->int_no);
+    serial_printf("ERR_CODE: 0x%lx\n", regs->err_code);
+    serial_printf("RIP: 0x%lx\n", regs->rip);
+    serial_printf("CS: 0x%lx\n", regs->cs);
+    serial_printf("RFLAGS: 0x%lx\n", regs->rflags);
+    serial_printf("RSP: 0x%lx\n", regs->rsp);
+    serial_printf("SS: 0x%lx\n", regs->ss);
 }
 
 void fault_handler(regs_t *regs, uint64_t faulting_address)
