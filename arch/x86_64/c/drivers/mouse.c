@@ -5,6 +5,7 @@
 #include <display.h>
 #include <system.h>
 #include <tables.h>
+#include <unused.h>
 
 #define PS2_GET_COMPAQ_STATUS 0x20
 #define PS2_SET_COMPAQ_STATUS 0x60
@@ -50,6 +51,8 @@ uint8_t mouse_receive() {
 }
 
 void mouse_handler(regs_t *r) {
+    UNUSED(r);
+    
     // Read the mouse data
     uint8_t bytes[3];
     for (int i = 0; i < 3; i++) {

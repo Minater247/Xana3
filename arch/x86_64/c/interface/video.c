@@ -822,6 +822,14 @@ int fb_ioctl(void *data, unsigned long request, void *arg, void *device_passed)
     return -ENOTSUP;
 }
 
+int fb_close(void *data, void *device_passed)
+{
+    kfree(data);
+    UNUSED(device_passed);
+
+    return 0;
+}
+
 device_t *init_fb_device()
 {
     device_t *fb_device = kmalloc(sizeof(device_t));
@@ -832,7 +840,7 @@ device_t *init_fb_device()
 
     fb_device->open = (open_func_t)fb_open;
     fb_device->read = (read_func_t)fb_read;
-    fb_device->close = NULL;
+    fb_device->close = (close_func_t)fb_close;
     fb_device->fcntl = NULL;
     fb_device->write = (write_func_t)fb_write;
     fb_device->lseek = (lseek_func_t)fb_lseek;

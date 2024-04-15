@@ -20,6 +20,7 @@
 #include <process.h>
 #include <errors.h>
 #include <unused.h>
+#include <mouse.h>
 
 void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     // increase RSP/RBP by VIRT_MEM_OFFSET
@@ -61,11 +62,7 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
 
     mouse_init();
 
-    // test printing in ANSI color
-    printf("\033[1;31mThis is red text\033[0m\n");
-
     printf("\n\nBefore we jump to the usermode program, roadmap:\n");
-    printf("  - Image drawing\n");
     printf("  - Filesystem (EXT2, ISO9660)\n");
     printf("  - ACPI AML parsing\n");
     printf("  - PCI device enumeration\n");

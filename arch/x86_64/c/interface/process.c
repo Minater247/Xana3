@@ -190,6 +190,10 @@ void signal_process(pid_t pid, signal_t *signal)
         }
         current_signal->next = signal;
     }
+
+    signal->next = NULL;
+    signal->syscall_stack = NULL;
+    signal->tss_stack = NULL;
 }
 
 signal_t test_signal;
@@ -237,30 +241,34 @@ void schedule()
 
         ASM_SET_CR3(current_process->pml4->phys_addr);
         current_pml4 = current_process->pml4;
-
-        if (current_process->queued_signals && !current_process->in_syscall && !current_process->in_signal_handler) {
-
-            if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler) {
-                kpanic("Process %d has signal %d but no handler!", current_process->pid, current_process->queued_signals->signal_number);
-            }
-
-            signal_t *signal = current_process->queued_signals;
-
-            signal->interrupt_registers = current_process->interrupt_registers;
-            signal->syscall_registers = current_process->syscall_registers;
-
-            signal->tss_stack = (void *)kmalloc(SYSCALL_STACK_SIZE);
-            signal->syscall_stack = (void *)kmalloc(SYSCALL_STACK_SIZE);
-            memcpy(signal->tss_stack, current_process->tss_stack, SYSCALL_STACK_SIZE);
-            memcpy(signal->syscall_stack, current_process->syscall_stack, SYSCALL_STACK_SIZE);
-            signal->syscall_rsp = current_process->syscall_rsp;
-
-            current_process->in_signal_handler = true;
-
-            run_signal(current_process->interrupt_registers.rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
-        }
     } else {
         min_schedule = false;
+    }
+
+    if (current_process->queued_signals && !current_process->in_syscall && !current_process->in_signal_handler) {
+        // Check for special signals
+        if (current_process->queued_signals->signal_number == SIGKILL) {
+            process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = SIGKILL, .exit_status = 0});
+        }
+
+        if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler) {
+            kpanic("Process %d has signal %d but no handler!", current_process->pid, current_process->queued_signals->signal_number);
+        }
+
+        signal_t *signal = current_process->queued_signals;
+
+        signal->interrupt_registers = current_process->interrupt_registers;
+        signal->syscall_registers = current_process->syscall_registers;
+
+        signal->tss_stack = (void *)kmalloc(SYSCALL_STACK_SIZE);
+        signal->syscall_stack = (void *)kmalloc(SYSCALL_STACK_SIZE);
+        memcpy(signal->tss_stack, current_process->tss_stack, SYSCALL_STACK_SIZE);
+        memcpy(signal->syscall_stack, current_process->syscall_stack, SYSCALL_STACK_SIZE);
+        signal->syscall_rsp = current_process->syscall_rsp;
+
+        current_process->in_signal_handler = true;
+
+        run_signal(current_process->interrupt_registers.rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
     }
 
     if (current_process->status == TASK_INITIAL)
@@ -303,8 +311,12 @@ void schedule()
     kpanic("Process %d in undefined state! [%d]", current_process->pid, current_process->status);
 }
 
+char temp_stack[SYSCALL_STACK_SIZE];
+
 int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
+    UNUSED(oldact);
+
     if (signum >= SIG_MAX)
     {
         return -EINVAL;
@@ -324,10 +336,9 @@ int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *
     return 0;
 }
 
-char sigret_stack[0x1000];
 void rt_sigret() {
     // switch to the sigret stack temporarily
-    ASM_WRITE_RSP((uint64_t)sigret_stack + 0x1000);
+    ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
 
     current_process->in_signal_handler = false;
 
@@ -342,7 +353,7 @@ void rt_sigret() {
 
     signal_t *next = current_process->queued_signals->next;
     // not yet allocated so free would fail
-    // kfree(current_process->queued_signals);
+    kfree(current_process->queued_signals);
     current_process->queued_signals = next;
 
     min_schedule = true;
@@ -365,6 +376,26 @@ void process_exit(int status)
     current_process->exit_status.exit_status = status;
     current_process->exit_status.has_terminated = true;
 
+    // free the signals
+    signal_t *current_signal = current_process->queued_signals;
+    while (current_signal != NULL)
+    {
+        signal_t *next = current_signal->next;
+        if (current_signal->tss_stack != NULL)
+        {
+            serial_printf("Freeing signal tss stack @ 0x%lx\n", current_signal->tss_stack);
+            kfree(current_signal->tss_stack);
+        }
+        if (current_signal->syscall_stack != NULL)
+        {
+            serial_printf("Freeing signal syscall stack @ 0x%lx\n", current_signal->syscall_stack);
+            kfree(current_signal->syscall_stack);
+        }
+        serial_printf("Freeing signal @ 0x%lx\n", current_signal);
+        kfree(current_signal);
+        current_signal = next;
+    }
+
     kfree(current_process->syscall_stack);
 
     IRQ0;
@@ -384,6 +415,23 @@ void process_exit_abnormal(exit_status_bits_t status)
 
     // Update the exit status and waiters
     current_process->exit_status = status;
+
+    // free the signals
+    signal_t *current_signal = current_process->queued_signals;
+    while (current_signal != NULL)
+    {
+        signal_t *next = current_signal->next;
+        if (current_signal->tss_stack != NULL)
+        {
+            kfree(current_signal->tss_stack);
+        }
+        if (current_signal->syscall_stack != NULL)
+        {
+            kfree(current_signal->syscall_stack);
+        }
+        kfree(current_signal);
+        current_signal = next;
+    }
 
     kfree(current_process->syscall_stack);
 

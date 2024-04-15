@@ -238,6 +238,7 @@ const char *exception_messages[] = {
     "Reserved",
     "Reserved"};
 
+extern bool min_schedule;
 void page_fault_error(regs_t *r, uint64_t faulting_address)
 {
     ASM_DISABLE_INTERRUPTS;
@@ -285,7 +286,14 @@ void page_fault_error(regs_t *r, uint64_t faulting_address)
     sig->signal_error = 0;
     sig->signal_code = 0; // TODO: figure out what this should be (SEGV_MAPERR?)
     sig->fault_address = (void *)faulting_address;
+    sig->sender_pid = current_process->pid;
+    sig->syscall_stack = NULL;
+    sig->tss_stack = NULL;
+    serial_printf("Sending SIGSEGV to process %d\n", current_process->pid);
     signal_process(current_process->pid, sig);
+
+    min_schedule = true;
+    schedule();
 }
 
 void regs_dump(regs_t *regs) {
