@@ -132,6 +132,6 @@ extern void irq13();
 extern void irq14();
 extern void irq15();
 
-extern void jump_to_usermode(uint64_t rip, uint64_t rsp);
+extern void __attribute__((noreturn)) jump_to_usermode(uint64_t rip, uint64_t rsp);
 
 #endif

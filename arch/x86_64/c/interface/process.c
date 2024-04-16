@@ -19,6 +19,7 @@
 
 process_t *process_list = NULL;
 process_t *queue = NULL;
+process_t *queue_tail = NULL;
 volatile process_t *current_process = NULL;
 
 process_t idle_process;
@@ -74,15 +75,12 @@ void add_process(process_t *process)
     if (queue == NULL)
     {
         queue = process;
+        queue_tail = process;
     }
     else
     {
-        process_t *current = queue;
-        while (current->queue_next != NULL)
-        {
-            current = current->queue_next;
-        }
-        current->queue_next = process;
+        queue_tail->queue_next = process;
+        queue_tail = process;
     }
 }
 
@@ -288,12 +286,8 @@ void schedule()
             }
             else
             {
-                process_t *current = queue;
-                while (current->queue_next != NULL)
-                {
-                    current = current->queue_next;
-                }
-                current->queue_next = (process_t *)current_process;
+                queue_tail->queue_next = (process_t *)current_process;
+                queue_tail = (process_t *)current_process;
             }
         }
         current_process = new_process;
@@ -304,9 +298,6 @@ void schedule()
         ASM_SET_CR3(current_process->pml4->phys_addr);
         current_pml4 = current_process->pml4;
     }
-    
-    // spaces should ensure serial transmission of process number before system poweroff, if things do go so awry
-    serial_printf("Scheduling process %d    \n", current_process->pid);
 
     check_signals(false);
 
@@ -332,8 +323,6 @@ void schedule()
     }
     else if (current_process->status == TASK_FORKED)
     {
-        process_kill(1, SIGTERM);
-
         current_process->status = TASK_RUNNING;
 
         // zero out rax
@@ -407,6 +396,9 @@ void rt_sigret(uint64_t type) { // 0 -> normal, 1 -> after syscall
 
 void process_exit(int status)
 {
+    // switch to the temporary stack
+    ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
+
     current_process->status = TASK_EXITED;
 
     // free the process's memory
@@ -434,12 +426,16 @@ void process_exit(int status)
     }
 
     kfree(current_process->syscall_stack);
+    kfree(current_process->tss_stack);
 
     IRQ0;
 }
 
 void process_exit_abnormal(exit_status_bits_t status)
 {
+    // switch to the temporary stack
+    ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
+    
     current_process->status = TASK_EXITED;
 
     serial_printf("Process %d exited abnormally with status %d\n", current_process->pid, status.exit_status);
@@ -465,6 +461,7 @@ void process_exit_abnormal(exit_status_bits_t status)
     }
 
     kfree(current_process->syscall_stack);
+    kfree(current_process->tss_stack);
 
     IRQ0;
 }

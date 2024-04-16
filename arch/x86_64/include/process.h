@@ -109,6 +109,8 @@ typedef struct signal {
     regs_t syscall_registers;
     regs_t interrupt_registers;
     void *syscall_stack;
+    // The TSS stack is only used during interrupts, which should not re-enable interrupts during the handler.
+    // As such, at present, it need not be copied during a signal call.
     uint64_t syscall_rsp;
 
     bool handled;
@@ -155,6 +157,8 @@ typedef struct process {
 
     uint64_t stack_low;
     uint64_t brk_start;
+
+    uint64_t dependents;
 
     struct process *next;
     struct process *queue_next;

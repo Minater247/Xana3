@@ -691,8 +691,11 @@ typedef struct {
 pointer_int_t fb_open(char *path, uint64_t flags, void *device_passed)
 {
     UNUSED(path);
-    UNUSED(flags);
     UNUSED(device_passed);
+
+    if (flags & O_DIRECTORY) {
+        return (pointer_int_t){NULL, -ENOTDIR};
+    }
 
     fb_data_t *data = kmalloc(sizeof(fb_data_t));
     data->pos = 0;
@@ -753,16 +756,50 @@ size_t fb_write(void *ptr, size_t size, size_t nmemb, void *data, void *device_p
 
 size_t fb_read(void *ptr, size_t size, size_t nmemb, void *data, void *device_passed, uint64_t flags)
 {
-    UNUSED(ptr);
-    UNUSED(size);
-    UNUSED(nmemb);
-    UNUSED(data);
     UNUSED(device_passed);
     UNUSED(flags);
 
-    unimplemented("fb_read not yet implemented (should be similar to fb_write)\n");
+    // calculate where to read from
+    fb_data_t *fb_data = (fb_data_t *)data;
+    uint64_t start_x = fb_data->pos % user_pitch;
+    uint64_t start_y = fb_data->pos / user_pitch;
+    uint64_t to_read = size * nmemb;
 
-    //return num_bytes;
+    if (fb_data->pos + to_read > framebuffer_height * user_pitch)
+    {
+        to_read = framebuffer_height * user_pitch - fb_data->pos;
+    }
+
+    fb_data->pos += to_read;
+
+    void *initial = ptr;
+
+    // if we're not at the start of a line, read the first part of the data
+    if (start_x != 0) {
+        uint64_t line_remaining = user_pitch - start_x;
+        if (line_remaining > to_read) {
+            line_remaining = to_read;
+        }
+        memcpy(ptr, video + (start_y * framebuffer_pitch) + start_x, line_remaining);
+        ptr += line_remaining;
+        to_read -= line_remaining;
+        start_y++;
+    }
+
+    // read the rest of the data
+    while (to_read > 0) {
+        if (to_read > user_pitch) {
+            memcpy(ptr, video + (start_y * framebuffer_pitch), user_pitch);
+            ptr += user_pitch;
+            to_read -= user_pitch;
+            start_y++;
+        } else {
+            memcpy(ptr, video + (start_y * framebuffer_pitch), to_read);
+            ptr += to_read;
+            to_read = 0;
+        }
+    }
+    return (uint64_t)ptr - (uint64_t)initial;
 }
 
 size_t fb_file_size(void *data, void *device_passed)

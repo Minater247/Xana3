@@ -39,22 +39,8 @@
 #define S_IFDIR 0x4000
 #define S_IFREG 0x8000
 
-typedef struct
-{
-	char name[NAME_MAX];
-	void *inode;
-	void *filesystem;
-	size_t size;
-	uint32_t flags;
-} file_t;
-
-typedef struct
-{
-	char name[NAME_MAX];
-	void *inode;
-	void *filesystem;
-	uint32_t flags;
-} dir_t;
+#define S_ISDIR(mode) ((mode & S_IFDIR) == S_IFDIR)
+#define S_ISREG(mode) ((mode & S_IFREG) == S_IFREG)
 
 typedef struct mount
 {

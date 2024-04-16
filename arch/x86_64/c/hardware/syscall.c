@@ -101,6 +101,12 @@ uint64_t syscall_kill(regs_t *regs) {
     return (uint64_t)process_kill(regs->rdi, regs->rsi);
 }
 
+uint64_t syscall_getpid(regs_t *regs) {
+    UNUSED(regs);
+
+    return (uint64_t)current_process->pid;
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -116,6 +122,7 @@ void syscall_init() {
     syscall_table[13] = &syscall_rt_sigaction;
     syscall_table[15] = &syscall_rt_sigret;
     syscall_table[16] = &syscall_ioctl;
+    syscall_table[39] = &syscall_getpid;
     syscall_table[57] = &syscall_fork;
     syscall_table[59] = &syscall_execv;
     syscall_table[60] = &syscall_exit;

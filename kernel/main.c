@@ -62,6 +62,7 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
 
     mouse_init();
 
+    printf("\x1b[38;5;217m");
     printf("\n\nBefore we jump to the usermode program, roadmap:\n");
     printf("  - Filesystem (EXT2, ISO9660)\n");
     printf("  - ACPI AML parsing\n");
