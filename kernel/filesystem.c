@@ -409,10 +409,8 @@ int fstat(int fd, struct stat *buf) {
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->stat == NULL) {
-                serial_printf("Stat not supported on device!\n");
                 return -ENOTSUP;
             }
-            serial_printf("Stat OK, running...\n");
             return current->device->stat(current->data, buf, current->device);
         }
         current = current->next;

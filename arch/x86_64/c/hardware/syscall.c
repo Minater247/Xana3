@@ -107,6 +107,18 @@ uint64_t syscall_getpid(regs_t *regs) {
     return (uint64_t)current_process->pid;
 }
 
+uint64_t syscall_getppid(regs_t *regs) {
+    UNUSED(regs);
+
+    return (uint64_t)current_process->ppid;
+}
+
+uint64_t syscall_getpgrp(regs_t *regs) {
+    UNUSED(regs);
+
+    return (uint64_t)current_process->pgid;
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -130,6 +142,8 @@ void syscall_init() {
     syscall_table[62] = &syscall_kill;
     syscall_table[79] = &syscall_getcwd;
     syscall_table[80] = &syscall_chdir;
+    syscall_table[110] = &syscall_getppid;
+    syscall_table[111] = &syscall_getpgrp;
     syscall_table[217] = &getdents64;
 }
 

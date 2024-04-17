@@ -283,7 +283,7 @@ void page_fault_error(regs_t *r, uint64_t faulting_address)
     signal_t *sig = (signal_t *)kmalloc(sizeof(signal_t));
     sig->signal_number = SIGSEGV;
     sig->signal_error = 0;
-    sig->signal_code = 0; // TODO: figure out what this should be (SEGV_MAPERR?)
+    sig->signal_code = SEGV_MAPERR;
     sig->fault_address = (void *)faulting_address;
     sig->sender_pid = current_process->pid;
     serial_printf("Sending SIGSEGV to process %d\n", current_process->pid);

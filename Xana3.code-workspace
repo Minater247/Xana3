@@ -38,7 +38,8 @@
 			"video.h": "c",
 			"pit.h": "c",
 			"keyboard.h": "c",
-			"ramdisk.h": "c"
+			"ramdisk.h": "c",
+			"process.h": "c"
 		}
 	}
 }

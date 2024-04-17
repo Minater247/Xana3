@@ -94,6 +94,8 @@ typedef struct exit_status_bits {
 #define SIGSYS 31
 #define SIG_MAX 31
 
+#define SEGV_MAPERR 1
+
 typedef struct signal {
     regs_t registers; // return context for when the signal is handled
 
@@ -114,6 +116,7 @@ typedef struct signal {
     uint64_t syscall_rsp;
 
     bool handled;
+    bool was_in_syscall;
 
     struct signal *next;
 } signal_t;
@@ -126,9 +129,18 @@ struct sigaction {
     int sa_flags;
 } __attribute__((packed));
 
+// TODO: Implement memory regions
+typedef struct memregion {
+    uint64_t start;
+    uint64_t end;
+    uint64_t flags;
+    struct memregion *next;
+} memregion_t;
+
 typedef struct process {
     pid_t pid;
     gid_t pgid;
+    pid_t ppid;
     page_directory_t *pml4;
 
     uint32_t status;

@@ -215,16 +215,11 @@ int process_kill(pid_t pid, int signal)
     return 0;
 }
 
-signal_t test_signal;
-
 extern uint64_t syscall_old_rsp;
 extern void run_signal(uint64_t rsp, void *handler, int signal, signal_t *signal_info, void *context);
-extern void run_signal_syscall(uint64_t rsp, void *handler, int signal, signal_t *signal_info, void *context);
 void check_signals(bool is_after_syscall) {
     if (current_process->queued_signals) {
         if (!current_process->queued_signals->handled) {
-            serial_printf("Handling signal %d!\n", current_process->queued_signals->signal_number);
-
             // Check for special signals
             if (current_process->queued_signals->signal_number == SIGKILL) {
                 process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = SIGKILL, .exit_status = 0});
@@ -247,24 +242,16 @@ void check_signals(bool is_after_syscall) {
 
             current_process->in_signal_handler = true;
 
-            if (is_after_syscall) {
-                serial_printf("Post-syscall signal at RSP 0x%lx\n", syscall_old_rsp);
-                run_signal_syscall(syscall_old_rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
-            } else {
+            signal->was_in_syscall = current_process->in_syscall;
 
-                uint64_t rsp = current_process->interrupt_registers.rsp;
-                if (rsp >= VIRT_MEM_OFFSET) {
-                    serial_printf("Signal at RSP 0x%lx is in kernel space, moving to user space\n", rsp);
-                    rsp = current_process->user_rsp;
-                }
-                serial_printf("Normal signal at RSP 0x%lx\n", rsp);
+            uint64_t rsp = is_after_syscall ? syscall_old_rsp : (current_process->interrupt_registers.rsp >= VIRT_MEM_OFFSET ? current_process->user_rsp : current_process->interrupt_registers.rsp);
 
-                run_signal(rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
-            }
+            run_signal(rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
         }
     }
 }
 
+extern tss_entry_t tss;
 void schedule()
 {
     ASM_DISABLE_INTERRUPTS; // In case we aren't called from an interrupt
@@ -293,7 +280,7 @@ void schedule()
         current_process = new_process;
         current_process->queue_next = NULL;
 
-        tss_set_rsp0((uint64_t)current_process->tss_stack + SYSCALL_STACK_SIZE);
+        tss.rsp0 = (uint64_t)current_process->tss_stack + SYSCALL_STACK_SIZE;
 
         ASM_SET_CR3(current_process->pml4->phys_addr);
         current_pml4 = current_process->pml4;
@@ -358,30 +345,33 @@ int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *
     if (act != NULL)
     {
         current_process->signal_handlers[signum] = *act;
-        serial_printf("Set signal %d to 0x%lx, process %d\n", signum, act->signal_handler, current_process->pid);
     }
 
     return 0;
 }
 
-void rt_sigret(uint64_t type) { // 0 -> normal, 1 -> after syscall
+void rt_sigret() {
     // switch to the sigret stack temporarily
     ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
 
     current_process->in_signal_handler = false;
 
-    memcpy(current_process->syscall_stack, current_process->queued_signals->syscall_stack, SYSCALL_STACK_SIZE);
-    kfree(current_process->queued_signals->syscall_stack);
+    signal_t *signal = current_process->queued_signals;
 
-    current_process->syscall_rsp = current_process->queued_signals->syscall_rsp;
-    current_process->interrupt_registers = current_process->queued_signals->interrupt_registers;
-    current_process->syscall_registers = current_process->queued_signals->syscall_registers;
+    memcpy(current_process->syscall_stack, signal->syscall_stack, SYSCALL_STACK_SIZE);
+    kfree(signal->syscall_stack);
 
-    signal_t *next = current_process->queued_signals->next;
-    kfree(current_process->queued_signals);
+    current_process->syscall_rsp = signal->syscall_rsp;
+    current_process->interrupt_registers = signal->interrupt_registers;
+    current_process->syscall_registers = signal->syscall_registers;
+
+    bool was_in_syscall = signal->was_in_syscall;
+
+    signal_t *next = signal->next;
+    kfree(signal);
     current_process->queued_signals = next;
 
-    if (type == 0) {
+    if (!was_in_syscall) {
         schedule();
     } else {
         syscall_old_rsp = current_process->syscall_rsp;
@@ -417,10 +407,8 @@ void process_exit(int status)
         signal_t *next = current_signal->next;
         if (current_signal->syscall_stack != NULL)
         {
-            serial_printf("Freeing signal syscall stack @ 0x%lx\n", current_signal->syscall_stack);
             kfree(current_signal->syscall_stack);
         }
-        serial_printf("Freeing signal @ 0x%lx\n", current_signal);
         kfree(current_signal);
         current_signal = next;
     }
@@ -486,7 +474,7 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
         return -ECHILD;
     }
 
-    serial_printf("BEFORE OPENING TO INTERRUPTS, SYSCALL RSP: 0x%lx\n", current_process->syscall_rsp);
+    current->dependents++;
 
     ASM_ENABLE_INTERRUPTS;
     while (!WIFTERMINATED(current->exit_status)) {
@@ -496,6 +484,13 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
 
     exit_status_bits_t *status_bits = (exit_status_bits_t *)status;
     *status_bits = current->exit_status;
+
+    current->dependents--;
+
+    if (current->dependents == 0) {
+        // no longer needed
+        kfree(current);
+    }
 
     return pid;
 }
@@ -537,6 +532,8 @@ int64_t fork()
     // TODO: copy file descriptors
     strcpy(new_process->pwd, (const char *)current_process->pwd);
 
+    new_process->ppid = current_process->pid;
+
     add_process(new_process);
 
     return new_process->pid;
@@ -544,8 +541,6 @@ int64_t fork()
 
 int64_t execv(regs_t *regs)
 {
-    serial_printf("execv\n");
-
     int fd = fopen((char *)regs->rdi, 0, 0);
     if (fd < 0)
     {
@@ -602,8 +597,6 @@ int64_t execv(regs_t *regs)
     free_page_directory(current_pml4);
 
     current_pml4 = new_directory;
-
-    serial_printf("Jumping to new process at 0x%lx\n", info.entry);
 
     // jump to the new process
     jump_to_usermode(info.entry, VIRT_MEM_OFFSET);
