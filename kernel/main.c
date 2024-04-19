@@ -72,7 +72,7 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
 
     int fd = fopen("/mnt/ramdisk/bin/Xansh.elf", 0, 0);
     if (fd < 0) {
-        printf("Failed to open file\n");
+        kpanic("Failed to load initialization program!");
     } else {
         size_t size = file_size_internal("/mnt/ramdisk/bin/Xansh.elf");
         char *buf = kmalloc(size);

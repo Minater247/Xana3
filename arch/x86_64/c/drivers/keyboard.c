@@ -212,6 +212,13 @@ pointer_int_t keyboard_open(char *path, uint64_t flags, void *device_passed) {
     return (pointer_int_t){NULL, 0};
 }
 
+void *kbd_device_clone(void *filedes_data, void *device_passed) {
+    UNUSED(filedes_data);
+    UNUSED(device_passed);
+
+    return NULL;
+}
+
 void keyboard_install()
 {
     register_interrupt_handler(1, keyboard_interrupt_handler);
@@ -233,6 +240,7 @@ void keyboard_install()
     kbd_device.fcntl = NULL;
     kbd_device.file_size = NULL;
     kbd_device.lseek = NULL;
+    kbd_device.clone = (clone_func_t)kbd_device_clone;
 
     register_device(&kbd_device);
 }

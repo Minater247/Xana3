@@ -182,5 +182,7 @@ int fgetpwd(char *buf, size_t size);
 off_t flseek(int fd, off_t offset, int whence);
 int ioctl(int fd, unsigned long request, void *arg);
 int fstat(int fd, struct stat *buf);
+int stat(char *path, struct stat *buf);
+file_descriptor_t *clone_file_descriptors(file_descriptor_t *descriptors);
 
 #endif

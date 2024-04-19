@@ -30,6 +30,7 @@ typedef off_t (*lseek_func_t)(void *filedes_data, off_t offset, int whence, void
 typedef int (*ioctl_func_t)(void *filedes_data, unsigned long request, void *arg, void *device_passed);
 typedef int (*stat_func_t)(void *filedes_data, void *buf, void *device_passed);
 typedef void * (*dup_func_t)(void *filedes_data, void *device_passed);
+typedef void * (*clone_func_t)(void *filedes_data, void *device_passed);
 
 typedef struct device
 {
@@ -49,6 +50,7 @@ typedef struct device
 	ioctl_func_t ioctl;
 	stat_func_t stat;
 	dup_func_t dup;
+	clone_func_t clone;
 
 	file_size_func_t file_size;
 

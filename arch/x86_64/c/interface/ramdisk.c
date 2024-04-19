@@ -308,6 +308,16 @@ void *ramdisk_dup(void *file_entry, void *device_passed)
     return entry;
 }
 
+void *ramdisk_clone(void *file_entry, void *device_passed)
+{
+    UNUSED(device_passed);
+
+    ramdisk_file_entry_t *new = (ramdisk_file_entry_t *)kmalloc(sizeof(ramdisk_file_entry_t));
+    memcpy(new, file_entry, sizeof(ramdisk_file_entry_t));
+
+    return new;
+}
+
 device_t *init_ramdisk_device(uint64_t addr)
 {
     ramdisk_info_32_t *info = (ramdisk_info_32_t *)addr;
@@ -330,6 +340,7 @@ device_t *init_ramdisk_device(uint64_t addr)
     ramdisk_device.lseek = NULL;
     ramdisk_device.stat = ramdisk_stat;
     ramdisk_device.dup = ramdisk_dup;
+    ramdisk_device.clone = ramdisk_clone;
 
     ramdisk_device.file_size = (file_size_func_t)file_size;
 

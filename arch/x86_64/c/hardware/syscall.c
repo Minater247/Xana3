@@ -17,7 +17,6 @@
 syscall_t syscall_table[512];
 
 uint64_t syscall_open(regs_t *regs) {
-    serial_printf("open(%s, %d, %d)\n", (char *)regs->rdi, regs->rsi, regs->rdx);
     return (uint64_t)fopen((char *)regs->rdi, regs->rsi, regs->rdx);
 }
 
@@ -120,6 +119,10 @@ uint64_t syscall_getpgrp(regs_t *regs) {
     return (uint64_t)current_process->pgid;
 }
 
+uint64_t syscall_stat(regs_t *regs) {
+    return (uint64_t)stat((char *)regs->rdi, (struct stat *)regs->rsi);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -129,6 +132,7 @@ void syscall_init() {
     syscall_table[1] = &syscall_write;
     syscall_table[2] = &syscall_open;
     syscall_table[3] = &syscall_close;
+    syscall_table[4] = &syscall_stat;
     syscall_table[5] = &syscall_fstat;
     syscall_table[8] = &syscall_lseek;
     syscall_table[12] = &syscall_brk;
@@ -178,6 +182,8 @@ uint64_t syscall_handler(regs_t *regs)
         current_process->user_rsp = regs->rsp;
     }
 
+    serial_printf("P%d S%d\n", current_process->pid, regs->rax);
+
     if (syscall_table[regs->rax] != NULL) {
         current_process->in_syscall = true;
         uint64_t raxval = syscall_table[regs->rax]((regs_t *)&(current_process->syscall_registers));
@@ -185,7 +191,7 @@ uint64_t syscall_handler(regs_t *regs)
         current_process->in_syscall = false;
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
-        process_exit_abnormal((exit_status_bits_t){.exit_status = 0, .stop_signal = SIGSYS, .normal_exit = false});
+        process_exit_abnormal((exit_status_bits_t){.exit_status = 0, .stop_signal = SIGSYS, .normal_exit = false, .has_terminated = true});
     }
 
     syscall_old_rsp = current_process->syscall_rsp;

@@ -4,5 +4,6 @@
 bool has_cpuid();
 bool has_long_mode();
 bool has_1gb_pages();
+bool has_sse();
 
 #endif

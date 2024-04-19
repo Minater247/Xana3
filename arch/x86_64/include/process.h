@@ -54,7 +54,7 @@ typedef struct exit_status_bits {
 #define WCOREDUMP(status) (((exit_status_bits_t)status).core_dump)
 #define WIFSTOPPED(status) (((exit_status_bits_t)status).signal_stop)
 #define WSTOPSIG(status) (((exit_status_bits_t)status).stop_signal)
-#define WIFCONTINUED(status) (((exit_status_bits_t)status).continued)\
+#define WIFCONTINUED(status) (((exit_status_bits_t)status).continued)
 // custom bit
 #define WIFTERMINATED(status) (((exit_status_bits_t)status).has_terminated)
 

@@ -227,7 +227,6 @@ int fopen(char *path, int flags, mode_t mode) {
         return -ENOTSUP;
     }
 
-    serial_printf("Final path: %s, adjusted path: %s\n", (char *)&resolution_buffer, (char *)((uint64_t)&resolution_buffer + resolution.value));
     pointer_int_t returned = device->open((char *)((uint64_t)&resolution_buffer + resolution.value), flags, device);
     if (returned.value != 0) {
         serial_printf("Error opening file: %d\n", returned.value);
@@ -263,6 +262,8 @@ int fopen(char *path, int flags, mode_t mode) {
     fd->data = returned.pointer;
     fd->next = current_process->file_descriptors;
     current_process->file_descriptors = fd;
+
+    serial_printf("Opened file %s with descriptor %d\n", path, fd->descriptor_id);
 
     return fd->descriptor_id;
 }
@@ -469,6 +470,66 @@ int fstat(int fd, struct stat *buf) {
         current = current->next;
     }
     return -EBADF;
+}
+
+/**
+ * Read the stat of a file by path.
+ * 
+ * @param path The path to get the stat of
+ * @param buf The buffer to write the stat to
+ * 
+ * @return 0 if successful
+ *       -ENOENT if the file doesn't exist
+ *      -ENOTSUP if the device doesn't support this operation
+*/
+int stat(char *path, struct stat *buf) {
+    // TEMP: just fopen the file and get the stat, then close
+    // TODO: implement a pathstat function, or rename stat to fstat
+
+    serial_printf("stat: got path 0x%lx\n", path);
+    serial_printf("... meaning path %s\n", path);
+
+    int fd = fopen(path, 0, 0);
+    if (fd < 0) {
+        return fd;
+    }
+
+    int ret = fstat(fd, buf);
+
+    fclose(fd);
+
+    return ret;
+}
+
+/**
+ * Clone file descriptors for the opening of a new process.
+ * 
+ * @param descriptors The file descriptors to clone
+ * 
+ * @return The cloned file descriptors
+*/
+file_descriptor_t *clone_file_descriptors(file_descriptor_t *descriptors) {
+    file_descriptor_t *current = descriptors;
+    file_descriptor_t *new = NULL;
+    file_descriptor_t *prev = NULL;
+    while (current != NULL) {
+        file_descriptor_t *fd = (file_descriptor_t *)kmalloc(sizeof(file_descriptor_t));
+        serial_printf("Cloning file descriptor %d\n", current->descriptor_id);
+        fd->descriptor_id = current->descriptor_id;
+        fd->flags = current->flags;
+        fd->device = current->device;
+        serial_printf("Clone @ 0x%lx\n", current->device->clone);
+        fd->data = current->device->clone(current->data, current->device);
+        fd->next = NULL;
+        if (prev == NULL) {
+            new = fd;
+        } else {
+            prev->next = fd;
+        }
+        prev = fd;
+        current = current->next;
+    }
+    return new;
 }
 
 /**

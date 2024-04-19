@@ -16,6 +16,8 @@
 
 kernel_info_t passed_info;
 
+extern void enable_sse();
+
 void preboot_load(uint32_t magic, void *mbd) {
     serial_init(SERIAL_COM1, 38400);
     serial_printf("XanaduOS preboot loader %s\n", VERSION_STRING);
@@ -28,6 +30,9 @@ void preboot_load(uint32_t magic, void *mbd) {
 
     kassert_msg(has_cpuid(), "CPU does not support CPUID\n");
     kassert_msg(has_long_mode(), "CPU does not support long mode\n");
+    kassert_msg(has_sse(), "CPU does not support SSE\n");
+
+    enable_sse();
 
     // Alright, let's get the kernel loaded from the ramdisk
     char *elf_file = ramdisk_get_path_data("/bin/kernel.bin", &boot_ramdisk);

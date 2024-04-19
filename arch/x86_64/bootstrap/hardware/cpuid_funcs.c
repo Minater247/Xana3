@@ -27,3 +27,9 @@ bool has_1gb_pages() {
     __get_cpuid(0x80000001, &eax, &ebx, &ecx, &edx);
     return edx & (1 << 26);
 }
+
+bool has_sse() {
+    eax = 0;
+    __get_cpuid(1, &eax, &ebx, &ecx, &edx);
+    return edx & (1 << 25);
+}

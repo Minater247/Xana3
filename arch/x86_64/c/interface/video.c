@@ -667,7 +667,15 @@ void *simple_output_dup(void *data, void *device_passed)
 {
     UNUSED(device_passed);
 
-    // no depentent tracking for this one, just return the same data
+    // no dependent tracking for this one, just return the same data
+    return data;
+}
+
+void *simple_output_clone(void *data, void *device_passed)
+{
+    UNUSED(device_passed);
+
+    // no dependent tracking for this one, just return the same data
     return data;
 }
 
@@ -686,6 +694,7 @@ device_t *init_simple_output()
     simple_output_device.lseek = NULL;
     simple_output_device.ioctl = NULL;
     simple_output_device.dup = (dup_func_t)simple_output_dup;
+    simple_output_device.clone = (clone_func_t)simple_output_clone;
 
     simple_output_device.file_size = NULL;
 

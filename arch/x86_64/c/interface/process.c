@@ -447,6 +447,7 @@ void process_exit_abnormal(exit_status_bits_t status)
     free_page_directory(current_process->pml4);
 
     // Update the exit status and waiters
+    status.has_terminated = true; // make sure the process is considered terminated
     current_process->exit_status = status;
 
     // free the signals
@@ -543,7 +544,9 @@ int64_t fork()
         new_process->signal_handlers[i].signal_handler = current_process->signal_handlers[i].signal_handler;
     }
     
-    // TODO: copy file descriptors
+    serial_printf("Cloning file descriptors\n");
+    new_process->file_descriptors = clone_file_descriptors(current_process->file_descriptors);
+    serial_printf("Cloned file descriptors\n");
     strcpy(new_process->pwd, (const char *)current_process->pwd);
 
     new_process->ppid = current_process->pid;
