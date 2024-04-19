@@ -92,7 +92,7 @@ void add_process(process_t *process)
  * @param pml4 The page directory for the process
  * @param has_stack Whether the stack is already set up
  */
-process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pml4, bool has_stack)
+process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pml4, bool has_stack, memregion_t *regions)
 {
     pid_t pid = first_free_pid();
 
@@ -119,6 +119,8 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->file_descriptors = NULL;
     strcpy((char *)new_process->pwd, "/");
 
+    new_process->memory_regions = regions;
+
     if (!has_stack)
     {
         // Set up the stack
@@ -133,6 +135,14 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
 
         new_process->rsp = VIRT_MEM_OFFSET;
         new_process->rbp = VIRT_MEM_OFFSET;
+
+        // map the region
+        memregion_t *region = kmalloc(sizeof(memregion_t));
+        region->start = VIRT_MEM_OFFSET - MAX_STACK_SIZE;
+        region->end = VIRT_MEM_OFFSET - 1;
+        region->flags = 0x7;
+        region->next = regions;
+        new_process->memory_regions = region;
     }
     else
     {
@@ -245,6 +255,10 @@ void check_signals(bool is_after_syscall) {
             signal->was_in_syscall = current_process->in_syscall;
 
             uint64_t rsp = is_after_syscall ? syscall_old_rsp : (current_process->interrupt_registers.rsp >= VIRT_MEM_OFFSET ? current_process->user_rsp : current_process->interrupt_registers.rsp);
+
+            if (virt_to_phys(rsp, current_pml4) == (uint64_t)-1) {
+                process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = SIGSEGV, .exit_status = 0});
+            }
 
             run_signal(rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
         }
@@ -512,7 +526,7 @@ int64_t fork()
 
     page_directory_t *new_pml4 = clone_page_directory(current_pml4);
 
-    process_t *new_process = create_process(0, 0, new_pml4, true);
+    process_t *new_process = create_process(0, 0, new_pml4, true, current_process->memory_regions);
     new_process->status = TASK_FORKED;
     new_process->queue_next = NULL;
     
@@ -620,12 +634,36 @@ uint64_t brk(uint64_t location) {
         return 0;
     }
 
-    // free pages
-    uint64_t start = old_brk_page + 0x1000;
-    uint64_t end = new_brk_page;
-    for (uint64_t i = start; i < end; i += 0x1000) {
-        free_page(i, current_process->pml4);
+    // map the new pages
+    memregion_t *new_region = kmalloc(sizeof(memregion_t));
+    new_region->start = old_brk_page;
+    new_region->end = new_brk_page - 1;
+    new_region->flags = 0x7;
+
+    // insert into the list, sorted by start address
+    memregion_t *current = current_process->memory_regions;
+    memregion_t *prev = NULL;
+    while (current != NULL) {
+        if (current->start > new_region->start) {
+            break;
+        }
+        prev = current;
+        current = current->next;
     }
+    // insert before current
+    new_region->next = current;
+    if (prev == NULL) {
+        current_process->memory_regions = new_region;
+    } else {
+        prev->next = new_region;
+    }
+
+    for (uint64_t i = old_brk_page; i < new_brk_page; i += 0x1000) {
+        map_page_kmalloc(i, first_free_page_addr(), false, true, current_process->pml4);
+    }
+
+    serial_printf("Adjusted process brk to 0x%lx\n", location);
 
     return 0;
 }
+

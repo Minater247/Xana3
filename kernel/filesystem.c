@@ -227,8 +227,10 @@ int fopen(char *path, int flags, mode_t mode) {
         return -ENOTSUP;
     }
 
+    serial_printf("Final path: %s, adjusted path: %s\n", (char *)&resolution_buffer, (char *)((uint64_t)&resolution_buffer + resolution.value));
     pointer_int_t returned = device->open((char *)((uint64_t)&resolution_buffer + resolution.value), flags, device);
     if (returned.value != 0) {
+        serial_printf("Error opening file: %d\n", returned.value);
         return returned.value;
     }
 
@@ -367,6 +369,57 @@ size_t fgetdents64(int fd, void *ptr, size_t count) {
         current = current->next;
     }
     return -EBADF;
+}
+
+/**
+ * Duplicate a file descriptor. Flags are not duplicated, notably CLOEXEC is dropped.
+ * 
+ * @param fd The file descriptor to duplicate
+ * 
+ * @return The new file descriptor
+*/
+int dup(int oldfd) {
+    file_descriptor_t *current = current_process->file_descriptors;
+    while (current != NULL) {
+        if (current->descriptor_id == oldfd) {
+            file_descriptor_t *fd = (file_descriptor_t *)kmalloc(sizeof(file_descriptor_t));
+            if (fd->device->dup == NULL) {
+                return -ENOTSUP;
+            }
+            fd->flags = current->flags & ~O_CLOEXEC;
+            fd->device = current->device;
+            fd->data = current->device->dup(current->data, current->device);
+            fd->next = current_process->file_descriptors;
+            current_process->file_descriptors = fd;
+
+            // find the new descriptor id
+            current = current_process->file_descriptors;
+            if (current == NULL) {
+                fd->descriptor_id = 0;
+            } else {
+                while (current != NULL) {
+                    if (current->next != NULL) {
+                        if (current->next->descriptor_id + 1 < current->descriptor_id) {
+                            fd->descriptor_id = current->descriptor_id - 1;
+                            fd->next = current->next;
+                            break;
+                        } else {
+                            current = current->next;
+                        }
+                    } else {
+                        fd->descriptor_id = current_process->file_descriptors->descriptor_id + 1;
+                        fd->next = NULL;
+                        break;
+                    }
+                }
+            }
+
+            return fd->descriptor_id;
+        }
+        current = current->next;
+    }
+    return -EBADF;
+
 }
 
 /**

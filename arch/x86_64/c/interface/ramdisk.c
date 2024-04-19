@@ -93,18 +93,23 @@ pointer_int_t ramdisk_open(char *path, uint64_t flags, void *device_passed)
 {
     UNUSED(flags);
 
+    serial_printf("Opening file %s\n", path);
+
     // check for write flags (XanDisk does not support writing!)
     if (flags & O_WRONLY || flags & O_RDWR)
     {
+        serial_printf("Write flags not supported\n");
         return (pointer_int_t){NULL, -ENOTSUP};
     }
 
-    if (strncmp(path, "/", 2) == 0 || strncmp(path, "", 1) == 0)
+    if (strncmp(path, "/", 2) == 0 || *path == '\0')
     {
+        serial_printf("Opening root directory\n");
         // root directory
         ramdisk_file_entry_t *entry = (ramdisk_file_entry_t *)kmalloc(sizeof(ramdisk_file_entry_t));
         entry->file = NULL;
         entry->read_pos = 0;
+        entry->dependents = 1;
         return (pointer_int_t){entry, 0};
     }
 
@@ -141,6 +146,7 @@ pointer_int_t ramdisk_open(char *path, uint64_t flags, void *device_passed)
     ramdisk_file_entry_t *entry = (ramdisk_file_entry_t *)kmalloc(sizeof(ramdisk_file_entry_t));
     entry->file = file;
     entry->read_pos = 0;
+    entry->dependents = 1;
 
     pointer_int_t ret = {entry, 0};
     return ret;
@@ -150,7 +156,12 @@ int ramdisk_close(void *file_entry, void *device_passed)
 {
     UNUSED(device_passed);
     ramdisk_file_entry_t *entry = (ramdisk_file_entry_t *)file_entry;
-    kfree(entry);
+    if (entry->dependents > 1)
+    {
+        entry->dependents--;
+    } else {
+        kfree(entry);
+    }
     return 0;
 }
 
@@ -289,6 +300,14 @@ int ramdisk_stat(void *file_entry, void *buf, void *device_passed)
     return 0;
 }
 
+void *ramdisk_dup(void *file_entry, void *device_passed)
+{
+    UNUSED(device_passed);
+    ramdisk_file_entry_t *entry = (ramdisk_file_entry_t *)file_entry;
+    entry->dependents++;
+    return entry;
+}
+
 device_t *init_ramdisk_device(uint64_t addr)
 {
     ramdisk_info_32_t *info = (ramdisk_info_32_t *)addr;
@@ -310,6 +329,7 @@ device_t *init_ramdisk_device(uint64_t addr)
     ramdisk_device.getdents64 = (getdents64_func_t)ramdisk_read_dirents64;
     ramdisk_device.lseek = NULL;
     ramdisk_device.stat = ramdisk_stat;
+    ramdisk_device.dup = ramdisk_dup;
 
     ramdisk_device.file_size = (file_size_func_t)file_size;
 

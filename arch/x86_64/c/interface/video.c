@@ -663,6 +663,14 @@ size_t simple_output_write(void *ptr, size_t size, size_t nmemb, void *data, voi
     return size * nmemb;
 }
 
+void *simple_output_dup(void *data, void *device_passed)
+{
+    UNUSED(device_passed);
+
+    // no depentent tracking for this one, just return the same data
+    return data;
+}
+
 device_t *init_simple_output()
 {
     strcpy(simple_output_device.name, "simple_output");
@@ -676,6 +684,8 @@ device_t *init_simple_output()
     simple_output_device.fcntl = NULL;
     simple_output_device.write = (write_func_t)simple_output_write;
     simple_output_device.lseek = NULL;
+    simple_output_device.ioctl = NULL;
+    simple_output_device.dup = (dup_func_t)simple_output_dup;
 
     simple_output_device.file_size = NULL;
 
@@ -686,6 +696,7 @@ device_t *init_simple_output()
 
 typedef struct {
     uint64_t pos; // read/write position within framebuffer
+    uint64_t dependents;
 } fb_data_t;
 
 pointer_int_t fb_open(char *path, uint64_t flags, void *device_passed)
@@ -699,6 +710,7 @@ pointer_int_t fb_open(char *path, uint64_t flags, void *device_passed)
 
     fb_data_t *data = kmalloc(sizeof(fb_data_t));
     data->pos = 0;
+    data->dependents = 1;
 
     return (pointer_int_t){data, 0};
 }
@@ -861,10 +873,27 @@ int fb_ioctl(void *data, unsigned long request, void *arg, void *device_passed)
 
 int fb_close(void *data, void *device_passed)
 {
-    kfree(data);
     UNUSED(device_passed);
+    
+    fb_data_t *fb_data = (fb_data_t *)data;
+    if (fb_data->dependents > 1)
+    {
+        fb_data->dependents--;
+    } else {
+        kfree(data);
+    }
 
     return 0;
+}
+
+void *fb_dup(void *data, void *device_passed)
+{
+    UNUSED(device_passed);
+
+    fb_data_t *fb_data = (fb_data_t *)data;
+    fb_data->dependents++;
+
+    return data;
 }
 
 device_t *init_fb_device()
@@ -882,6 +911,7 @@ device_t *init_fb_device()
     fb_device->write = (write_func_t)fb_write;
     fb_device->lseek = (lseek_func_t)fb_lseek;
     fb_device->ioctl = (ioctl_func_t)fb_ioctl;
+    fb_device->dup = (dup_func_t)fb_dup;
 
     fb_device->file_size = (file_size_func_t)fb_file_size;
 

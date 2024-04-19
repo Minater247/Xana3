@@ -17,6 +17,7 @@
 syscall_t syscall_table[512];
 
 uint64_t syscall_open(regs_t *regs) {
+    serial_printf("open(%s, %d, %d)\n", (char *)regs->rdi, regs->rsi, regs->rdx);
     return (uint64_t)fopen((char *)regs->rdi, regs->rsi, regs->rdx);
 }
 

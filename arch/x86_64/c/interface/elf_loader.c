@@ -6,40 +6,43 @@
 #include <memory.h>
 #include <elf_loader.h>
 #include <errors.h>
+#include <process.h>
 
 elf_info_t load_elf64(char *elf_file, page_directory_t *elf_pml4) {
     Elf64_Ehdr *header = (Elf64_Ehdr *)elf_file;
     uint64_t max_addr = 0;
     if (header->e_ident[0] != 0x7F || header->e_ident[1] != 'E' || header->e_ident[2] != 'L' || header->e_ident[3] != 'F') {
-        return (elf_info_t){0, 0, -1};
+        return (elf_info_t){0, 0, -1, NULL};
     }
 
     if (header->e_ident[EI_CLASS] != ELFCLASS64) {
-        return (elf_info_t){0, 0, -2};
+        return (elf_info_t){0, 0, -2, NULL};
     }
 
     if (header->e_ident[EI_DATA] != ELFDATA2LSB) {
-        return (elf_info_t){0, 0, -3};
+        return (elf_info_t){0, 0, -3, NULL};
     }
 
     if (header->e_ident[EI_VERSION] != EV_CURRENT) {
-        return (elf_info_t){0, 0, -4};
+        return (elf_info_t){0, 0, -4, NULL};
     }
 
     if (header->e_type != ET_EXEC) {
-        return (elf_info_t){0, 0, -5};
+        return (elf_info_t){0, 0, -5, NULL};
     }
 
     if (header->e_machine != EM_X86_64) {
-        return (elf_info_t){0, 0, -6};
+        return (elf_info_t){0, 0, -6, NULL};
     }
 
     if (header->e_version != EV_CURRENT) {
-        return (elf_info_t){0, 0, -7};
+        return (elf_info_t){0, 0, -7, NULL};
     }
 
     page_directory_t *old_pml4 = current_pml4;
     switch_page_directory(elf_pml4);
+
+    memregion_t *regions = NULL;
 
     // Load the program headers
     for (int i = 0; i < header->e_phnum; i++) {
@@ -71,6 +74,12 @@ elf_info_t load_elf64(char *elf_file, page_directory_t *elf_pml4) {
             if (phdr->p_vaddr + phdr->p_memsz > max_addr) {
                 max_addr = phdr->p_vaddr + phdr->p_memsz;
             }
+
+            // Add the region to the list
+            memregion_t *region = kmalloc(sizeof(memregion_t));
+            region->start = phdr->p_vaddr;
+            region->end = phdr->p_vaddr + phdr->p_memsz;
+            region->flags = phdr->p_flags & 0x7;
         }
     }
 
@@ -80,6 +89,7 @@ elf_info_t load_elf64(char *elf_file, page_directory_t *elf_pml4) {
     info.entry = header->e_entry;
     info.max_addr = max_addr;
     info.status = 0;
+    info.regions = regions;
 
     return info;
 }

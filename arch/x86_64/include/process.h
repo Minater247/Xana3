@@ -172,11 +172,13 @@ typedef struct process {
 
     uint64_t dependents;
 
+    memregion_t *memory_regions;
+
     struct process *next;
     struct process *queue_next;
 } process_t;
 
-process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pml4, bool has_stack);
+process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pml4, bool has_stack, memregion_t *regions);
 void schedule();
 void process_init();
 void add_process(process_t *process);

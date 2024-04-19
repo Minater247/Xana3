@@ -9,26 +9,77 @@
 #define PATH_MAX 4096
 #define NAME_MAX 255
 
-#define O_RDONLY 0x0
-#define O_WRONLY 0x1
-#define O_RDWR 0x2
-#define O_ACCMODE 0x3
-#define O_NONBLOCK 0x4
-#define O_APPEND 0x8
-#define O_CREAT 0x200
-#define O_TRUNC 0x400
-#define O_EXCL 0x800
-#define FMARK 0x1000
-#define FDEFER 0x2000
-#define FWASLOCKED 0x4000
-#define FHASLOCK FWASLOCKED
-#define O_EVTONLY 0x8000
-#define FWASWRITTEN 0x10000
-#define O_NOCTTY 0x20000
-#define FNOCACHE 0x40000
-#define FNORDAHEAD 0x80000
-#define O_DIRECTORY 0x100000
-#define O_SYMLINK 0x200000
+#define O_ACCMODE (03 | O_PATH)
+#define O_RDONLY   00
+#define O_WRONLY   01
+#define O_RDWR     02
+
+#define O_CREAT         0100
+#define O_EXCL          0200
+#define O_NOCTTY        0400
+#define O_TRUNC        01000
+#define O_APPEND       02000
+#define O_NONBLOCK     04000
+#define O_DSYNC       010000
+#define O_ASYNC       020000
+#define O_DIRECT      040000
+#define O_DIRECTORY  0200000
+#define O_NOFOLLOW   0400000
+#define O_CLOEXEC   02000000
+#define O_SYNC      04010000
+#define O_RSYNC     04010000
+#define O_LARGEFILE  0100000
+#define O_NOATIME   01000000
+#define O_TMPFILE  020000000
+
+#define O_EXEC O_PATH
+#define O_SEARCH O_PATH
+
+#define F_DUPFD  0
+#define F_GETFD  1
+#define F_SETFD  2
+#define F_GETFL  3
+#define F_SETFL  4
+
+#define F_SETOWN 8
+#define F_GETOWN 9
+#define F_SETSIG 10
+#define F_GETSIG 11
+
+#define F_GETLK 5
+#define F_SETLK 6
+#define F_SETLKW 7
+
+#define F_SETOWN_EX 15
+#define F_GETOWN_EX 16
+
+#define F_GETOWNER_UIDS 17
+
+#define F_DUPFD_CLOEXEC 1030
+#define F_ADD_SEALS 1033
+#define F_GET_SEALS 1034
+
+#define F_SEAL_SEAL 0x0001
+#define F_SEAL_SHRINK 0x0002
+#define F_SEAL_GROW 0x0004
+#define F_SEAL_WRITE 0x0008
+
+#define F_RDLCK 0
+#define F_WRLCK 1
+#define F_UNLCK 2
+
+#define FD_CLOEXEC 1
+
+#define AT_FDCWD -100
+#define AT_SYMLINK_NOFOLLOW 0x100
+#define AT_REMOVEDIR 0x200
+#define AT_SYMLINK_FOLLOW 0x400
+#define AT_EACCESS 0x200
+#define AT_EMPTY_PATH 0x1000
+
+#define AT_STATX_FORCE_SYNC 0x2000
+#define AT_STATX_DONT_SYNC 0x4000
+#define AT_STATX_SYNC_TYPE 0x6000
 
 #define F_GETPATH 50
 
@@ -36,11 +87,40 @@
 #define SEEK_CUR 1
 #define SEEK_END 2
 
-#define S_IFDIR 0x4000
-#define S_IFREG 0x8000
+#define S_IFMT  00170000
+#define S_IFSOCK 0140000
+#define S_IFLNK	 0120000
+#define S_IFREG  0100000
+#define S_IFBLK  0060000
+#define S_IFDIR  0040000
+#define S_IFCHR  0020000
+#define S_IFIFO  0010000
+#define S_ISUID  0004000
+#define S_ISGID  0002000
+#define S_ISVTX  0001000
 
-#define S_ISDIR(mode) ((mode & S_IFDIR) == S_IFDIR)
-#define S_ISREG(mode) ((mode & S_IFREG) == S_IFREG)
+#define S_ISLNK(m)	(((m) & S_IFMT) == S_IFLNK)
+#define S_ISREG(m)	(((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m)	(((m) & S_IFMT) == S_IFDIR)
+#define S_ISCHR(m)	(((m) & S_IFMT) == S_IFCHR)
+#define S_ISBLK(m)	(((m) & S_IFMT) == S_IFBLK)
+#define S_ISFIFO(m)	(((m) & S_IFMT) == S_IFIFO)
+#define S_ISSOCK(m)	(((m) & S_IFMT) == S_IFSOCK)
+
+#define S_IRWXU 00700
+#define S_IRUSR 00400
+#define S_IWUSR 00200
+#define S_IXUSR 00100
+
+#define S_IRWXG 00070
+#define S_IRGRP 00040
+#define S_IWGRP 00020
+#define S_IXGRP 00010
+
+#define S_IRWXO 00007
+#define S_IROTH 00004
+#define S_IWOTH 00002
+#define S_IXOTH 00001
 
 typedef struct mount
 {

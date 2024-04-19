@@ -245,28 +245,17 @@ void page_fault_error(regs_t *r, uint64_t faulting_address)
     uint32_t flags = r->err_code;
 
     // Check whether this is an acceptable fault that we can recover from
-    if (current_process != NULL) {
-        if (faulting_address < VIRT_MEM_OFFSET && faulting_address > VIRT_MEM_OFFSET - MAX_STACK_SIZE) {
-            // Stack fault, we can fix this
-            serial_printf("Stack fault! Attemped to access 0x%lx, min mapped was 0x%lx\n", faulting_address, current_process->stack_low);
+    memregion_t *region = current_process->memory_regions;
+    while (region != NULL) {
+        if (faulting_address >= region->start && faulting_address < region->end) {
+            // TODO: deal with flags, read-only, noexecute, etc.
+            map_page_kmalloc((uint64_t)faulting_address & 0xFFFFFFFFFFFFF000, first_free_page_addr(), false, true, current_pml4);
 
-            uint64_t low_addr = faulting_address & ~(uint64_t)0xFFF;
-
-            for (uint64_t i = low_addr; i < current_process->stack_low; i += 0x1000) {
-                map_page_kmalloc(i, first_free_page_addr(), false, true, current_process->pml4);
-            }
-
-            return;
-        } else if (faulting_address < current_process->brk_start) {
-            // Heap fault, we can fix this
-            serial_printf("Heap fault! Attemped to access 0x%lx, max mapped was 0x%lx\n", faulting_address, current_process->brk_start);
-
-            uint64_t low_addr = faulting_address & ~(uint64_t)0xFFF;
-
-            map_page_kmalloc(low_addr, first_free_page_addr(), false, true, current_process->pml4);
+            serial_printf("Recovered from page fault at 0x%lx\n", faulting_address);
 
             return;
         }
+        region = region->next;
     }
 
     serial_printf("Page fault! (%s%s%s%s%s) at 0x%lx [0x%lx]\n", (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", (uint64_t)faulting_address, r->rip);

@@ -29,6 +29,7 @@ typedef size_t (*getdents64_func_t)(void *ptr, size_t count, void *filedes_data,
 typedef off_t (*lseek_func_t)(void *filedes_data, off_t offset, int whence, void *device_passed);
 typedef int (*ioctl_func_t)(void *filedes_data, unsigned long request, void *arg, void *device_passed);
 typedef int (*stat_func_t)(void *filedes_data, void *buf, void *device_passed);
+typedef void * (*dup_func_t)(void *filedes_data, void *device_passed);
 
 typedef struct device
 {
@@ -47,6 +48,7 @@ typedef struct device
 	lseek_func_t lseek;
 	ioctl_func_t ioctl;
 	stat_func_t stat;
+	dup_func_t dup;
 
 	file_size_func_t file_size;
 

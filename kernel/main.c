@@ -92,7 +92,7 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
                 while (1);
             }
 
-            process_t *new = create_process((void *)info.entry, 0x10000, pml4, false);
+            process_t *new = create_process((void *)info.entry, 0x10000, pml4, false, info.regions);
 
             new->brk_start = info.max_addr;
 

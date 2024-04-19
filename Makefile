@@ -1,5 +1,4 @@
 ARCH ?= x86_64
-USE_UEFI ?= 0
 
 CC = $(ARCH)-elf-gcc
 LD = $(ARCH)-elf-ld
@@ -34,7 +33,7 @@ kernel_dbg: $(DBOBJFILES)
 	$(AS) -f elf64 -g $< -o $@
 
 bootstrap:
-	$(MAKE) -C arch/$(ARCH)/bootstrap USE_UEFI=$(USE_UEFI)
+	$(MAKE) -C arch/$(ARCH)/bootstrap
 	cp arch/$(ARCH)/bootstrap/bootstrap.bin bootstrap.bin
 
 verify_multiboot:

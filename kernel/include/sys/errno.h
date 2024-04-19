@@ -20,13 +20,13 @@
 #define EEXIST 17
 #define EXDEV 18
 #define ENODEV 19
-#define ENOTDIR 2
+#define ENOTDIR 20
 #define EISDIR 21
 #define EINVAL 22
 #define ENFILE 23
 #define EMFILE 24
 #define ENOTTY 25
-#define ETXTBSY 2
+#define ETXTBSY 26
 #define EFBIG 27
 #define ENOSPC 28
 #define ESPIPE 29

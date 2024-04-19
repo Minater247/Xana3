@@ -29,8 +29,8 @@ typedef	uint32_t	uid_t;	    // user id
 typedef uint32_t blksize_t;
 typedef uint32_t blkcnt_t;
 
-
-typedef int64_t fpos_t;
+typedef	uint32_t	socklen_t;
+typedef uint16_t sa_family_t;
 
 
 #endif

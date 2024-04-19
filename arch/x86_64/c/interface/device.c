@@ -90,6 +90,7 @@ typedef struct
 {
     void *data;
     device_t *device;
+    uint64_t dependents;
 } device_open_data_t;
 
 pointer_int_t device_open_helper(device_t *device_list, char *part, uint32_t first_number, char *path, uint64_t flags) {
@@ -107,6 +108,7 @@ pointer_int_t device_open_helper(device_t *device_list, char *part, uint32_t fir
             }
             data->data = open_data.pointer;
             data->device = current_device;
+            data->dependents++;
             return (pointer_int_t){data, 0};
         }
         current_device = current_device->next;
@@ -185,12 +187,22 @@ int device_close(device_open_data_t *data, device_t *this_device)
 
     if (data->device->close == NULL)
     {
-        kfree(data);
+        if (data->dependents > 1)
+        {
+            data->dependents--;
+        } else {
+            kfree(data);
+        }
         return 0;
     }
 
     int ret = data->device->close(data->data, data->device);
-    kfree(data);
+    if (data->dependents > 1)
+    {
+        data->dependents--;
+    } else {
+        kfree(data);
+    }
     return ret;
 }
 
@@ -220,6 +232,20 @@ off_t device_lseek(device_open_data_t *data, off_t offset, int whence, device_t 
     return data->device->lseek(data->data, offset, whence, data->device);
 }
 
+void *device_dup(device_open_data_t *data, device_t *this_device)
+{
+    UNUSED(this_device);
+
+    data->dependents++;
+
+    if (data->device->dup == NULL)
+    {
+        return NULL;
+    }
+
+    return data->device->dup(data->data, data->device);
+}
+
 void init_device_device()
 {
     strcpy(device_device.name, "devices");
@@ -236,6 +262,7 @@ void init_device_device()
     device_device.file_size = NULL;
     device_device.lseek = (lseek_func_t)device_lseek;
     device_device.ioctl = (ioctl_func_t)device_ioctl;
+    device_device.dup = (dup_func_t)device_dup;
 
     device_device.file_size = NULL;
 

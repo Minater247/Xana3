@@ -40,6 +40,7 @@ typedef struct {
 typedef struct {
     ramdisk_file_t *file;
     uint64_t read_pos;
+    uint64_t dependents;
 } ramdisk_file_entry_t;
 
 ramdisk_file_t *ramdisk_get_path_header(char *path, ramdisk_t *ramdisk);
