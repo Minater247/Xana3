@@ -679,14 +679,15 @@ void *simple_output_clone(void *data, void *device_passed)
     return data;
 }
 
-int video_stat(void *file_entry, void *buf, void *device_passed) {
+int simple_output_stat(void *file_entry, void *buf, void *device_passed)
+{
     UNUSED(file_entry);
     UNUSED(device_passed);
 
     struct stat *statbuf = (struct stat *)buf;
     statbuf->st_dev = 0;
     statbuf->st_ino = 0;
-    statbuf->st_mode = S_IFREG;
+    statbuf->st_mode = S_IFCHR;
     statbuf->st_nlink = 1;
     statbuf->st_uid = 0;
     statbuf->st_gid = 0;
@@ -712,7 +713,7 @@ device_t *init_simple_output()
     simple_output_device.ioctl = NULL;
     simple_output_device.dup = (dup_func_t)simple_output_dup;
     simple_output_device.clone = (clone_func_t)simple_output_clone;
-    simple_output_device.stat = (stat_func_t)video_stat;
+    simple_output_device.stat = (stat_func_t)simple_output_stat;
 
     simple_output_device.file_size = NULL;
 
@@ -923,6 +924,24 @@ void *fb_dup(void *data, void *device_passed)
     return data;
 }
 
+int fb_stat(void *file_entry, void *buf, void *device_passed)
+{
+    UNUSED(file_entry);
+    UNUSED(device_passed);
+
+    struct stat *statbuf = (struct stat *)buf;
+    statbuf->st_dev = 0;
+    statbuf->st_ino = 0;
+    statbuf->st_mode = S_IFREG;
+    statbuf->st_nlink = 1;
+    statbuf->st_uid = 0;
+    statbuf->st_gid = 0;
+    statbuf->st_rdev = 0;
+    statbuf->st_size = 0;
+
+    return 0;
+}
+
 device_t *init_fb_device()
 {
     device_t *fb_device = kmalloc(sizeof(device_t));
@@ -939,6 +958,8 @@ device_t *init_fb_device()
     fb_device->lseek = (lseek_func_t)fb_lseek;
     fb_device->ioctl = (ioctl_func_t)fb_ioctl;
     fb_device->dup = (dup_func_t)fb_dup;
+    fb_device->clone = NULL;
+    fb_device->stat = (stat_func_t)fb_stat;
 
     fb_device->file_size = (file_size_func_t)fb_file_size;
 

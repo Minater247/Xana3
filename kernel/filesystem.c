@@ -363,12 +363,15 @@ size_t fgetdents64(int fd, void *ptr, size_t count) {
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->getdents64 == NULL) {
+                serial_printf("CASE 1: NO GETDENTS64\n");
                 return -ENOTSUP;
             }
+            serial_printf("CASE 2: JUMPING TO GETDENTS64\n");
             return current->device->getdents64(ptr, count, current->data, current->device);
         }
         current = current->next;
     }
+    serial_printf("CASE 3: INVALID FD\n");
     return -EBADF;
 }
 

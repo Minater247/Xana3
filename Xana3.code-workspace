@@ -41,7 +41,8 @@
 			"ramdisk.h": "c",
 			"process.h": "c",
 			"limits.h": "c",
-			"stdio.h": "c"
+			"stdio.h": "c",
+			"types.h": "c"
 		}
 	}
 }

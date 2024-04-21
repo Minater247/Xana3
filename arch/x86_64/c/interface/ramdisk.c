@@ -263,7 +263,7 @@ size_t file_size(char *path, void *device_passed)
     return file->size;
 }
 
-int fnctl(int cmd, long arg, void *file_entry, void *device)
+int ramdisk_fnctl(int cmd, long arg, void *file_entry, void *device)
 {
     if (cmd == F_GETPATH)
     {
@@ -273,8 +273,11 @@ int fnctl(int cmd, long arg, void *file_entry, void *device)
         // and then append the file name
         strcat(retpath, "/");
         ramdisk_file_entry_t *entry = (ramdisk_file_entry_t *)file_entry;
+        // NULL means root directory, which works out since it already has the trailing slash
         ramdisk_file_t *file = entry->file;
-        strcat(retpath, file->file_name);
+        if (file) {
+            strcat(retpath, file->file_name);
+        }
         return 0;
     }
 
@@ -285,17 +288,30 @@ int ramdisk_stat(void *file_entry, void *buf, void *device_passed)
 {
     UNUSED(device_passed);
     ramdisk_file_entry_t *entry = (ramdisk_file_entry_t *)file_entry;
-    ramdisk_file_t *file = entry->file;
+    if (entry->file) {
+        ramdisk_file_t *file = entry->file;
 
-    struct stat *statbuf = (struct stat *)buf;
-    statbuf->st_dev = 0;
-    statbuf->st_ino = 0;
-    statbuf->st_mode = file->magic == FILE_ENTRY ? S_IFREG : S_IFDIR;
-    statbuf->st_nlink = 1;
-    statbuf->st_uid = 0;
-    statbuf->st_gid = 0;
-    statbuf->st_rdev = 0;
-    statbuf->st_size = file->size;
+        struct stat *statbuf = (struct stat *)buf;
+        statbuf->st_dev = 0;
+        statbuf->st_ino = 0;
+        statbuf->st_mode = file->magic == FILE_ENTRY ? S_IFREG : S_IFDIR;
+        statbuf->st_nlink = 1;
+        statbuf->st_uid = 0;
+        statbuf->st_gid = 0;
+        statbuf->st_rdev = 0;
+        statbuf->st_size = file->size;
+    } else {
+        // root directory
+        struct stat *statbuf = (struct stat *)buf;
+        statbuf->st_dev = 0;
+        statbuf->st_ino = 0;
+        statbuf->st_mode = S_IFDIR;
+        statbuf->st_nlink = 1;
+        statbuf->st_uid = 0;
+        statbuf->st_gid = 0;
+        statbuf->st_rdev = 0;
+        statbuf->st_size = boot_ramdisk.hdr->root_ents;
+    }
 
     return 0;
 }
@@ -318,6 +334,36 @@ void *ramdisk_clone(void *file_entry, void *device_passed)
     return new;
 }
 
+off_t ramdisk_lseek(void *file_entry, off_t offset, int whence, void *device_passed)
+{
+    UNUSED(device_passed);
+    ramdisk_file_entry_t *entry = (ramdisk_file_entry_t *)file_entry;
+    ramdisk_file_t *file = entry->file;
+
+    if (file) {
+        serial_printf("Seeking %s to %d\n", file->file_name, offset);
+    } else {
+        serial_printf("Seeking root directory to %d\n", offset);
+    }
+
+    switch (whence)
+    {
+    case SEEK_SET:
+        entry->read_pos = offset;
+        break;
+    case SEEK_CUR:
+        entry->read_pos += offset;
+        break;
+    case SEEK_END:
+        entry->read_pos = file->size + offset;
+        break;
+    default:
+        return -EINVAL;
+    }
+
+    return entry->read_pos;
+}
+
 device_t *init_ramdisk_device(uint64_t addr)
 {
     ramdisk_info_32_t *info = (ramdisk_info_32_t *)addr;
@@ -335,9 +381,9 @@ device_t *init_ramdisk_device(uint64_t addr)
     ramdisk_device.open = (open_func_t)ramdisk_open;
     ramdisk_device.read = (read_func_t)ramdisk_read;
     ramdisk_device.close = (close_func_t)ramdisk_close;
-    ramdisk_device.fcntl = (fcntl_func_t)fnctl;
+    ramdisk_device.fcntl = (fcntl_func_t)ramdisk_fnctl;
     ramdisk_device.getdents64 = (getdents64_func_t)ramdisk_read_dirents64;
-    ramdisk_device.lseek = NULL;
+    ramdisk_device.lseek = (lseek_func_t)ramdisk_lseek;
     ramdisk_device.stat = ramdisk_stat;
     ramdisk_device.dup = ramdisk_dup;
     ramdisk_device.clone = ramdisk_clone;

@@ -307,7 +307,7 @@ void schedule()
         current_process->status = TASK_RUNNING;
 
         // jump to the new process
-        jump_to_usermode((uint64_t)current_process->entry, current_process->rsp);
+        jump_to_usermode((uint64_t)current_process->entry, current_process->rsp, 0, NULL, NULL);
     }
     else if (current_process->status == TASK_RUNNING)
     {
@@ -620,7 +620,7 @@ int64_t execv(regs_t *regs)
     current_pml4 = new_directory;
 
     // jump to the new process
-    jump_to_usermode(info.entry, VIRT_MEM_OFFSET);
+    jump_to_usermode(info.entry, VIRT_MEM_OFFSET, 0, NULL, NULL);
 
     while (1)
         ;
@@ -644,7 +644,7 @@ uint64_t brk(uint64_t location) {
     // map the new pages
     memregion_t *new_region = kmalloc(sizeof(memregion_t));
     new_region->start = old_brk_page;
-    new_region->end = new_brk_page - 1;
+    new_region->end = new_brk_page;
     new_region->flags = 0x7;
 
     // insert into the list, sorted by start address
@@ -665,7 +665,7 @@ uint64_t brk(uint64_t location) {
         prev->next = new_region;
     }
 
-    for (uint64_t i = old_brk_page; i < new_brk_page; i += 0x1000) {
+    for (uint64_t i = old_brk_page; i <= new_brk_page; i += 0x1000) {
         map_page_kmalloc(i, first_free_page_addr(), false, true, current_process->pml4);
     }
 

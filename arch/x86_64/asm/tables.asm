@@ -280,5 +280,11 @@ jump_to_usermode:
     push 0x33
     ; RIP
     push rdi
+
+    ; set up arguments for main
+    mov rdi, rdx
+    mov rsi, rcx
+    mov rdx, r8
+
     ; IRETQ
     iretq
