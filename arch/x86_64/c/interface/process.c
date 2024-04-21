@@ -544,9 +544,7 @@ int64_t fork()
         new_process->signal_handlers[i].signal_handler = current_process->signal_handlers[i].signal_handler;
     }
     
-    serial_printf("Cloning file descriptors\n");
     new_process->file_descriptors = clone_file_descriptors(current_process->file_descriptors);
-    serial_printf("Cloned file descriptors\n");
     strcpy(new_process->pwd, (const char *)current_process->pwd);
 
     new_process->ppid = current_process->pid;
@@ -608,6 +606,12 @@ int64_t execv(regs_t *regs)
     current_process->pml4 = new_directory;
 
     current_process->brk_start = info.max_addr;
+
+    // clear the signal handlers
+    for (int i = 0; i < SIG_MAX; i++)
+    {
+        current_process->signal_handlers[i].signal_handler = NULL;
+    }
 
     ASM_SET_CR3(new_directory->phys_addr);
 

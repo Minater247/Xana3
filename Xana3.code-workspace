@@ -39,7 +39,9 @@
 			"pit.h": "c",
 			"keyboard.h": "c",
 			"ramdisk.h": "c",
-			"process.h": "c"
+			"process.h": "c",
+			"limits.h": "c",
+			"stdio.h": "c"
 		}
 	}
 }

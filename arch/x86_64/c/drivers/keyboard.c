@@ -16,6 +16,7 @@
 #include <filesystem.h>
 #include <tables.h>
 #include <string.h>
+#include <sys/errno.h>
 
 char keypress_buffer[256];
 uint8_t keypress_buffer_size = 0;
@@ -201,6 +202,11 @@ size_t kbd_device_read(void *ptr, size_t nmemb, size_t count, void *unused1, voi
         }
     }
 
+    // may be a better idea to make this blocking? depends. will see what comes of this
+    if (written == 0) {
+        return -EAGAIN;
+    }
+
     return written;
 }
 
@@ -217,6 +223,23 @@ void *kbd_device_clone(void *filedes_data, void *device_passed) {
     UNUSED(device_passed);
 
     return NULL;
+}
+
+int kbd_stat(void *file_entry, void *buf, void *device_passed) {
+    UNUSED(file_entry);
+    UNUSED(device_passed);
+
+    struct stat *statbuf = (struct stat *)buf;
+    statbuf->st_dev = 0;
+    statbuf->st_ino = 0;
+    statbuf->st_mode = S_IFCHR;
+    statbuf->st_nlink = 1;
+    statbuf->st_uid = 0;
+    statbuf->st_gid = 0;
+    statbuf->st_rdev = 0;
+    statbuf->st_size = 0;
+
+    return 0;
 }
 
 void keyboard_install()
@@ -241,6 +264,7 @@ void keyboard_install()
     kbd_device.file_size = NULL;
     kbd_device.lseek = NULL;
     kbd_device.clone = (clone_func_t)kbd_device_clone;
+    kbd_device.stat = (stat_func_t)kbd_stat;
 
     register_device(&kbd_device);
 }

@@ -182,8 +182,6 @@ uint64_t syscall_handler(regs_t *regs)
         current_process->user_rsp = regs->rsp;
     }
 
-    serial_printf("P%d S%d\n", current_process->pid, regs->rax);
-
     if (syscall_table[regs->rax] != NULL) {
         current_process->in_syscall = true;
         uint64_t raxval = syscall_table[regs->rax]((regs_t *)&(current_process->syscall_registers));

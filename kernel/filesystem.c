@@ -514,11 +514,9 @@ file_descriptor_t *clone_file_descriptors(file_descriptor_t *descriptors) {
     file_descriptor_t *prev = NULL;
     while (current != NULL) {
         file_descriptor_t *fd = (file_descriptor_t *)kmalloc(sizeof(file_descriptor_t));
-        serial_printf("Cloning file descriptor %d\n", current->descriptor_id);
         fd->descriptor_id = current->descriptor_id;
         fd->flags = current->flags;
         fd->device = current->device;
-        serial_printf("Clone @ 0x%lx\n", current->device->clone);
         fd->data = current->device->clone(current->data, current->device);
         fd->next = NULL;
         if (prev == NULL) {

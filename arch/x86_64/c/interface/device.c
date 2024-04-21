@@ -246,13 +246,23 @@ void *device_dup(device_open_data_t *data, device_t *this_device)
     return data->device->dup(data->data, data->device);
 }
 
+int device_stat(device_open_data_t *data, struct stat *statbuf, device_t *this_device)
+{
+    UNUSED(this_device);
+
+    if (data->device->stat == NULL)
+    {
+        return -ENOTSUP;
+    }
+
+    return data->device->stat(data->data, statbuf, data->device);
+}
+
 void *device_clone(device_open_data_t *data, device_t *this_device)
 {
     UNUSED(this_device);
 
     device_open_data_t *new_data = (device_open_data_t *)kmalloc(sizeof(device_open_data_t));
-    serial_printf("Jumping to clone function at 0x%lx\n", data->device->clone);
-    serial_printf("Device name: %s\n", data->device->name);
     new_data->data = data->device->clone(data->data, data->device);
     new_data->device = data->device;
     new_data->dependents = data->dependents;
@@ -278,6 +288,7 @@ void init_device_device()
     device_device.ioctl = (ioctl_func_t)device_ioctl;
     device_device.dup = (dup_func_t)device_dup;
     device_device.clone = (clone_func_t)device_clone;
+    device_device.stat = (stat_func_t)device_stat;
 
     device_device.file_size = NULL;
 
