@@ -1,3 +1,4 @@
+bits 64
 default rel
 
 section .text
@@ -119,10 +120,12 @@ ISR_NOERRCODE 31
 extern fault_handler
 isr_common_stub:
     pusha64
+    fxsave [xmm_regs]
     mov rdi, rsp ; Give the C function the address of the registers
     mov rsi, 0 ; Clear the register
     mov rsi, cr2 ; Get address of fault, if there was a page fault
     call fault_handler
+    fxrstor [xmm_regs]
     popa64
     ; Jump over the error code and the interrupt number
     add rsp, 0x10
@@ -159,11 +162,13 @@ extern irq_handler
 
 irq_common_stub:
     pusha64
+    fxsave [xmm_regs]
     mov rdi, rsp ; Give the C function the address of the registers
     mov rsi, 0 ; We don't need to pass anything in cr2
     call irq_handler
+    fxrstor [xmm_regs]
     popa64
-    ; For some reason there's 16 bytes of information pushed outside of pusha64
+    ; Jump over the error code and the interrupt number
     add rsp, 0x10
     iretq
 
@@ -217,6 +222,7 @@ syscall_handler_asm:
     push 0 ; Error code
     push 0 ; int_no
     pusha64
+    fxsave [xmm_regs]
 
     ; Give one argument, the address of the registers
     mov rdi, rsp
@@ -226,30 +232,14 @@ global after_syscall
 after_syscall:
     mov rsp, rax ; return value is new regs pointer
 
-    ; Pop the registers (rax in this struct has been set to the return value)
+    ; Pop the registers (rax in the regs_t struct has been set to the return value)
+    fxrstor [xmm_regs]
     popa64
 
     mov rsp, qword [syscall_old_rsp]
 
     ; Return from the syscall
     o64 sysret
-
-section .data
-global syscall_stack
-global syscall_stack_top
-; Small temporary stack for syscalls to get to C code
-syscall_stack:
-    times 4096 db 0
-syscall_stack_top:
-
-global syscall_old_rsp
-syscall_old_rsp: dq 0
-
-global read_rip
-read_rip:
-    ; Read the RIP of the calling function
-    mov rax, [rsp]
-    ret
 
 
 global jump_to_usermode
@@ -288,3 +278,28 @@ jump_to_usermode:
 
     ; IRETQ
     iretq
+
+global read_rip
+read_rip:
+    ; Read the RIP of the calling function
+    mov rax, [rsp]
+    ret
+
+
+
+
+section .data
+global syscall_stack
+global syscall_stack_top
+; Small temporary stack for syscalls to get to C code
+syscall_stack:
+    times 4096 db 0
+syscall_stack_top:
+
+global syscall_old_rsp
+syscall_old_rsp: dq 0
+
+global xmm_regs
+align 16
+xmm_regs:
+    times 512 db 0

@@ -3,7 +3,7 @@ ARCH ?= x86_64
 CC = $(ARCH)-elf-gcc
 LD = $(ARCH)-elf-ld
 
-CFLAGS = -std=gnu99 -ffreestanding -O3 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -Ikernel/include -mcmodel=large -mno-sse -mno-red-zone -ffast-math
+CFLAGS = -std=gnu99 -ffreestanding -O3 -Wall -Wextra -Iinclude -Iarch/$(ARCH)/include -Ikernel/include -mcmodel=large -mno-red-zone -ffast-math
 LDFLAGS = -T arch/$(ARCH)/linker.ld
 AS = nasm
 

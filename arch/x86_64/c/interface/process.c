@@ -236,7 +236,17 @@ void check_signals(bool is_after_syscall) {
             }
 
             if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler) {
-                kpanic("Process %d has signal %d but no handler!", current_process->pid, current_process->queued_signals->signal_number);
+                // should we ignore this?
+                int signo = current_process->queued_signals->signal_number;
+                if (signo == SIGCHLD || signo == SIGURG || signo == SIGWINCH) {
+                    signal_t *signal = current_process->queued_signals;
+                    current_process->queued_signals = signal->next;
+                    kfree(signal);
+                    return;
+                }
+
+                // no, we shouldn't
+                process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = signo, .exit_status = 0});
             }
 
             signal_t *signal = current_process->queued_signals;
@@ -266,6 +276,7 @@ void check_signals(bool is_after_syscall) {
 }
 
 extern tss_entry_t tss;
+extern xmm_regs_t xmm_regs;
 void schedule()
 {
     ASM_DISABLE_INTERRUPTS; // In case we aren't called from an interrupt
@@ -331,6 +342,8 @@ void schedule()
 
         syscall_old_rsp = current_process->syscall_rsp;
 
+        xmm_regs = current_process->syscall_xmm_registers;
+
         // move the address of the current process registers to rax
         asm volatile("mov %0, %%rax" ::"r"(&(current_process->syscall_registers)));
         // jump to after_syscall
@@ -389,6 +402,8 @@ void rt_sigret() {
         schedule();
     } else {
         syscall_old_rsp = current_process->syscall_rsp;
+
+        xmm_regs = current_process->syscall_xmm_registers;
 
         // move the address of the current process registers to rax
         asm volatile("mov %0, %%rax" ::"r"(&(current_process->syscall_registers)));
@@ -534,6 +549,7 @@ int64_t fork()
     new_process->entry = (void *)rip;
     new_process->syscall_rsp = current_process->syscall_rsp;
     new_process->syscall_registers = current_process->syscall_registers;
+    new_process->syscall_xmm_registers = current_process->syscall_xmm_registers;
 
     new_process->stack_low = current_process->stack_low;
 

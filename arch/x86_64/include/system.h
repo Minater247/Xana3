@@ -32,6 +32,25 @@ typedef struct {
    uint64_t ss;
 } __attribute__((packed)) regs_t;
 
+typedef struct {
+   uint16_t fcw;
+   uint16_t fsw;
+   uint8_t ftw;
+   uint8_t reserved;
+   uint16_t fop;
+   uint32_t fip;
+   uint16_t fcs;
+   uint16_t reserved1;
+   uint32_t fdp;
+   uint16_t fdp2;
+   uint16_t reserved2;
+   uint32_t mxcsr;
+   uint32_t mxcsr_mask;
+   uint8_t st_mm[8][16];
+   uint8_t xmm_regs[16][16];
+   uint8_t reserved3[512 - 416]; // rest of 512 bytes
+} __attribute__((packed)) xmm_regs_t;
+
 
 // Safe inline assembly functions, to be used in C code
 // Shouldn't be dangerous, but care be taken when using them

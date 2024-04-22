@@ -486,12 +486,6 @@ int fstat(int fd, struct stat *buf) {
  *      -ENOTSUP if the device doesn't support this operation
 */
 int stat(char *path, struct stat *buf) {
-    // TEMP: just fopen the file and get the stat, then close
-    // TODO: implement a pathstat function, or rename stat to fstat
-
-    serial_printf("stat: got path 0x%lx\n", path);
-    serial_printf("... meaning path %s\n", path);
-
     int fd = fopen(path, 0, 0);
     if (fd < 0) {
         return fd;

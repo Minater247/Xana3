@@ -160,6 +160,8 @@ typedef struct process {
 
     regs_t syscall_registers;
     regs_t interrupt_registers;
+    xmm_regs_t syscall_xmm_registers;
+    xmm_regs_t interrupt_xmm_registers;
 
     file_descriptor_t *file_descriptors;
     char pwd[PATH_MAX];

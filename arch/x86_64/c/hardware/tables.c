@@ -307,10 +307,62 @@ void regs_dump(regs_t *regs) {
     serial_printf("SS: 0x%lx\n", regs->ss);
 }
 
+
+// typedef struct {
+//    uint16_t fcw;
+//    uint16_t fsw;
+//    uint8_t ftw;
+//    uint8_t reserved;
+//    uint16_t fop;
+//    uint32_t fip;
+//    uint16_t fcs;
+//    uint16_t reserved1;
+//    uint32_t fdp;
+//    uint16_t fdp2;
+//    uint16_t reserved2;
+//    uint32_t mxcsr;
+//    uint32_t mxcsr_mask;
+//    uint8_t st_mm[8][16];
+//    uint8_t xmm_regs[16][16];
+//    uint8_t reserved3[512 - 416]; // rest of 512 bytes
+// } __attribute__((packed)) xmm_regs_t;
+void xmm_regs_dump(xmm_regs_t *xmm_regs) {
+    serial_printf("XMM REG DUMP FOR PROCESS:\n");
+    serial_printf("FCW: 0x%x\n", xmm_regs->fcw);
+    serial_printf("FSW: 0x%x\n", xmm_regs->fsw);
+    serial_printf("FTW: 0x%x\n", xmm_regs->ftw);
+    serial_printf("FOP: 0x%x\n", xmm_regs->fop);
+    serial_printf("FIP: 0x%x\n", xmm_regs->fip);
+    serial_printf("FCS: 0x%x\n", xmm_regs->fcs);
+    serial_printf("FDP: 0x%x\n", xmm_regs->fdp);
+    serial_printf("FDP2: 0x%x\n", xmm_regs->fdp2);
+    serial_printf("MXCSR: 0x%x\n", xmm_regs->mxcsr);
+    serial_printf("MXCSR_MASK: 0x%x\n", xmm_regs->mxcsr_mask);
+    // st_mm are stored in the lower 10 bytes of each 16-byte entry as 80-bit values
+    for (int i = 0; i < 8; i++) {
+        serial_printf("ST/MM%d: 0x", i);
+        for (int j = 0; j < 10; j++) {
+            serial_printf("%x", xmm_regs->st_mm[i][j]);
+        }
+        serial_printf("\n");
+    }
+
+    // xmm_regs are stored as 128-bit values
+    for (int i = 0; i < 16; i++) {
+        serial_printf("XMM%d: 0x", i);
+        for (int j = 0; j < 16; j++) {
+            serial_printf("%x", xmm_regs->xmm_regs[i][j]);
+        }
+        serial_printf("\n");
+    }
+}
+
+extern xmm_regs_t xmm_regs;
 void fault_handler(regs_t *regs, uint64_t faulting_address)
 {
     if (current_process) {
         current_process->interrupt_registers = *regs;
+        current_process->interrupt_xmm_registers = xmm_regs;
         if (current_process->interrupt_registers.rsp < VIRT_MEM_OFFSET) {
             current_process->user_rsp = current_process->interrupt_registers.rsp;
         }
@@ -323,12 +375,14 @@ void fault_handler(regs_t *regs, uint64_t faulting_address)
     else
     {
         regs_dump(regs);
+        xmm_regs_dump(&xmm_regs);
         kpanic("Unhandled exception in process %d: %s (error code: %d) [0x%lx]", current_process ? current_process->pid : -1, exception_messages[regs->int_no], regs->err_code, regs->rip);
     }
 
     if (current_process != NULL)
     {
         *regs = current_process->interrupt_registers;
+        xmm_regs = current_process->interrupt_xmm_registers;
     }
 }
 
@@ -337,6 +391,7 @@ void irq_handler(regs_t *regs)
     if (current_process != NULL)
     {
         current_process->interrupt_registers = *regs;
+        current_process->interrupt_xmm_registers = xmm_regs;
         if (current_process->interrupt_registers.rsp < VIRT_MEM_OFFSET)
         {
             current_process->user_rsp = current_process->interrupt_registers.rsp;
@@ -365,6 +420,7 @@ void irq_handler(regs_t *regs)
     if (current_process != NULL)
     {
         *regs = current_process->interrupt_registers;
+        xmm_regs = current_process->interrupt_xmm_registers;
     }
 }
 

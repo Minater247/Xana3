@@ -156,6 +156,7 @@ void syscall_init() {
 extern uint64_t syscall_old_rsp;
 extern uint8_t syscall_stack_top;
 extern uint8_t syscall_stack;
+extern xmm_regs_t xmm_regs;
 uint64_t syscall_handler(regs_t *regs)
 {
     current_process->syscall_rsp = regs->rsp;
@@ -178,6 +179,7 @@ uint64_t syscall_handler(regs_t *regs)
     ASM_WRITE_RBP((uint64_t)current_process->syscall_stack + rbp_from_bottom);
 
     current_process->syscall_registers = *regs;
+    current_process->syscall_xmm_registers = xmm_regs;
     if (regs->rsp < VIRT_MEM_OFFSET) {
         current_process->user_rsp = regs->rsp;
     }
@@ -195,6 +197,8 @@ uint64_t syscall_handler(regs_t *regs)
     syscall_old_rsp = current_process->syscall_rsp;
 
     check_signals(true);
+
+    xmm_regs = current_process->syscall_xmm_registers;
 
     // move the address of the current process registers to rax
     asm volatile("mov %0, %%rax" ::"r"(&current_process->syscall_registers));

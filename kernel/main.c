@@ -62,6 +62,8 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
 
     mouse_init();
 
+    printf("Size of xmm_regs_t: %d\n", sizeof(xmm_regs_t));
+
     printf("\x1b[38;5;217m");
     printf("\n\nBefore we jump to the usermode program, roadmap:\n");
     printf("  - Filesystem (EXT2, ISO9660)\n");
@@ -70,11 +72,11 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     printf("  - USB stack\n");
     printf("Now back to your regularly scheduled program...\n\n");
 
-    int fd = fopen("/mnt/ramdisk/bin/Xansh.elf", 0, 0);
+    int fd = fopen("/mnt/ramdisk/bin/init", 0, 0);
     if (fd < 0) {
         kpanic("Failed to load initialization program!");
     } else {
-        size_t size = file_size_internal("/mnt/ramdisk/bin/Xansh.elf");
+        size_t size = file_size_internal("/mnt/ramdisk/bin/init");
         char *buf = kmalloc(size);
         int read = fread(buf, 1, size, fd);
         if (read < 0) {
