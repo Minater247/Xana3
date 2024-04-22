@@ -17,12 +17,15 @@
 #include <tables.h>
 #include <string.h>
 #include <sys/errno.h>
+#include <memory.h>
 
-char keypress_buffer[256];
 uint8_t keypress_buffer_size = 0;
 
 bool shift = false;
 bool caps = false;
+
+char *keypress_buffer;
+uint64_t allocated_keypress_buffer_size = 0;
 
 device_t kbd_device;
 
@@ -104,6 +107,17 @@ const char kbdcodes_shifted[128] = {
     0, /* All other keys are undefined */
 };
 
+void keyboard_addchar(char c) {
+    // add a char to the end of the buffer
+    if (keypress_buffer_size >= allocated_keypress_buffer_size)
+    {
+        allocated_keypress_buffer_size += 256;
+        keypress_buffer = krealloc(keypress_buffer, allocated_keypress_buffer_size);
+    }
+    keypress_buffer[keypress_buffer_size] = c;
+    keypress_buffer_size++;
+}
+
 // keyboard (hardware keyboard, uninitialized PS2 at the moment)
 void keyboard_interrupt_handler(regs_t *r)
 {
@@ -130,20 +144,13 @@ void keyboard_interrupt_handler(regs_t *r)
             caps = !caps;
         }
 
-        if (keypress_buffer_size < 255)
+        if (keypress_buffer_size >= allocated_keypress_buffer_size)
         {
-            keypress_buffer[keypress_buffer_size] = scancode;
-            keypress_buffer_size++;
+            allocated_keypress_buffer_size += 256;
+            keypress_buffer = krealloc(keypress_buffer, allocated_keypress_buffer_size);
         }
-        else
-        {
-            // buffer full, shift everything down
-            for (int i = 0; i < 255; i++)
-            {
-                keypress_buffer[i] = keypress_buffer[i + 1];
-            }
-            keypress_buffer[255] = scancode;
-        }
+        keypress_buffer[keypress_buffer_size] = scancode;
+        keypress_buffer_size++;
     }
 }
 
@@ -154,9 +161,15 @@ uint8_t keyboard_getcode()
         keypress_buffer_size--;
         char scancode = keypress_buffer[0];
         // shift everything down
-        for (int i = 0; i < 255; i++)
+        for (int i = 0; i < keypress_buffer_size; i++)
         {
             keypress_buffer[i] = keypress_buffer[i + 1];
+        }
+        // free memory if we can
+        if (keypress_buffer_size < allocated_keypress_buffer_size - 256 && allocated_keypress_buffer_size > 256)
+        {
+            allocated_keypress_buffer_size -= 256;
+            keypress_buffer = krealloc(keypress_buffer, allocated_keypress_buffer_size);
         }
         return scancode;
     }
@@ -170,15 +183,21 @@ char keyboard_getchar()
     {
         return 0;
     }
-    if (shift)
-    {
-        return kbdcodes_shifted[scancode];
-    }
-    if (caps)
-    {
-        if (kbdcodes[scancode] >= 'a' && kbdcodes[scancode] <= 'z')
-        {
+    if (shift) {
+        if (caps) {
+            if (kbdcodes[scancode] >= 'a' && kbdcodes[scancode] <= 'z') {
+                return kbdcodes[scancode];
+            }
             return kbdcodes_shifted[scancode];
+        } else {
+            return kbdcodes_shifted[scancode];
+        }
+    } else {
+        if (caps) {
+            if (kbdcodes[scancode] >= 'a' && kbdcodes[scancode] <= 'z') {
+                return kbdcodes_shifted[scancode];
+            }
+            return kbdcodes[scancode];
         }
     }
     return kbdcodes[scancode];
@@ -267,4 +286,7 @@ void keyboard_install()
     kbd_device.stat = (stat_func_t)kbd_stat;
 
     register_device(&kbd_device);
+
+    keypress_buffer = (char *)kmalloc(256);
+    allocated_keypress_buffer_size = 256;
 }

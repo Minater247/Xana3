@@ -210,8 +210,6 @@ int device_ioctl(device_open_data_t *data, unsigned long request, void *arg, dev
 {
     UNUSED(this_device);
 
-    kprintf("Device IOCTL: 0x%lx\n", data->device->ioctl);
-
     if (data->device->ioctl == NULL)
     {
         return -ENOTTY;

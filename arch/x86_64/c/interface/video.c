@@ -882,8 +882,6 @@ int fb_ioctl(void *data, unsigned long request, void *arg, void *device_passed)
     UNUSED(data);
     UNUSED(device_passed);
 
-    kprintf("IOCTL Request: 0x%lx\n", request);
-
     if (request == FBIOGET_VSCREENINFO) {
         struct fb_var_screeninfo *vinfo = (struct fb_var_screeninfo *)arg;
         vinfo->xres = framebuffer_width;
@@ -892,7 +890,6 @@ int fb_ioctl(void *data, unsigned long request, void *arg, void *device_passed)
         vinfo->yres_virtual = framebuffer_height;
         vinfo->bits_per_pixel = framebuffer_bpp;
         vinfo->grayscale = 0;
-        kprintf("Returning zero!\n");
         return 0;
     }
 

@@ -224,6 +224,10 @@ size_t ramdisk_read_dirents64(void *ptr, size_t count, void *file_entry_passed, 
             break;
         }
 
+        if (file_entry->read_pos >= max_ents) {
+            break;
+        }
+
         dirent->d_ino = 0;
         dirent->d_off = 0;
         dirent->d_reclen = sizeof(struct dirent64) + strlen(current->file_name) + 1;
@@ -241,9 +245,9 @@ size_t ramdisk_read_dirents64(void *ptr, size_t count, void *file_entry_passed, 
             uint32_t entries_count = current->size;
             current = (ramdisk_file_t *)((uint64_t)current + (sizeof(ramdisk_file_t) * (entries_count + 1)));
         }
-    }
 
-    file_entry->read_pos += entries_read;
+        file_entry->read_pos++;
+    }
 
     return entries_read * sizeof(struct dirent64);
 }

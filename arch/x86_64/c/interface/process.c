@@ -577,7 +577,6 @@ int64_t kexecv(regs_t *regs)
     int fd = kfopen((char *)regs->rdi, 0, 0);
     if (fd < 0)
     {
-        kprintf("Failed to open file\n");
         return -ENOENT;
     }
 
@@ -585,7 +584,6 @@ int64_t kexecv(regs_t *regs)
     // if the highest bit is set, it's an error
     if (size & 0x8000000000000000)
     {
-        kprintf("Failed to get file size\n");
         return -EIO;
     }
 
@@ -593,7 +591,6 @@ int64_t kexecv(regs_t *regs)
     int read = kfread(buf, 1, size, fd);
     if (read < 0)
     {
-        kprintf("Failed to read file\n");
         return -EIO;
     }
 
