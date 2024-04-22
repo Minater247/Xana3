@@ -18,6 +18,9 @@
 #include <string.h>
 #include <sys/errno.h>
 #include <memory.h>
+#include <errors.h>
+#include <keyboard.h>
+#include <serial.h>
 
 uint8_t keypress_buffer_size = 0;
 
@@ -107,6 +110,32 @@ const char kbdcodes_shifted[128] = {
     0, /* All other keys are undefined */
 };
 
+char scancode_to_char(uint8_t scancode)
+{
+    if (scancode == 0)
+    {
+        return 0;
+    }
+    if (shift) {
+        if (caps) {
+            if (kbdcodes[scancode] >= 'a' && kbdcodes[scancode] <= 'z') {
+                return kbdcodes[scancode];
+            }
+            return kbdcodes_shifted[scancode];
+        } else {
+            return kbdcodes_shifted[scancode];
+        }
+    } else {
+        if (caps) {
+            if (kbdcodes[scancode] >= 'a' && kbdcodes[scancode] <= 'z') {
+                return kbdcodes_shifted[scancode];
+            }
+            return kbdcodes[scancode];
+        }
+    }
+    return kbdcodes[scancode];
+}
+
 void keyboard_addchar(char c) {
     // add a char to the end of the buffer
     if (keypress_buffer_size >= allocated_keypress_buffer_size)
@@ -114,8 +143,69 @@ void keyboard_addchar(char c) {
         allocated_keypress_buffer_size += 256;
         keypress_buffer = krealloc(keypress_buffer, allocated_keypress_buffer_size);
     }
+
     keypress_buffer[keypress_buffer_size] = c;
     keypress_buffer_size++;
+}
+
+void keyboard_addstring(char *string) {
+    // add these characters to the buffer
+    size_t len = strlen(string);
+    for (size_t i = 0; i < len; i++) {
+        keyboard_addchar(string[i]);
+    }
+}
+
+void keyboard_addcode(uint8_t scancode) {
+    // add a char to the end of the buffer
+    char c = scancode_to_char(scancode);
+    if (c != 0)
+    {
+        keyboard_addchar(c);
+        return;
+    }
+
+    // handle special keys
+    switch (scancode)
+    {
+        case 0x48:
+            keyboard_addstring("\033[A"); // up arrow
+            break;
+        case 0x50:
+            keyboard_addstring("\033[B"); // down arrow
+            break;
+        case 0x4B:
+            keyboard_addstring("\033[D"); // left arrow
+            break;
+        case 0x4D:
+            keyboard_addstring("\033[C"); // right arrow
+            break;
+        default:
+            serial_printf("Unhandled scancode! 0x%x\n", scancode);
+            break;
+    }
+}
+
+char keyboard_popchar()
+{
+    if (keypress_buffer_size > 0)
+    {
+        keypress_buffer_size--;
+        char c = keypress_buffer[0];
+        // shift everything down
+        for (int i = 0; i < keypress_buffer_size; i++)
+        {
+            keypress_buffer[i] = keypress_buffer[i + 1];
+        }
+        // free memory if we can
+        if (keypress_buffer_size < allocated_keypress_buffer_size - 256 && allocated_keypress_buffer_size > 256)
+        {
+            allocated_keypress_buffer_size -= 256;
+            keypress_buffer = krealloc(keypress_buffer, allocated_keypress_buffer_size);
+        }
+        return c;
+    }
+    return 0;
 }
 
 // keyboard (hardware keyboard, uninitialized PS2 at the moment)
@@ -142,15 +232,9 @@ void keyboard_interrupt_handler(regs_t *r)
         else if (scancode == 0x3A)
         {
             caps = !caps;
+        } else {
+            keyboard_addcode(scancode);
         }
-
-        if (keypress_buffer_size >= allocated_keypress_buffer_size)
-        {
-            allocated_keypress_buffer_size += 256;
-            keypress_buffer = krealloc(keypress_buffer, allocated_keypress_buffer_size);
-        }
-        keypress_buffer[keypress_buffer_size] = scancode;
-        keypress_buffer_size++;
     }
 }
 
@@ -176,33 +260,6 @@ uint8_t keyboard_getcode()
     return 0;
 }
 
-char keyboard_getchar()
-{
-    uint8_t scancode = keyboard_getcode();
-    if (scancode == 0)
-    {
-        return 0;
-    }
-    if (shift) {
-        if (caps) {
-            if (kbdcodes[scancode] >= 'a' && kbdcodes[scancode] <= 'z') {
-                return kbdcodes[scancode];
-            }
-            return kbdcodes_shifted[scancode];
-        } else {
-            return kbdcodes_shifted[scancode];
-        }
-    } else {
-        if (caps) {
-            if (kbdcodes[scancode] >= 'a' && kbdcodes[scancode] <= 'z') {
-                return kbdcodes_shifted[scancode];
-            }
-            return kbdcodes[scancode];
-        }
-    }
-    return kbdcodes[scancode];
-}
-
 size_t kbd_device_read(void *ptr, size_t nmemb, size_t count, void *unused1, void *unused2, uint64_t flags)
 {
     UNUSED(unused1);
@@ -213,7 +270,7 @@ size_t kbd_device_read(void *ptr, size_t nmemb, size_t count, void *unused1, voi
 
     uint32_t written = 0;
     char code;
-    while ((code = keyboard_getchar()) != 0) {
+    while ((code = keyboard_popchar()) != 0) {
         *(char *)(ptr + written) = code;
         written++;
         if (written >= size) {
