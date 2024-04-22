@@ -29,7 +29,7 @@ bool traceback_failed = false;
 void serial_traceback(size_t depth) {
     if (traceback_failed) {
         serial_printf("Panic in traceback, aborting\n");
-        printf("(panic in traceback? something went horribly wrong)\n");
+        kprintf("(panic in traceback? something went horribly wrong)\n");
         return;
     }
 
@@ -91,7 +91,7 @@ void serial_traceback(size_t depth) {
 void traceback(size_t depth) {
     if (traceback_failed) {
         serial_printf("Panic in traceback, aborting\n");
-        printf("(panic in traceback? something went horribly wrong)\n");
+        kprintf("(panic in traceback? something went horribly wrong)\n");
         return;
     }
 
@@ -105,7 +105,7 @@ void traceback(size_t depth) {
         }
 
         uint64_t rip = rbp[1];
-        printf("\033[36;40m0x%lx", rip);
+        kprintf("\033[36;40m0x%lx", rip);
         rbp = (uint64_t *)rbp[0];
         if (depth-- == 0) {
             break;  
@@ -122,7 +122,7 @@ void traceback(size_t depth) {
         // find the symbol that contains the RIP
         for (size_t i = 0; i < symbol_count; i++) {
             if (rip >= symbol_table[i].st_value && rip < symbol_table[i].st_value + symbol_table[i].st_size) {
-                printf("\033[32m  %s+0x%lx\n", string_table + symbol_table[i].st_name, rip - symbol_table[i].st_value);
+                kprintf("\033[32m  %s+0x%lx\n", string_table + symbol_table[i].st_name, rip - symbol_table[i].st_value);
                 found = true;
                 break;
             }
@@ -137,14 +137,14 @@ void traceback(size_t depth) {
                     closest_index = i;
                 }
             }
-            printf("\033[33m  %s+0x%lx (asm)\n", string_table + symbol_table[closest_index].st_name, rip - symbol_table[closest_index].st_value);
+            kprintf("\033[33m  %s+0x%lx (asm)\n", string_table + symbol_table[closest_index].st_name, rip - symbol_table[closest_index].st_value);
         }
     }
 
     if (depth == 0) {
-        printf("\033[34m...\n\033[0m");
+        kprintf("\033[34m...\n\033[0m");
     } else if (rbp == NULL) {
-        printf("\033[36mEnd of stack\n\033[0m");
+        kprintf("\033[36mEnd of stack\n\033[0m");
     }
 
     traceback_failed = false;

@@ -20,11 +20,11 @@
     serial_printf(" System halted.\n"); \
     serial_traceback(10); \
     enableBackground(true); \
-    printf("\033[97;41mKernel panic [PID %d]: ", current_process->pid); \
-    printf("In function: %s\n", __func__); \
-    printf("%s:%d: \n", __FILE__, __LINE__); \
-    printf(msg, ##__VA_ARGS__); \
-    printf(" System halted.\n"); \
+    kprintf("\033[97;41mKernel panic [PID %d]: ", current_process->pid); \
+    kprintf("In function: %s\n", __func__); \
+    kprintf("%s:%d: \n", __FILE__, __LINE__); \
+    kprintf(msg, ##__VA_ARGS__); \
+    kprintf(" System halted.\n"); \
     traceback(10); \
     asm volatile("hlt"); \
     while (1); \
@@ -53,9 +53,9 @@
 // Prints a warning in yellow, but doesn't halt the system
 #define kwarn(msg, ...) do { \
     enableBackground(true); \
-    printf("[\033[93;40mWARN\033[0m]: "); \
-    printf(msg, ##__VA_ARGS__); \
-    printf("\033[0m\n"); \
+    kprintf("[\033[93;40mWARN\033[0m]: "); \
+    kprintf(msg, ##__VA_ARGS__); \
+    kprintf("\033[0m\n"); \
 } while (0)
 
 

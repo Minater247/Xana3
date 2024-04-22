@@ -64,7 +64,7 @@ void mouse_handler(regs_t *r) {
     }
 
     // Print the mouse data
-    // printf("Mouse movement: x=%d, y=%d\n", (int8_t)bytes[1], (int8_t)bytes[2]);
+    // kprintf("Mouse movement: x=%d, y=%d\n", (int8_t)bytes[1], (int8_t)bytes[2]);
 }
 
 void mouse_init() {

@@ -882,7 +882,7 @@ int fb_ioctl(void *data, unsigned long request, void *arg, void *device_passed)
     UNUSED(data);
     UNUSED(device_passed);
 
-    printf("IOCTL Request: 0x%lx\n", request);
+    kprintf("IOCTL Request: 0x%lx\n", request);
 
     if (request == FBIOGET_VSCREENINFO) {
         struct fb_var_screeninfo *vinfo = (struct fb_var_screeninfo *)arg;
@@ -892,7 +892,7 @@ int fb_ioctl(void *data, unsigned long request, void *arg, void *device_passed)
         vinfo->yres_virtual = framebuffer_height;
         vinfo->bits_per_pixel = framebuffer_bpp;
         vinfo->grayscale = 0;
-        printf("Returning zero!\n");
+        kprintf("Returning zero!\n");
         return 0;
     }
 
@@ -967,7 +967,7 @@ device_t *init_fb_device()
 
     user_pitch = framebuffer_width * framebuffer_bpp / 8;
 
-    printf("Framebuffer BPP: %d\n", framebuffer_bpp);
+    kprintf("Framebuffer BPP: %d\n", framebuffer_bpp);
 
     return register_device(fb_device);
 }

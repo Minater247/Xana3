@@ -211,7 +211,7 @@ char *resolve_path(char *path) {
  * 
  * @return The file descriptor of the opened file
 */
-int fopen(char *path, int flags, mode_t mode) {
+int kfopen(char *path, int flags, mode_t mode) {
     UNUSED(mode);
 
     resolve_path(path);
@@ -263,8 +263,6 @@ int fopen(char *path, int flags, mode_t mode) {
     fd->next = current_process->file_descriptors;
     current_process->file_descriptors = fd;
 
-    serial_printf("Opened file %s with descriptor %d\n", path, fd->descriptor_id);
-
     return fd->descriptor_id;
 }
 
@@ -275,7 +273,7 @@ int fopen(char *path, int flags, mode_t mode) {
  * 
  * @return 0 if successful, -1 if not
 */
-int fclose(int fd) {
+int kfclose(int fd) {
     file_descriptor_t *current = current_process->file_descriptors;
     file_descriptor_t *prev = NULL;
     while (current != NULL) {
@@ -307,7 +305,7 @@ int fclose(int fd) {
  * 
  * @return The number of elements read
 */
-size_t fread(void *ptr, size_t size, size_t nmemb, int fd) {
+size_t kfread(void *ptr, size_t size, size_t nmemb, int fd) {
     file_descriptor_t *current = current_process->file_descriptors;
 
     while (current != NULL) {
@@ -332,7 +330,7 @@ size_t fread(void *ptr, size_t size, size_t nmemb, int fd) {
  * 
  * @return The number of elements written
 */
-size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd) {
+size_t kfwrite(void *ptr, size_t size, size_t nmemb, int fd) {
     file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
@@ -358,20 +356,17 @@ size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd) {
  *        -EBADF if the file descriptor is invalid
  *        -ENAMETOOLONG if the path is too long
  */
-size_t fgetdents64(int fd, void *ptr, size_t count) {
+size_t kfgetdents64(int fd, void *ptr, size_t count) {
     file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->getdents64 == NULL) {
-                serial_printf("CASE 1: NO GETDENTS64\n");
                 return -ENOTSUP;
             }
-            serial_printf("CASE 2: JUMPING TO GETDENTS64\n");
             return current->device->getdents64(ptr, count, current->data, current->device);
         }
         current = current->next;
     }
-    serial_printf("CASE 3: INVALID FD\n");
     return -EBADF;
 }
 
@@ -382,7 +377,7 @@ size_t fgetdents64(int fd, void *ptr, size_t count) {
  * 
  * @return The new file descriptor
 */
-int dup(int oldfd) {
+int kdup(int oldfd) {
     file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == oldfd) {
@@ -437,7 +432,7 @@ int dup(int oldfd) {
  *        -ENOTSUP if the device doesn't support this operation
  *        -EBADF if the file descriptor is invalid
  */
-off_t flseek(int fd, off_t offset, int whence) {
+off_t kflseek(int fd, off_t offset, int whence) {
     file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
@@ -461,7 +456,7 @@ off_t flseek(int fd, off_t offset, int whence) {
  *        -ENOTSUP if the device doesn't support this operation
  *        -EBADF if the file descriptor is invalid
  */
-int fstat(int fd, struct stat *buf) {
+int kfstat(int fd, struct stat *buf) {
     file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
@@ -485,15 +480,15 @@ int fstat(int fd, struct stat *buf) {
  *       -ENOENT if the file doesn't exist
  *      -ENOTSUP if the device doesn't support this operation
 */
-int stat(char *path, struct stat *buf) {
-    int fd = fopen(path, 0, 0);
+int kstat(char *path, struct stat *buf) {
+    int fd = kfopen(path, 0, 0);
     if (fd < 0) {
         return fd;
     }
 
-    int ret = fstat(fd, buf);
+    int ret = kfstat(fd, buf);
 
-    fclose(fd);
+    kfclose(fd);
 
     return ret;
 }
@@ -565,7 +560,7 @@ size_t file_size_internal(char *path) {
  *       -ENOTSUP if the device doesn't support this operation
  *       -EBADF if the file descriptor is invalid
 */
-int fcntl(int fd, int cmd, long arg) {
+int kfcntl(int fd, int cmd, long arg) {
     file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {
@@ -587,7 +582,7 @@ int fcntl(int fd, int cmd, long arg) {
  * @return 0 if successful
  *       -ENAMETOOLONG if the path is too long
 */
-int fsetpwd(char *new_pwd) {
+int kfsetpwd(char *new_pwd) {
     if (strlen(new_pwd) > PATH_MAX) {
         return -ENAMETOOLONG;
     }
@@ -619,7 +614,7 @@ int fsetpwd(char *new_pwd) {
  * @return 0 if successful
  *       -ENAMETOOLONG if the path is too long
 */
-int fgetpwd(char *buf, size_t size) {
+int kfgetpwd(char *buf, size_t size) {
     if (strlen((const char *)current_process->pwd) > size) {
         return -ENAMETOOLONG;
     }
@@ -641,7 +636,7 @@ int fgetpwd(char *buf, size_t size) {
  *      -EBADF if the file descriptor is invalid
  *      -EINVAL if the request is invalid
  */
-int ioctl(int fd, unsigned long request, void *arg) {
+int kioctl(int fd, unsigned long request, void *arg) {
     file_descriptor_t *current = current_process->file_descriptors;
     while (current != NULL) {
         if (current->descriptor_id == fd) {

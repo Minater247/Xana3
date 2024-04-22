@@ -168,21 +168,21 @@ struct stat
 uint32_t get_path_depth(char *path);
 void get_path_part(char *path, char *part, uint32_t part_num);
 void filesystem_init(device_t *ramdisk_device);
-int fopen(char *path, int flags, mode_t mode);
-size_t fread(void *ptr, size_t size, size_t nmemb, int fd);
+int kfopen(char *path, int flags, mode_t mode);
+size_t kfread(void *ptr, size_t size, size_t nmemb, int fd);
 size_t file_size_internal(char *path);
 char *device_to_path(device_t *device);
-int fcntl(int fd, int cmd, long arg);
-int fclose(int fd);
+int kfcntl(int fd, int cmd, long arg);
+int kfclose(int fd);
 int mount_at(char *path, device_t *device, char *filesystemtype, unsigned long mountflags);
-size_t fwrite(void *ptr, size_t size, size_t nmemb, int fd);
-size_t fgetdents64(int fd, void *ptr, size_t count);
-int fsetpwd(char *new_pwd);
-int fgetpwd(char *buf, size_t size);
-off_t flseek(int fd, off_t offset, int whence);
-int ioctl(int fd, unsigned long request, void *arg);
-int fstat(int fd, struct stat *buf);
-int stat(char *path, struct stat *buf);
+size_t kfwrite(void *ptr, size_t size, size_t nmemb, int fd);
+size_t kfgetdents64(int fd, void *ptr, size_t count);
+int kfsetpwd(char *new_pwd);
+int kfgetpwd(char *buf, size_t size);
+off_t kflseek(int fd, off_t offset, int whence);
+int kioctl(int fd, unsigned long request, void *arg);
+int kfstat(int fd, struct stat *buf);
+int kstat(char *path, struct stat *buf);
 file_descriptor_t *clone_file_descriptors(file_descriptor_t *descriptors);
 
 #endif

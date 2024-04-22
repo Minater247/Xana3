@@ -355,7 +355,7 @@ void schedule()
 
 char temp_stack[SYSCALL_STACK_SIZE];
 
-int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
+int64_t krt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
     UNUSED(oldact);
 
@@ -369,6 +369,8 @@ int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *
     //     *oldact = current_process->signal_handlers[signum];
     // }
 
+    serial_printf("Signal %d for process %d -> 0x%lx\n", signum, current_process->pid, act->signal_handler);
+
     if (act != NULL)
     {
         current_process->signal_handlers[signum] = *act;
@@ -377,7 +379,7 @@ int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *
     return 0;
 }
 
-void rt_sigret() {
+void krt_sigret() {
     // switch to the sigret stack temporarily
     ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
 
@@ -529,7 +531,7 @@ extern uint64_t read_rip();
 
 // 0xffffff8000444012
 
-int64_t fork()
+int64_t kfork()
 {
     uint64_t rsp, rbp;
     ASM_READ_RSP(rsp);
@@ -570,12 +572,12 @@ int64_t fork()
     return new_process->pid;
 }
 
-int64_t execv(regs_t *regs)
+int64_t kexecv(regs_t *regs)
 {
-    int fd = fopen((char *)regs->rdi, 0, 0);
+    int fd = kfopen((char *)regs->rdi, 0, 0);
     if (fd < 0)
     {
-        printf("Failed to open file\n");
+        kprintf("Failed to open file\n");
         return -ENOENT;
     }
 
@@ -583,15 +585,15 @@ int64_t execv(regs_t *regs)
     // if the highest bit is set, it's an error
     if (size & 0x8000000000000000)
     {
-        printf("Failed to get file size\n");
+        kprintf("Failed to get file size\n");
         return -EIO;
     }
 
     char *buf = kmalloc(size);
-    int read = fread(buf, 1, size, fd);
+    int read = kfread(buf, 1, size, fd);
     if (read < 0)
     {
-        printf("Failed to read file\n");
+        kprintf("Failed to read file\n");
         return -EIO;
     }
 
@@ -609,13 +611,13 @@ int64_t execv(regs_t *regs)
 
     elf_info_t info = load_elf64(buf, new_directory);
     
-    fclose(fd);
+    kfclose(fd);
     kfree(buf);
 
     if (info.status != 0)
     {
         free_page_directory(new_directory);
-        printf("Failed to load ELF\n");
+        kprintf("Failed to load ELF\n");
         return -ENOEXEC;
     }
 
@@ -642,7 +644,7 @@ int64_t execv(regs_t *regs)
         ;
 }
 
-uint64_t brk(uint64_t location) {
+uint64_t kbrk(uint64_t location) {
     if (location < current_process->brk_start) {
         return current_process->brk_start;
     }

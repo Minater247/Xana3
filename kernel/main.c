@@ -41,6 +41,10 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     serial_printf("Initializing memory...\n");
     memory_init(info->kheap_end, info->mmap_tag_addr, (uint64_t)info->framebuffer_tag + VIRT_MEM_OFFSET);
 
+    info = (kernel_info_t *)((uint64_t)info + VIRT_MEM_OFFSET);
+
+    kprintf("Info address: 0x%lx\n", (uint64_t)info);
+
     serial_printf("Initializing syscall table...\n");
     syscall_init();
 
@@ -49,7 +53,7 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
 
     serial_printf("Setup complete\n");
 
-    printf("Hello from a 64-bit graphical kernel!!\n");
+    kprintf("Hello from a 64-bit graphical kernel!!\n");
 
     process_init();
 
@@ -62,34 +66,34 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
 
     mouse_init();
 
-    printf("Size of xmm_regs_t: %d\n", sizeof(xmm_regs_t));
+    kprintf("Size of xmm_regs_t: %d\n", sizeof(xmm_regs_t));
 
-    printf("\x1b[38;5;217m");
-    printf("\n\nBefore we jump to the usermode program, roadmap:\n");
-    printf("  - Filesystem (EXT2, ISO9660)\n");
-    printf("  - ACPI AML parsing\n");
-    printf("  - PCI device enumeration\n");
-    printf("  - USB stack\n");
-    printf("Now back to your regularly scheduled program...\n\n");
+    kprintf("\x1b[38;5;217m");
+    kprintf("\n\nBefore we jump to the usermode program, roadmap:\n");
+    kprintf("  - Filesystem (EXT2, ISO9660)\n");
+    kprintf("  - ACPI AML parsing\n");
+    kprintf("  - PCI device enumeration\n");
+    kprintf("  - USB stack\n");
+    kprintf("Now back to your regularly scheduled program...\n\n");
 
-    int fd = fopen("/mnt/ramdisk/bin/init", 0, 0);
+    int fd = kfopen("/mnt/ramdisk/bin/init", 0, 0);
     if (fd < 0) {
         kpanic("Failed to load initialization program!");
     } else {
         size_t size = file_size_internal("/mnt/ramdisk/bin/init");
         char *buf = kmalloc(size);
-        int read = fread(buf, 1, size, fd);
+        int read = kfread(buf, 1, size, fd);
         if (read < 0) {
-            printf("Failed to read file\n");
+            kprintf("Failed to read file\n");
         } else {
             page_directory_t *pml4 = clone_page_directory(current_pml4);
 
-            printf("Read %d bytes\n", read);
+            kprintf("Read %d bytes\n", read);
             elf_info_t info = load_elf64(buf, pml4);
-            fclose(fd);
+            kfclose(fd);
 
             if (info.status != 0) {
-                printf("Failed to load ELF: %d\n", info.status);
+                kprintf("Failed to load ELF: %d\n", info.status);
                 kfree(buf);
                 while (1);
             }

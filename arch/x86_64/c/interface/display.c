@@ -5,7 +5,7 @@
 #include <video.h>
 #include <string.h>
 
-void puts(const char *s)
+void kputs(const char *s)
 {
     for (size_t i = 0; s[i] != '\0'; i++)
     {
@@ -13,7 +13,7 @@ void puts(const char *s)
     }
 }
 
-void printf(const char *format, ...)
+void kprintf(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -27,27 +27,27 @@ void printf(const char *format, ...)
             {
             case 'd':
                 itoa(va_arg(args, int), buffer, 10);
-                puts(buffer);
+                kputs(buffer);
                 break;
             case 's':
-                puts(va_arg(args, char *));
+                kputs(va_arg(args, char *));
                 break;
             case 'c':
                 video_putc(va_arg(args, int));
                 break;
             case 'x':
                 uitoa(va_arg(args, uint32_t), buffer, 16);
-                puts(buffer);
+                kputs(buffer);
                 break;
             case 'l':
                 if (format[i + 1] == 'x')
                 {
                     uitoa64(va_arg(args, uint64_t), buffer, 16);
-                    puts(buffer);
+                    kputs(buffer);
                     i++;
                 } else if (format[i + 1] == 'd') {
                     itoa64(va_arg(args, int64_t), buffer, 10);
-                    puts(buffer);
+                    kputs(buffer);
                     i++;
                 }
                 break;

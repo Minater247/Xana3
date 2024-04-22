@@ -93,8 +93,6 @@ pointer_int_t ramdisk_open(char *path, uint64_t flags, void *device_passed)
 {
     UNUSED(flags);
 
-    serial_printf("Opening file %s\n", path);
-
     // check for write flags (XanDisk does not support writing!)
     if (flags & O_WRONLY || flags & O_RDWR)
     {
@@ -104,7 +102,6 @@ pointer_int_t ramdisk_open(char *path, uint64_t flags, void *device_passed)
 
     if (strncmp(path, "/", 2) == 0 || *path == '\0')
     {
-        serial_printf("Opening root directory\n");
         // root directory
         ramdisk_file_entry_t *entry = (ramdisk_file_entry_t *)kmalloc(sizeof(ramdisk_file_entry_t));
         entry->file = NULL;
@@ -339,12 +336,6 @@ off_t ramdisk_lseek(void *file_entry, off_t offset, int whence, void *device_pas
     UNUSED(device_passed);
     ramdisk_file_entry_t *entry = (ramdisk_file_entry_t *)file_entry;
     ramdisk_file_t *file = entry->file;
-
-    if (file) {
-        serial_printf("Seeking %s to %d\n", file->file_name, offset);
-    } else {
-        serial_printf("Seeking root directory to %d\n", offset);
-    }
 
     switch (whence)
     {

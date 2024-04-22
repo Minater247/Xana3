@@ -121,7 +121,7 @@ typedef struct signal {
     struct signal *next;
 } signal_t;
 
-typedef uint64_t sigset_t;
+typedef unsigned long sigset_t;
 
 struct sigaction {
     void (*signal_handler)(int, signal_t *, void *);
@@ -184,14 +184,14 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
 void schedule();
 void process_init();
 void add_process(process_t *process);
-int64_t fork();
-int64_t execv();
+int64_t kfork();
+int64_t kexecv();
 void process_exit(int status);
 int64_t process_wait(pid_t pid, void *status, int options, void *rstatus);
 void process_exit_abnormal(exit_status_bits_t status);
-uint64_t brk(uint64_t increment);
-int64_t rt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
-void rt_sigret();
+uint64_t kbrk(uint64_t increment);
+int64_t krt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+void krt_sigret();
 void signal_process(pid_t pid, signal_t *signal);
 int process_kill(pid_t pid, int signal);
 void check_signals(bool is_after_syscall);

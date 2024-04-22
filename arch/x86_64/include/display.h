@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 
-void printf(const char *format, ...);
+void kprintf(const char *format, ...);
 void display_init();
 
 #endif

@@ -17,7 +17,7 @@
 syscall_t syscall_table[512];
 
 uint64_t syscall_open(regs_t *regs) {
-    return (uint64_t)fopen((char *)regs->rdi, regs->rsi, regs->rdx);
+    return (uint64_t)kfopen((char *)regs->rdi, regs->rsi, regs->rdx);
 }
 
 uint64_t __attribute__((noreturn)) syscall_exit(regs_t *regs) {
@@ -29,37 +29,37 @@ uint64_t __attribute__((noreturn)) syscall_exit(regs_t *regs) {
 }
 
 uint64_t syscall_write(regs_t *regs) {
-    return (uint64_t)fwrite((void *)regs->rsi, regs->rdx, 1, regs->rdi);
+    return (uint64_t)kfwrite((void *)regs->rsi, regs->rdx, 1, regs->rdi);
 }
 
 uint64_t syscall_close(regs_t *regs) {
-    return (uint64_t)fclose(regs->rdi);
+    return (uint64_t)kfclose(regs->rdi);
 }
 
 uint64_t syscall_read(regs_t *regs) {
-    return (uint64_t)fread((void *)regs->rsi, regs->rdx, 1, regs->rdi);
+    return (uint64_t)kfread((void *)regs->rsi, regs->rdx, 1, regs->rdi);
 }
 
 uint64_t getdents64(regs_t *regs) {
-    return (uint64_t)fgetdents64(regs->rdi, (void *)regs->rsi, regs->rdx);
+    return (uint64_t)kfgetdents64(regs->rdi, (void *)regs->rsi, regs->rdx);
 }
 
 uint64_t syscall_chdir(regs_t *regs) {
-    return (uint64_t)fsetpwd((char *)regs->rdi);
+    return (uint64_t)kfsetpwd((char *)regs->rdi);
 }
 
 uint64_t syscall_getcwd(regs_t *regs) {
-    return (uint64_t)fgetpwd((char *)regs->rdi, regs->rsi);
+    return (uint64_t)kfgetpwd((char *)regs->rdi, regs->rsi);
 }
 
 uint64_t syscall_fork(regs_t *regs) {
     UNUSED(regs);
 
-    return (uint64_t)fork();
+    return (uint64_t)kfork();
 }
 
 uint64_t syscall_execv(regs_t *regs) {
-    return (uint64_t)execv(regs);
+    return (uint64_t)kexecv(regs);
 }
 
 uint64_t syscall_wait4(regs_t *regs) {
@@ -72,28 +72,28 @@ uint64_t syscall_wait4(regs_t *regs) {
 }
 
 uint64_t syscall_lseek(regs_t *regs) {
-    return (uint64_t)flseek(regs->rdi, regs->rsi, regs->rdx);
+    return (uint64_t)kflseek(regs->rdi, regs->rsi, regs->rdx);
 }
 
 uint64_t syscall_ioctl(regs_t *regs) {
-    return (uint64_t)ioctl(regs->rdi, regs->rsi, (void *)regs->rdx);
+    return (uint64_t)kioctl(regs->rdi, regs->rsi, (void *)regs->rdx);
 }
 
 uint64_t syscall_brk(regs_t *regs) {
-    return (uint64_t)brk(regs->rdi);
+    return (uint64_t)kbrk(regs->rdi);
 }
 
 uint64_t syscall_fstat(regs_t *regs) {
-    return (uint64_t)fstat(regs->rdi, (struct stat *)regs->rsi);
+    return (uint64_t)kfstat(regs->rdi, (struct stat *)regs->rsi);
 }
 
 uint64_t syscall_rt_sigaction(regs_t *regs) {
-    return (uint64_t)rt_sigaction(regs->rdi, (const struct sigaction *)regs->rsi, (struct sigaction *)regs->rdx);
+    return (uint64_t)krt_sigaction(regs->rdi, (const struct sigaction *)regs->rsi, (struct sigaction *)regs->rdx);
 }
 
 uint64_t __attribute__((noreturn)) syscall_rt_sigret(regs_t *regs) {
     UNUSED(regs);
-    rt_sigret(regs->rdi); // Custom: rdi contains 0 if this was a regular signal, or 1 if this was an after-syscall signal
+    krt_sigret(regs->rdi); // Custom: rdi contains 0 if this was a regular signal, or 1 if this was an after-syscall signal
     kpanic("rt_sigret() returned");
 }
 
@@ -120,7 +120,7 @@ uint64_t syscall_getpgrp(regs_t *regs) {
 }
 
 uint64_t syscall_stat(regs_t *regs) {
-    return (uint64_t)stat((char *)regs->rdi, (struct stat *)regs->rsi);
+    return (uint64_t)kstat((char *)regs->rdi, (struct stat *)regs->rsi);
 }
 
 void syscall_init() {
