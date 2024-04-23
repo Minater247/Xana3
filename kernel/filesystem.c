@@ -224,7 +224,7 @@ int kfopen(char *path, int flags, mode_t mode) {
     }
 
     if (device->open == NULL) {
-        return -ENOTSUP;
+        return -EOPNOTSUPP;
     }
 
     pointer_int_t returned = device->open((char *)((uint64_t)&resolution_buffer + resolution.value), flags, device);
@@ -311,7 +311,7 @@ size_t kfread(void *ptr, size_t size, size_t nmemb, int fd) {
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->read == NULL) {
-                return -ENOTSUP;
+                return -EOPNOTSUPP;
             }
             return current->device->read(ptr, size, nmemb, current->data, current->device, current->flags);
         }
@@ -335,7 +335,7 @@ size_t kfwrite(void *ptr, size_t size, size_t nmemb, int fd) {
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->write == NULL) {
-                return -ENOTSUP;
+                return -EOPNOTSUPP;
             }
             return current->device->write(ptr, size, nmemb, current->data, current->device, current->flags);
         }
@@ -352,7 +352,7 @@ size_t kfwrite(void *ptr, size_t size, size_t nmemb, int fd) {
  * @param count The number of bytes available in the buffer
  * 
  * @return The number of bytes written
- *        -ENOTSUP if the device doesn't support this operation
+ *        -EOPNOTSUPP if the device doesn't support this operation
  *        -EBADF if the file descriptor is invalid
  *        -ENAMETOOLONG if the path is too long
  */
@@ -361,7 +361,7 @@ size_t kfgetdents64(int fd, void *ptr, size_t count) {
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->getdents64 == NULL) {
-                return -ENOTSUP;
+                return -EOPNOTSUPP;
             }
             return current->device->getdents64(ptr, count, current->data, current->device);
         }
@@ -383,7 +383,7 @@ int kdup(int oldfd) {
         if (current->descriptor_id == oldfd) {
             file_descriptor_t *fd = (file_descriptor_t *)kmalloc(sizeof(file_descriptor_t));
             if (fd->device->dup == NULL) {
-                return -ENOTSUP;
+                return -EOPNOTSUPP;
             }
             fd->flags = current->flags & ~O_CLOEXEC;
             fd->device = current->device;
@@ -429,7 +429,7 @@ int kdup(int oldfd) {
  * @param whence The position to seek from
  * 
  * @return The new position in the file
- *        -ENOTSUP if the device doesn't support this operation
+ *        -EOPNOTSUPP if the device doesn't support this operation
  *        -EBADF if the file descriptor is invalid
  */
 off_t kflseek(int fd, off_t offset, int whence) {
@@ -437,7 +437,7 @@ off_t kflseek(int fd, off_t offset, int whence) {
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->lseek == NULL) {
-                return -ENOTSUP;
+                return -EOPNOTSUPP;
             }
             return current->device->lseek(current->data, offset, whence, current->device);
         }
@@ -453,7 +453,7 @@ off_t kflseek(int fd, off_t offset, int whence) {
  * @param buf The buffer to write the stat to
  * 
  * @return 0 if successful
- *        -ENOTSUP if the device doesn't support this operation
+ *        -EOPNOTSUPP if the device doesn't support this operation
  *        -EBADF if the file descriptor is invalid
  */
 int kfstat(int fd, struct stat *buf) {
@@ -461,7 +461,7 @@ int kfstat(int fd, struct stat *buf) {
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->stat == NULL) {
-                return -ENOTSUP;
+                return -EOPNOTSUPP;
             }
             return current->device->stat(current->data, buf, current->device);
         }
@@ -478,7 +478,7 @@ int kfstat(int fd, struct stat *buf) {
  * 
  * @return 0 if successful
  *       -ENOENT if the file doesn't exist
- *      -ENOTSUP if the device doesn't support this operation
+ *      -EOPNOTSUPP if the device doesn't support this operation
 */
 int kstat(char *path, struct stat *buf) {
     int fd = kfopen(path, 0, 0);
@@ -529,7 +529,7 @@ file_descriptor_t *clone_file_descriptors(file_descriptor_t *descriptors) {
  * 
  * @return The size of the file
  *        -ENOENT if the file doesn't exist
- *        -ENOTSUP if the device doesn't support this operation
+ *        -EOPNOTSUPP if the device doesn't support this operation
  */
 size_t file_size_internal(char *path) {
 
@@ -543,7 +543,7 @@ size_t file_size_internal(char *path) {
     }
 
     if (device->file_size == NULL) {
-        return -ENOTSUP;
+        return -EOPNOTSUPP;
     }
 
     return device->file_size((char *)((uint64_t)&resolution_buffer + resolution.value), device);
@@ -557,7 +557,7 @@ size_t file_size_internal(char *path) {
  * @param arg The argument to the command
  * 
  * @return 0 if successful
- *       -ENOTSUP if the device doesn't support this operation
+ *       -EOPNOTSUPP if the device doesn't support this operation
  *       -EBADF if the file descriptor is invalid
 */
 int kfcntl(int fd, int cmd, long arg) {
@@ -565,7 +565,7 @@ int kfcntl(int fd, int cmd, long arg) {
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->fcntl == NULL) {
-                return -ENOTSUP;
+                return -EOPNOTSUPP;
             }
             return current->device->fcntl(cmd, arg, current->data, current->device);
         }
@@ -632,7 +632,7 @@ int kfgetpwd(char *buf, size_t size) {
  * @param arg The argument to the request
  * 
  * @return 0 if successful
- *      -ENOTSUP if the device doesn't support this operation
+ *      -EOPNOTSUPP if the device doesn't support this operation
  *      -EBADF if the file descriptor is invalid
  *      -EINVAL if the request is invalid
  */
@@ -641,7 +641,7 @@ int kioctl(int fd, unsigned long request, void *arg) {
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->ioctl == NULL) {
-                return -ENOTSUP;
+                return -EOPNOTSUPP;
             }
             return current->device->ioctl(current->data, request, arg, current->device);
         }

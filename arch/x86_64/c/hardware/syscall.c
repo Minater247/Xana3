@@ -123,6 +123,12 @@ uint64_t syscall_stat(regs_t *regs) {
     return (uint64_t)kstat((char *)regs->rdi, (struct stat *)regs->rsi);
 }
 
+uint64_t syscall_timeofday(regs_t *regs) {
+    UNUSED(regs);
+
+    return 1713812590; // Arbitrary time (2024-04-22 12:03:10)
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -147,6 +153,7 @@ void syscall_init() {
     syscall_table[62] = &syscall_kill;
     syscall_table[79] = &syscall_getcwd;
     syscall_table[80] = &syscall_chdir;
+    syscall_table[96] = &syscall_timeofday;
     syscall_table[110] = &syscall_getppid;
     syscall_table[111] = &syscall_getpgrp;
     syscall_table[217] = &getdents64;
@@ -191,6 +198,7 @@ uint64_t syscall_handler(regs_t *regs)
         current_process->in_syscall = false;
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
+        regs_dump(&current_process->syscall_registers);
         process_exit_abnormal((exit_status_bits_t){.exit_status = 0, .stop_signal = SIGSYS, .normal_exit = false, .has_terminated = true});
     }
 

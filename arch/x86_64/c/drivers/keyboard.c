@@ -22,7 +22,7 @@
 #include <keyboard.h>
 #include <serial.h>
 
-uint8_t keypress_buffer_size = 0;
+volatile uint8_t keypress_buffer_size = 0;
 
 bool shift = false;
 bool caps = false;
@@ -188,24 +188,27 @@ void keyboard_addcode(uint8_t scancode) {
 
 char keyboard_popchar()
 {
-    if (keypress_buffer_size > 0)
+    while (keypress_buffer_size == 0)
     {
-        keypress_buffer_size--;
-        char c = keypress_buffer[0];
-        // shift everything down
-        for (int i = 0; i < keypress_buffer_size; i++)
-        {
-            keypress_buffer[i] = keypress_buffer[i + 1];
-        }
-        // free memory if we can
-        if (keypress_buffer_size < allocated_keypress_buffer_size - 256 && allocated_keypress_buffer_size > 256)
-        {
-            allocated_keypress_buffer_size -= 256;
-            keypress_buffer = krealloc(keypress_buffer, allocated_keypress_buffer_size);
-        }
-        return c;
+        // wait for a keypress
+        ASM_ENABLE_INTERRUPTS;
     }
-    return 0;
+    ASM_DISABLE_INTERRUPTS;
+
+    keypress_buffer_size--;
+    char c = keypress_buffer[0];
+    // shift everything down
+    for (int i = 0; i < keypress_buffer_size; i++)
+    {
+        keypress_buffer[i] = keypress_buffer[i + 1];
+    }
+    // free memory if we can
+    if (keypress_buffer_size < allocated_keypress_buffer_size - 256 && allocated_keypress_buffer_size > 256)
+    {
+        allocated_keypress_buffer_size -= 256;
+        keypress_buffer = krealloc(keypress_buffer, allocated_keypress_buffer_size);
+    }
+    return c;
 }
 
 // keyboard (hardware keyboard, uninitialized PS2 at the moment)
@@ -269,13 +272,28 @@ size_t kbd_device_read(void *ptr, size_t nmemb, size_t count, void *unused1, voi
     size_t size = nmemb * count;
 
     uint32_t written = 0;
-    char code;
-    while ((code = keyboard_popchar()) != 0) {
-        *(char *)(ptr + written) = code;
-        written++;
-        if (written >= size) {
-            return written;
+    
+    // todo: works, but bad. need to fix this
+    // that will probably come with the proper tty implementation
+    char code = keyboard_popchar();
+    while (true) {
+        if (code != 0) {
+            if (code == '\b') {
+                if (written > 0) {
+                    written--;
+                    *(char *)(ptr + written) = 0;
+                    kprintf("\b \b");
+                }
+            } else {
+                *(char *)(ptr + written) = code;
+                written++;
+                kprintf("%c", code);
+                if (written >= size || code == '\n') {
+                    return written;
+                }
+            }
         }
+        code = keyboard_popchar();
     }
 
     // may be a better idea to make this blocking? depends. will see what comes of this

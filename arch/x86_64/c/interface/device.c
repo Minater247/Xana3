@@ -224,7 +224,7 @@ off_t device_lseek(device_open_data_t *data, off_t offset, int whence, device_t 
 
     if (data->device->lseek == NULL)
     {
-        return -ENOTSUP;
+        return -EOPNOTSUPP;
     }
     
     return data->device->lseek(data->data, offset, whence, data->device);
@@ -250,7 +250,7 @@ int device_stat(device_open_data_t *data, struct stat *statbuf, device_t *this_d
 
     if (data->device->stat == NULL)
     {
-        return -ENOTSUP;
+        return -EOPNOTSUPP;
     }
 
     return data->device->stat(data->data, statbuf, data->device);

@@ -594,8 +594,46 @@ int64_t kexecv(regs_t *regs)
         return -EIO;
     }
 
-    // For now it should suffice to just set up the page directory and jump to the new process
-    // In the future, we need to read args/env before messing with pages
+    // get the args
+    char **argv = (char **)regs->rsi;
+    char **envp = (char **)regs->rdx;
+
+
+    int argc = 0;
+    int envc = 0;
+    uint64_t argv_string_size = 0;
+    
+    if (argv) {
+        while (argv[argc] != NULL) {
+            argv_string_size += strlen(argv[argc]) + 1;
+            argc++;
+        }
+    }
+
+    if (envp) {
+        while (envp[argc] != NULL) {
+            argv_string_size += strlen(envp[envc]) + 1;
+            envc++;
+        }
+    }
+
+    char *temp_strings = kmalloc(argv_string_size);
+    char *temp_strings_start = temp_strings;
+    // copy all the strings over
+    if (argv) {
+        for (int i = 0; i < argc; i++) {
+            strcpy(temp_strings, argv[i]);
+            temp_strings += strlen(argv[i]) + 1;
+        }
+    }
+    if (envp) {
+        for (int i = 0; i < envc; i++) {
+            strcpy(temp_strings, envp[i]);
+            temp_strings += strlen(envp[i]) + 1;
+        }
+    }
+    temp_strings = temp_strings_start;
+
 
     page_directory_t *new_directory = clone_page_directory(kernel_pml4);
 
@@ -634,8 +672,40 @@ int64_t kexecv(regs_t *regs)
 
     current_pml4 = new_directory;
 
+    // set up the stack
+    uint64_t argv_env_ptr_size = (argc + envc + 2) * sizeof(char *);
+    uint64_t stack_loc = VIRT_MEM_OFFSET - (argv_env_ptr_size + argv_string_size);
+
+    uint64_t string_write_loc = stack_loc + argv_env_ptr_size;
+    uint64_t string_read_loc = (uint64_t)temp_strings;
+    char **argv_env_ptr = (char **)stack_loc;
+
+    // copy the strings
+    if (argv) {
+        for (int i = 0; i < argc; i++) {
+            strcpy((char *)string_write_loc, (char *)string_read_loc);
+            *(argv_env_ptr++) = (char *)string_write_loc;
+            // increment the write location and read location
+            string_write_loc += strlen((char *)string_read_loc) + 1;
+            string_read_loc += strlen((char *)string_read_loc) + 1;
+        }
+    }
+    *(argv_env_ptr++) = 0;
+    if (envp) {
+        for (int i = 0; i < envc; i++) {
+            strcpy((char *)string_write_loc, (char *)string_read_loc);
+            *(argv_env_ptr++) = (char *)string_write_loc;
+            // increment the write location and read location
+            string_write_loc += strlen((char *)string_read_loc) + 1;
+            string_read_loc += strlen((char *)string_read_loc) + 1;
+        }
+    }
+    *(argv_env_ptr++) = 0;
+
+    kfree(temp_strings);
+
     // jump to the new process
-    jump_to_usermode(info.entry, VIRT_MEM_OFFSET, 0, NULL, NULL);
+    jump_to_usermode(info.entry, stack_loc, argc, (char **)(stack_loc), (char **)(stack_loc + (argc + 1) * sizeof(char *)));
 
     while (1)
         ;

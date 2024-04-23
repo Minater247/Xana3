@@ -893,7 +893,7 @@ int fb_ioctl(void *data, unsigned long request, void *arg, void *device_passed)
         return 0;
     }
 
-    return -ENOTSUP;
+    return -EOPNOTSUPP;
 }
 
 int fb_close(void *data, void *device_passed)

@@ -97,7 +97,7 @@ pointer_int_t ramdisk_open(char *path, uint64_t flags, void *device_passed)
     if (flags & O_WRONLY || flags & O_RDWR)
     {
         serial_printf("Write flags not supported\n");
-        return (pointer_int_t){NULL, -ENOTSUP};
+        return (pointer_int_t){NULL, -EOPNOTSUPP};
     }
 
     if (strncmp(path, "/", 2) == 0 || *path == '\0')
@@ -172,7 +172,7 @@ size_t ramdisk_read(void *ptr, size_t size, size_t nmemb, void *file_entry_passe
 
     if (file->magic != FILE_ENTRY)
     {
-        return -ENOTSUP;
+        return -EOPNOTSUPP;
     }
 
     if (file_entry->read_pos >= file->size)
@@ -282,7 +282,7 @@ int ramdisk_fnctl(int cmd, long arg, void *file_entry, void *device)
         return 0;
     }
 
-    return -ENOTSUP;
+    return -EOPNOTSUPP;
 }
 
 int ramdisk_stat(void *file_entry, void *buf, void *device_passed)
