@@ -79,4 +79,6 @@ typedef struct {
 
 #define IRQ0 asm volatile ("int $32")
 
+#define PAGE_ALIGN_UP(x) ((x) & 0xFFF ? ((x) & 0xFFFFFFFFFFFFF000) + 0x1000 : (x))
+
 #endif

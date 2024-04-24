@@ -195,6 +195,7 @@ void krt_sigret();
 void signal_process(pid_t pid, signal_t *signal);
 int process_kill(pid_t pid, int signal);
 void check_signals(bool is_after_syscall);
+int ksigprocmask(int how, const sigset_t *set, sigset_t *oldset);
 
 extern volatile process_t *current_process;
 

@@ -225,6 +225,16 @@ int process_kill(pid_t pid, int signal)
     return 0;
 }
 
+int ksigprocmask(int how, const sigset_t *set, sigset_t *oldset)
+{
+    // dummy implementation, for now. just to get signals working
+    UNUSED(how);
+    UNUSED(set);
+    UNUSED(oldset);
+
+    return 0;
+}
+
 extern uint64_t syscall_old_rsp;
 extern void run_signal(uint64_t rsp, void *handler, int signal, signal_t *signal_info, void *context);
 void check_signals(bool is_after_syscall) {
@@ -640,6 +650,7 @@ int64_t kexecv(regs_t *regs)
     for (uint32_t i = 0; i < PROCESS_INITIAL_STACK; i += 0x1000)
     {
         map_page_kmalloc(VIRT_MEM_OFFSET - (i + 0x1000), first_free_page_addr(), false, true, new_directory);
+        memset((void *)(VIRT_MEM_OFFSET - i), 0, 0x1000);
     }
 
     current_process->stack_low = VIRT_MEM_OFFSET - PROCESS_INITIAL_STACK;
@@ -651,6 +662,7 @@ int64_t kexecv(regs_t *regs)
 
     if (info.status != 0)
     {
+        switch_page_directory(current_pml4);
         free_page_directory(new_directory);
         kprintf("Failed to load ELF\n");
         return -ENOEXEC;
@@ -658,7 +670,7 @@ int64_t kexecv(regs_t *regs)
 
     current_process->pml4 = new_directory;
 
-    current_process->brk_start = info.max_addr;
+    current_process->brk_start = PAGE_ALIGN_UP(info.max_addr);
 
     // clear the signal handlers
     for (int i = 0; i < SIG_MAX; i++)
@@ -716,6 +728,8 @@ uint64_t kbrk(uint64_t location) {
         return current_process->brk_start;
     }
 
+    location = PAGE_ALIGN_UP(location);
+
     uint64_t old_brk = current_process->brk_start;
     current_process->brk_start = location;
 
@@ -752,6 +766,7 @@ uint64_t kbrk(uint64_t location) {
 
     for (uint64_t i = old_brk_page; i <= new_brk_page; i += 0x1000) {
         map_page_kmalloc(i, first_free_page_addr(), false, true, current_process->pml4);
+        memset((void *)i, 0, 0x1000);
     }
 
     serial_printf("Adjusted process brk to 0x%lx\n", location);

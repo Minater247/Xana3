@@ -12,30 +12,37 @@ elf_info_t load_elf64(char *elf_file, page_directory_t *elf_pml4) {
     Elf64_Ehdr *header = (Elf64_Ehdr *)elf_file;
     uint64_t max_addr = 0;
     if (header->e_ident[0] != 0x7F || header->e_ident[1] != 'E' || header->e_ident[2] != 'L' || header->e_ident[3] != 'F') {
+        serial_printf("Invalid ELF magic number!\n");
         return (elf_info_t){0, 0, -1, NULL};
     }
 
     if (header->e_ident[EI_CLASS] != ELFCLASS64) {
+        serial_printf("Invalid ELF class!\n");
         return (elf_info_t){0, 0, -2, NULL};
     }
 
     if (header->e_ident[EI_DATA] != ELFDATA2LSB) {
+        serial_printf("Invalid ELF data encoding!\n");
         return (elf_info_t){0, 0, -3, NULL};
     }
 
     if (header->e_ident[EI_VERSION] != EV_CURRENT) {
+        serial_printf("Invalid ELF version!\n");
         return (elf_info_t){0, 0, -4, NULL};
     }
 
     if (header->e_type != ET_EXEC) {
+        serial_printf("Invalid ELF type!\n");
         return (elf_info_t){0, 0, -5, NULL};
     }
 
     if (header->e_machine != EM_X86_64) {
+        serial_printf("Invalid ELF machine!\n");
         return (elf_info_t){0, 0, -6, NULL};
     }
 
     if (header->e_version != EV_CURRENT) {
+        serial_printf("Invalid ELF version!\n");
         return (elf_info_t){0, 0, -7, NULL};
     }
 

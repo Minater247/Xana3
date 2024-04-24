@@ -129,6 +129,10 @@ uint64_t syscall_timeofday(regs_t *regs) {
     return 1713812590; // Arbitrary time (2024-04-22 12:03:10)
 }
 
+uint64_t syscall_sigprocmask(regs_t *regs) {
+    return (uint64_t)ksigprocmask(regs->rdi, (const sigset_t *)regs->rsi, (sigset_t *)regs->rdx);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -143,6 +147,7 @@ void syscall_init() {
     syscall_table[8] = &syscall_lseek;
     syscall_table[12] = &syscall_brk;
     syscall_table[13] = &syscall_rt_sigaction;
+    syscall_table[14] = &syscall_sigprocmask;
     syscall_table[15] = &syscall_rt_sigret;
     syscall_table[16] = &syscall_ioctl;
     syscall_table[39] = &syscall_getpid;
