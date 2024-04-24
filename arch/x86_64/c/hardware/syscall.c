@@ -203,7 +203,7 @@ uint64_t syscall_handler(regs_t *regs)
         current_process->in_syscall = false;
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
-        regs_dump(&current_process->syscall_registers);
+        regs_dump((regs_t *)&current_process->syscall_registers);
         process_exit_abnormal((exit_status_bits_t){.exit_status = 0, .stop_signal = SIGSYS, .normal_exit = false, .has_terminated = true});
     }
 

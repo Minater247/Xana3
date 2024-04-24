@@ -153,13 +153,34 @@ void* memset(void* ptr, int value, size_t num) {
     return ptr;
 }
 
+// alright, let's make memcpy better
+// we can do this by copying 8 bytes at a time, and copying any head/tail bytes
+// that don't fit into 8 bytes separately
 void* memcpy(void* dest, const void* src, size_t n) {
     char* d = dest;
     const char* s = src;
+    uint64_t *d64 = (uint64_t*)d;
+    const uint64_t *s64 = (const uint64_t*)s;
+
+    // are we aligned to 8 bytes? if not, copy the head bytes
+    if ((uintptr_t)d % 8 != 0) {
+        while (n && (uintptr_t)d % 8 != 0) {
+            *d++ = *s++;
+            n--;
+        }
+    }
+
+    // copy 8 bytes at a time
+    uint64_t n64 = n / 8;
+    while (n64--) {
+        *d64++ = *s64++;
+    }
+    n = n % 8;
+
+    // copy any tail bytes
     while (n--) {
         *d++ = *s++;
     }
-    return dest;
 }
 
 //memmove
