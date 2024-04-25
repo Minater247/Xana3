@@ -42,7 +42,9 @@
 			"process.h": "c",
 			"limits.h": "c",
 			"stdio.h": "c",
-			"types.h": "c"
+			"types.h": "c",
+			"mouse.h": "c",
+			"posixwait.h": "c"
 		}
 	}
 }

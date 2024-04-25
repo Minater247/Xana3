@@ -23,15 +23,6 @@
 #include <mouse.h>
 
 void __attribute__((noreturn)) kmain(kernel_info_t *info) {
-    // increase RSP/RBP by VIRT_MEM_OFFSET
-    uint64_t rsp, rbp;
-    ASM_READ_RSP(rsp);
-    ASM_READ_RBP(rbp);
-    rsp += VIRT_MEM_OFFSET;
-    rbp += VIRT_MEM_OFFSET;
-    ASM_WRITE_RSP(rsp);
-    ASM_WRITE_RBP(rbp);
-
     serial_printf("Initializing video...\n");
     video_init((struct multiboot_tag_framebuffer *)((uint64_t)info->framebuffer_tag + VIRT_MEM_OFFSET));
 
@@ -57,7 +48,7 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
 
     process_init();
 
-    // Adjust ramdisk accordingly
+    // Set up filesystem and devices
     filesystem_init(init_ramdisk_device((uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET));
     init_device_device();
     init_simple_output();
@@ -66,10 +57,11 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
 
     mouse_init();
 
-    kprintf("Size of xmm_regs_t: %d\n", sizeof(xmm_regs_t));
+    kprintf("Size of unsigned long: %d\n", sizeof(unsigned long));
 
     kprintf("\x1b[38;5;217m");
     kprintf("\n\nBefore we jump to the usermode program, roadmap:\n");
+    kprintf("  - Proper TTY support\n");
     kprintf("  - Filesystem (EXT2, ISO9660)\n");
     kprintf("  - ACPI AML parsing\n");
     kprintf("  - PCI device enumeration\n");
@@ -114,13 +106,5 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     ASM_ENABLE_INTERRUPTS;
 
     // Loop indefinitely
-    while (1);
-}
-
-void __attribute__((noreturn)) __init(uint32_t kernel_info) {
-    UNUSED(kernel_info);
-    // We still need a jump up from identity-mapped memory
-    asm volatile("jmp *%0" : : "b"((uint64_t)kmain));
-
     while (1);
 }

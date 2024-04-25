@@ -178,7 +178,7 @@ int mount_at(char *path, device_t *device, char *filesystemtype, unsigned long m
 size_t kfwrite(void *ptr, size_t size, size_t nmemb, int fd);
 size_t kfgetdents64(int fd, void *ptr, size_t count);
 int kfsetpwd(char *new_pwd);
-int kfgetpwd(char *buf, size_t size);
+char *kfgetpwd(char *buf, size_t size);
 off_t kflseek(int fd, off_t offset, int whence);
 int kioctl(int fd, unsigned long request, void *arg);
 int kfstat(int fd, struct stat *buf);

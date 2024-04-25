@@ -153,9 +153,6 @@ void* memset(void* ptr, int value, size_t num) {
     return ptr;
 }
 
-// alright, let's make memcpy better
-// we can do this by copying 8 bytes at a time, and copying any head/tail bytes
-// that don't fit into 8 bytes separately
 void* memcpy(void* dest, const void* src, size_t n) {
     char* d = dest;
     const char* s = src;
@@ -181,6 +178,8 @@ void* memcpy(void* dest, const void* src, size_t n) {
     while (n--) {
         *d++ = *s++;
     }
+
+    return dest;
 }
 
 //memmove

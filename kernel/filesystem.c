@@ -230,6 +230,7 @@ int kfopen(char *path, int flags, mode_t mode) {
     pointer_int_t returned = device->open((char *)((uint64_t)&resolution_buffer + resolution.value), flags, device);
     if (returned.value != 0) {
         serial_printf("Error opening file: %d\n", returned.value);
+        serial_printf("Filename of error: %s\n", (char *)((uint64_t)&resolution_buffer));
         return returned.value;
     }
 
@@ -611,17 +612,16 @@ int kfsetpwd(char *new_pwd) {
  * @param buf The buffer to write the working directory to
  * @param size The size of the buffer
  * 
- * @return 0 if successful
- *       -ENAMETOOLONG if the path is too long
+ * @return The working directory, or NULL if an error occurred
 */
-int kfgetpwd(char *buf, size_t size) {
+char *kfgetpwd(char *buf, size_t size) {
     if (strlen((const char *)current_process->pwd) > size) {
-        return -ENAMETOOLONG;
+        return NULL;
     }
 
     strcpy(buf, (const char *)current_process->pwd);
 
-    return 0;
+    return buf;
 }
 
 /**
