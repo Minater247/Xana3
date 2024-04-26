@@ -245,7 +245,9 @@ void check_signals(bool is_after_syscall) {
                 process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = SIGKILL, .exit_status = 0});
             }
 
-            if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler) {
+            if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler ||
+                !is_mapped_user(current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler, current_process->pml4)) {
+                    
                 // should we ignore this?
                 int signo = current_process->queued_signals->signal_number;
                 if (signo == SIGCHLD || signo == SIGURG || signo == SIGWINCH) {
@@ -500,16 +502,29 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
 {
     UNUSED(options);
     UNUSED(rusage);
-
-    // Locate the process we're waiting on
+    
     process_t *current = process_list;
-    while (current != NULL)
-    {
-        if (current->pid == pid)
+    if (pid == -1) {
+        // TODO: actually wait for any child
+        // for now, just waiting on first child
+        while (current != NULL)
         {
-            break;
+            if (current->ppid == current_process->pid)
+            {
+                break;
+            }
+            current = current->next;
         }
-        current = current->next;
+    } else {
+        // Locate the process we're waiting on
+        while (current != NULL)
+        {
+            if (current->pid == pid)
+            {
+                break;
+            }
+            current = current->next;
+        }
     }
     if (current == NULL)
     {
@@ -612,6 +627,10 @@ int64_t kexecv(regs_t *regs)
     int argc = 0;
     int envc = 0;
     uint64_t argv_string_size = 0;
+
+    serial_printf("Args prep...\n");
+    serial_printf("argv: 0x%lx\n", argv);
+    serial_printf("envp: 0x%lx\n", envp);
     
     if (argv) {
         while (argv[argc] != NULL) {
@@ -621,11 +640,13 @@ int64_t kexecv(regs_t *regs)
     }
 
     if (envp) {
-        while (envp[argc] != NULL) {
+        while (envp[envc] != NULL) {
             argv_string_size += strlen(envp[envc]) + 1;
             envc++;
         }
     }
+
+    serial_printf("Args prepped.\n");
 
     char *temp_strings = kmalloc(argv_string_size);
     char *temp_strings_start = temp_strings;
@@ -643,6 +664,8 @@ int64_t kexecv(regs_t *regs)
         }
     }
     temp_strings = temp_strings_start;
+
+    serial_printf("Copied.\n");
 
 
     page_directory_t *new_directory = clone_page_directory(kernel_pml4);
@@ -667,6 +690,8 @@ int64_t kexecv(regs_t *regs)
         kprintf("Failed to load ELF\n");
         return -ENOEXEC;
     }
+
+    serial_printf("ELF loaded.\n");
 
     current_process->pml4 = new_directory;
 

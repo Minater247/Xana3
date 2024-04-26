@@ -260,7 +260,8 @@ void page_fault_error(regs_t *r, uint64_t faulting_address)
 
     serial_printf("Page fault! (%s%s%s%s%s) at 0x%lx [0x%lx]\n", (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", (uint64_t)faulting_address, r->rip);
 
-    serial_dump_mappings(current_pml4, false);
+    // serial_dump_mappings(current_pml4, false);
+    serial_traceback(10, current_process->interrupt_registers.rbp);
 
     if (current_process == NULL)
     {

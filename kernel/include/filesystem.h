@@ -165,6 +165,26 @@ struct stat
     time_t st_ctime;
 };
 
+#define	FD_SETSIZE	64
+
+typedef	unsigned long	fd_mask;
+#define	NFDBITS	(sizeof (fd_mask) * 8)	/* bits per mask */
+#define	_howmany(x,y)	(((x)+((y)-1))/(y))
+
+/* We use a macro for fd_set so that including Sockets.h afterwards
+   can work.  */
+typedef	struct _types_fd_set {
+	fd_mask	fds_bits[_howmany(FD_SETSIZE, NFDBITS)];
+} fd_set;
+
+struct timeval {
+	time_t		tv_sec;		/* seconds */
+	suseconds_t	tv_usec;	/* and microseconds */
+};
+
+
+
+
 uint32_t get_path_depth(char *path);
 void get_path_part(char *path, char *part, uint32_t part_num);
 void filesystem_init(device_t *ramdisk_device);
@@ -184,5 +204,6 @@ int kioctl(int fd, unsigned long request, void *arg);
 int kfstat(int fd, struct stat *buf);
 int kstat(char *path, struct stat *buf);
 file_descriptor_t *clone_file_descriptors(file_descriptor_t *descriptors);
+int kselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout);
 
 #endif

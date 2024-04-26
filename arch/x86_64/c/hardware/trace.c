@@ -26,7 +26,7 @@ void traceback_init(uint32_t elf_symbols_addr, uint32_t elf_strings_addr, uint32
 // seriously wrong in the backend
 bool traceback_failed = false;
 
-void serial_traceback(size_t depth) {
+void serial_traceback(size_t depth, uint64_t *rbp) {
     if (traceback_failed) {
         serial_printf("Panic in traceback, aborting\n");
         kprintf("(panic in traceback? something went horribly wrong)\n");
@@ -35,8 +35,9 @@ void serial_traceback(size_t depth) {
 
     traceback_failed = true;
 
-    uint64_t *rbp;
-    ASM_READ_RBP(rbp);
+    if (rbp == NULL) {
+        ASM_READ_RBP(rbp);
+    }
     while (rbp != NULL) {
         if (rbp == NULL || rbp < (uint64_t *)VIRT_MEM_OFFSET) {
             break;

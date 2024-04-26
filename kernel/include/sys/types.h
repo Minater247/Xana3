@@ -31,5 +31,7 @@ typedef uint64_t blkcnt_t;
 typedef	uint32_t	socklen_t;
 typedef uint16_t sa_family_t;
 
+typedef long suseconds_t;
+
 
 #endif

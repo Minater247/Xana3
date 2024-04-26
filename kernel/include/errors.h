@@ -18,7 +18,7 @@
     serial_printf("%s:%d: \n", __FILE__, __LINE__); \
     serial_printf(msg, ##__VA_ARGS__); \
     serial_printf(" System halted.\n"); \
-    serial_traceback(10); \
+    serial_traceback(10, NULL); \
     enableBackground(true); \
     kprintf("\033[97;41mKernel panic [PID %d]: ", current_process->pid); \
     kprintf("In function: %s\n", __func__); \

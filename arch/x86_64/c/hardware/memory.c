@@ -784,6 +784,57 @@ uint64_t virt_to_phys(uint64_t virt, page_directory_t *pd)
     return (pt->pt_entry[pt_index] & 0xFFFFFFFFFFFFF000) + (virt & 0xFFF);
 }
 
+bool is_mapped_user(uint64_t virt, page_directory_t *pd)
+{
+    uint64_t pml4_index = (virt >> 39) & 0x1FF;
+    uint64_t pdpt_index = (virt >> 30) & 0x1FF;
+    uint64_t pd_index = (virt >> 21) & 0x1FF;
+    uint64_t pt_index = (virt >> 12) & 0x1FF;
+
+    if (pd->virt[pml4_index] == 0)
+    {
+        return false;
+    }
+
+    page_directory_t *pdpt = (page_directory_t *)(pd->virt[pml4_index]);
+    if (pdpt->virt[pdpt_index] == 0)
+    {
+        return false;
+    }
+
+    page_directory_t *pd_ = (page_directory_t *)(pdpt->virt[pdpt_index]);
+    if (pd_->virt[pd_index] == 0)
+    {
+        return false;
+    }
+
+    page_table_t *pt = (page_table_t *)(pd_->virt[pd_index]);
+    if (pt->pt_entry[pt_index] == 0)
+    {
+        return false;
+    }
+
+    return (pt->pt_entry[pt_index] & (1 << 2)) == 0;
+}
+
+bool is_mapped_user_range(uint64_t start, uint64_t length, page_directory_t *pd)
+{
+    // align down start
+    start = (start & ~0xFFF);
+    // align up length
+    length = (length & 0xFFF) ? (length & ~0xFFF) + 0x1000 : length;
+
+    for (uint64_t i = start; i < start + length; i += 0x1000)
+    {
+        if (!is_mapped_user(i, pd))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void __attribute__((malloc)) *kmalloc_int(uint64_t size, bool align, uint64_t *phys)
 {
     if (kheap == NULL)

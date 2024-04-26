@@ -616,12 +616,63 @@ int kfsetpwd(char *new_pwd) {
 */
 char *kfgetpwd(char *buf, size_t size) {
     if (strlen((const char *)current_process->pwd) > size) {
+        serial_printf("getpwd: path too long\n");
+        return NULL;
+    }
+
+    // ensure buf is non-null
+    if (buf == NULL) {
         return NULL;
     }
 
     strcpy(buf, (const char *)current_process->pwd);
 
+    serial_printf("getpwd: %s\n", buf);
+
     return buf;
+}
+
+/**
+ * Check whether a set of file descriptors is ready for reading, writing, or has an error.
+ * 
+ * @param nfds The number of file descriptors
+ * @param readfds The file descriptors to check for reading
+ * @param writefds The file descriptors to check for writing
+ * @param errorfds The file descriptors to check for errors
+ * @param timeout The timeout for the select
+ * 
+ * @return The number of file descriptors ready
+*/
+int kselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout) {
+    int ready = 0;
+    file_descriptor_t **fds = (file_descriptor_t **)kmalloc(sizeof(file_descriptor_t *) * nfds);
+    for (int i = 0; i < nfds; i++) {
+        fds[i] = NULL;
+        file_descriptor_t *current = current_process->file_descriptors;
+        while (current != NULL) {
+            if (current->descriptor_id == i) {
+                fds[i] = current;
+                break;
+            }
+            current = current->next;
+        }
+
+        if (fds[i] == NULL) {
+            return -EBADF;
+        }
+    }
+
+    // we won't *actually* check for readiness, just return the number of file descriptors
+    // TODO: actually implement this
+    for (int i = 0; i < nfds; i++) {
+        if (fds[i] != NULL) {
+            ready++;
+        }
+    }
+
+    kfree(fds);
+
+    return ready;
 }
 
 /**

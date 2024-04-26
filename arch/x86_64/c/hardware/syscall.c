@@ -133,6 +133,52 @@ uint64_t syscall_sigprocmask(regs_t *regs) {
     return (uint64_t)ksigprocmask(regs->rdi, (const sigset_t *)regs->rsi, (sigset_t *)regs->rdx);
 }
 
+uint64_t syscall_fcntl(regs_t *regs) {
+    return (uint64_t)kfcntl(regs->rdi, regs->rsi, regs->rdx);
+}
+
+uint64_t syscall_getuid(regs_t *regs) {
+    UNUSED(regs);
+
+    return current_process->uid;
+}
+
+uint64_t syscall_getgid(regs_t *regs) {
+    UNUSED(regs);
+
+    return current_process->gid;
+}
+
+uint64_t syscall_geteuid(regs_t *regs) {
+    UNUSED(regs);
+
+    return current_process->euid;
+}
+
+uint64_t syscall_setpgid(regs_t *regs) {
+    current_process->gid = regs->rdi;
+    return 0;
+}
+
+uint64_t syscall_setuid(regs_t *regs) {
+    current_process->uid = regs->rdi;
+    return 0;
+}
+
+uint64_t syscall_syslog(regs_t *regs) {
+    // first arg is type, second is message
+    serial_printf("SYSLOG TYPE %d\n", regs->rdi);
+    // if the message is a pointer, print it
+    if (regs->rsi) {
+        serial_printf("SYSLOG: %s\n", (char *)regs->rsi);
+    }
+    return 0;
+}
+
+uint64_t syscall_select(regs_t *regs) {
+    return (uint64_t)kselect(regs->rdi, (fd_set *)regs->rsi, (fd_set *)regs->rdx, (fd_set *)regs->r10, (struct timeval *)regs->r8);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -150,15 +196,23 @@ void syscall_init() {
     syscall_table[14] = &syscall_sigprocmask;
     syscall_table[15] = &syscall_rt_sigret;
     syscall_table[16] = &syscall_ioctl;
+    syscall_table[23] = &syscall_select;
     syscall_table[39] = &syscall_getpid;
     syscall_table[57] = &syscall_fork;
     syscall_table[59] = &syscall_execv;
     syscall_table[60] = &syscall_exit;
     syscall_table[61] = &syscall_wait4;
     syscall_table[62] = &syscall_kill;
+    syscall_table[72] = &syscall_fcntl;
     syscall_table[79] = &syscall_getcwd;
     syscall_table[80] = &syscall_chdir;
     syscall_table[96] = &syscall_timeofday;
+    syscall_table[102] = &syscall_getuid;
+    syscall_table[103] = &syscall_syslog;
+    syscall_table[104] = &syscall_getgid;
+    syscall_table[105] = &syscall_setuid;
+    syscall_table[107] = &syscall_geteuid;
+    syscall_table[109] = &syscall_setpgid;
     syscall_table[110] = &syscall_getppid;
     syscall_table[111] = &syscall_getpgrp;
     syscall_table[217] = &getdents64;
@@ -194,6 +248,10 @@ uint64_t syscall_handler(regs_t *regs)
     current_process->syscall_xmm_registers = xmm_regs;
     if (regs->rsp < VIRT_MEM_OFFSET) {
         current_process->user_rsp = regs->rsp;
+    }
+
+    if (regs->rax) {
+        serial_printf("P%dS%d\n", current_process->pid, regs->rax);
     }
 
     if (syscall_table[regs->rax] != NULL) {

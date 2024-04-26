@@ -138,9 +138,15 @@ typedef struct memregion {
 } memregion_t;
 
 typedef struct process {
-    pid_t pid;
-    gid_t pgid;
-    pid_t ppid;
+    pid_t pid; // Process ID
+    gid_t gid; // Group ID
+    gid_t pgid; // Parent Group ID
+    pid_t ppid; // Parent Process ID
+    uid_t uid; // User ID
+    uid_t euid; // Effective User ID
+    uid_t fsuid; // Filesystem User ID
+    uid_t egid; // Effective Group ID
+    uid_t fsgid; // Filesystem Group ID
     page_directory_t *pml4;
 
     uint32_t status;
