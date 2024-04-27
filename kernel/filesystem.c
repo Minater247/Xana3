@@ -628,6 +628,7 @@ char *kfgetpwd(char *buf, size_t size) {
     strcpy(buf, (const char *)current_process->pwd);
 
     serial_printf("getpwd: %s\n", buf);
+    serial_printf("Returning 0x%lx\n", (uint64_t)buf);
 
     return buf;
 }

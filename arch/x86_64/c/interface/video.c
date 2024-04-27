@@ -891,6 +891,8 @@ int fb_ioctl(void *data, unsigned long request, void *arg, void *device_passed)
         vinfo->bits_per_pixel = framebuffer_bpp;
         vinfo->grayscale = 0;
         return 0;
+    } else if (request == 0x5401) { // TIOCGETP
+        return -ENOTTY;
     }
 
     return -EOPNOTSUPP;

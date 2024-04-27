@@ -44,7 +44,8 @@
 			"stdio.h": "c",
 			"types.h": "c",
 			"mouse.h": "c",
-			"posixwait.h": "c"
+			"posixwait.h": "c",
+			"device.h": "c"
 		}
 	}
 }

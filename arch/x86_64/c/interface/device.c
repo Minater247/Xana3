@@ -14,6 +14,7 @@ device_t *xandisk_devices = NULL;
 device_t *simpleo_devices = NULL;
 device_t *keyboard_devices = NULL;
 device_t *framebuffer_devices = NULL;
+device_t *tty_devices = NULL;
 
 device_t device_device;
 
@@ -82,6 +83,19 @@ device_t *register_device(device_t *device_to_register)
             insert_device(current_device, device_to_register);
         }
     }
+    else if (device_to_register->type == DEVICE_TYPE_TTY)
+    {
+        device_t *current_device = tty_devices;
+        if (current_device == NULL)
+        {
+            tty_devices = device_to_register;
+            device_to_register->id = 0;
+        }
+        else
+        {
+            insert_device(current_device, device_to_register);
+        }
+    }
 
     return device_to_register;
 }
@@ -94,6 +108,10 @@ typedef struct
 } device_open_data_t;
 
 pointer_int_t device_open_helper(device_t *device_list, char *part, uint32_t first_number, char *path, uint64_t flags) {
+    if (part[first_number] == '\0') {
+        return (pointer_int_t){NULL, -ENODEV};
+    }
+
     dev_t device_number = atoi(&part[first_number]);
     device_t *current_device = device_list;
     if (current_device == NULL) {
@@ -138,12 +156,6 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed)
             first_number++;
         }
 
-        // if we didn't find a number, we can't open the device
-        if (part[first_number] == '\0')
-        {
-            return (pointer_int_t){NULL, -ENODEV};
-        }
-
         // now we can strncmp everything before the number to get the device name!
         // for now, only checking for "xd" (xandisk) and "so" (simple output)
         if (strncmp(part, "xd", 2) == 0)
@@ -161,6 +173,16 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed)
         else if (strncmp(part, "fb", 2) == 0)
         {
             return device_open_helper(framebuffer_devices, part, first_number, path, flags);
+        }
+        else if (strncmp(part, "tty", 3) == 0)
+        {
+            // if it's just "tty", we'll open the first tty device
+            if (part[first_number + 3] == '\0')
+            {
+                char tty_part[6] = "/tty0";
+                return device_open_helper(tty_devices, ((char *)&tty_part) + 1, 3, tty_part, flags);
+            }
+            return device_open_helper(tty_devices, part, first_number, path, flags);
         }
     }
 

@@ -21,6 +21,7 @@
 #include <errors.h>
 #include <unused.h>
 #include <mouse.h>
+#include <tty.h>
 
 void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     serial_printf("Initializing video...\n");
@@ -54,8 +55,8 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     init_simple_output();
     init_fb_device();
     keyboard_install();
-
     mouse_init();
+    tty_init();
 
     kprintf("Size of unsigned long: %d\n", sizeof(unsigned long));
 

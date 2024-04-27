@@ -18,6 +18,7 @@ typedef struct
 #define DEVICE_TYPE_SIMPLOU 0x2
 #define DEVICE_TYPE_KYBOARD 0x3
 #define DEVICE_TYPE_FRMEBUF 0x4
+#define DEVICE_TYPE_TTY 0x5
 
 typedef pointer_int_t (*open_func_t)(const char *path, uint64_t flags, void *device_passed);
 typedef size_t (*read_func_t)(void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags);

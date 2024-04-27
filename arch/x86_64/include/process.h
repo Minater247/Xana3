@@ -35,28 +35,44 @@ Bit 23: Whether the child has stopped via signal
 Bit 24: Whether the child was continued via SIGCONT
 
 */
-typedef struct exit_status_bits {
-    uint8_t exit_status : 8;  // Bits 0-7
-    uint16_t term_signal : 6;  // Bits 8-13
-    uint16_t stop_signal : 6;  // Bits 14-19
-    uint16_t normal_exit : 1;  // Bit 20
-    uint16_t signal_term : 1;  // Bit 21
-    uint16_t core_dump : 1;    // Bit 22
-    uint16_t signal_stop : 1;  // Bit 23
-    uint16_t continued : 1;    // Bit 24
-    uint16_t has_terminated : 1; // Bit 25
-} exit_status_bits_t;
 
-#define WIFEXITED(status) (((exit_status_bits_t)status).normal_exit)
-#define WEXITSTATUS(status) (((exit_status_bits_t)status).exit_status)
-#define WIFSIGNALED(status) (((exit_status_bits_t)status).signal_term)
-#define WTERMSIG(status) (((exit_status_bits_t)status).term_signal)
-#define WCOREDUMP(status) (((exit_status_bits_t)status).core_dump)
-#define WIFSTOPPED(status) (((exit_status_bits_t)status).signal_stop)
-#define WSTOPSIG(status) (((exit_status_bits_t)status).stop_signal)
-#define WIFCONTINUED(status) (((exit_status_bits_t)status).continued)
-// custom bit
-#define WIFTERMINATED(status) (((exit_status_bits_t)status).has_terminated)
+union wait
+  {
+    /* Terminated process status. */
+    struct
+      {
+	unsigned short w_Fill1    : 16;	/* high 16 bits unused */
+	unsigned       w_Retcode  : 8;	/* exit code if w_termsig==0 */
+	unsigned       w_Coredump : 1;	/* core dump indicator */
+	unsigned       w_Termsig  : 7;	/* termination signal */
+      } w_T;
+
+    /* Stopped process status.  Returned
+       only for traced children unless requested
+       with the WUNTRACED option bit. */
+    struct
+      {
+	unsigned short w_Fill2   : 16;	/* high 16 bits unused */
+	unsigned       w_Stopsig : 8;	/* signal that stopped us */
+	unsigned       w_Stopval : 8;	/* == W_STOPPED if stopped */
+      } w_S;
+  };
+
+#define w_termsig  w_T.w_Termsig
+#define w_coredump w_T.w_Coredump
+#define w_retcode  w_T.w_Retcode
+#define w_stopval  w_S.w_Stopval
+#define w_stopsig  w_S.w_Stopsig
+
+#define WSTOPPED       0177
+#define WIFSTOPPED(x)  ((x).w_stopval == WSTOPPED)
+#define WIFEXITED(x)   ((x).w_stopval != WSTOPPED && (x).w_termsig == 0)
+#define WIFSIGNALED(x) ((x).w_stopval != WSTOPPED && (x).w_termsig != 0)
+
+#define WTERMSIG(x)    ((x).w_termsig)
+#define WSTOPSIG(x)    ((x).w_stopsig)
+#define WEXITSTATUS(x) ((x).w_retcode)
+#define WIFCORED(x)    ((x).w_coredump)
 
 #define WAIT_PID 0
 
@@ -155,7 +171,7 @@ typedef struct process {
 
     uint64_t rsp, rbp;
 
-    exit_status_bits_t exit_status;
+    union wait exit_status;
 
     void *tss_stack;
     uint64_t syscall_rsp;
@@ -178,8 +194,6 @@ typedef struct process {
     uint64_t stack_low;
     uint64_t brk_start;
 
-    uint64_t dependents;
-
     memregion_t *memory_regions;
 
     struct process *next;
@@ -194,7 +208,7 @@ int64_t kfork();
 int64_t kexecv();
 void process_exit(int status);
 int64_t process_wait(pid_t pid, void *status, int options, void *rstatus);
-void process_exit_abnormal(exit_status_bits_t status);
+void process_exit_abnormal(union wait status);
 uint64_t kbrk(uint64_t increment);
 int64_t krt_sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
 void krt_sigret();

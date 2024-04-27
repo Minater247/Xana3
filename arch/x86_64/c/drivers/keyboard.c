@@ -21,6 +21,7 @@
 #include <errors.h>
 #include <keyboard.h>
 #include <serial.h>
+#include <tty.h>
 
 volatile uint8_t keypress_buffer_size = 0;
 
@@ -146,6 +147,8 @@ void keyboard_addchar(char c) {
 
     keypress_buffer[keypress_buffer_size] = c;
     keypress_buffer_size++;
+
+    tty_addchar_internal(c);
 }
 
 void keyboard_addstring(char *string) {
@@ -282,8 +285,12 @@ size_t kbd_device_read(void *ptr, size_t nmemb, size_t count, void *unused1, voi
                 if (written > 0) {
                     written--;
                     *(char *)(ptr + written) = 0;
-                    kprintf("\b \b");
+                } else {
+                    // we just output the backspace, assuming that the other side will handle it
+                    *(char *)(ptr + written) = code;
+                    written++;
                 }
+                kprintf("\b \b");
             } else {
                 *(char *)(ptr + written) = code;
                 written++;

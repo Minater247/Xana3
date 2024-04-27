@@ -105,9 +105,6 @@ process_t *create_process(void *entry, uint64_t stack_size, page_directory_t *pm
     new_process->next = NULL;
     new_process->tss_stack = kmalloc(SYSCALL_STACK_SIZE);
     new_process->syscall_stack = kmalloc(SYSCALL_STACK_SIZE);
-    new_process->exit_status.normal_exit = false;
-    new_process->exit_status.exit_status = 0;
-    new_process->exit_status.has_terminated = false;
     new_process->in_signal_handler = false;
     new_process->queued_signals = NULL;
     // clear the signal handlers
@@ -165,9 +162,6 @@ void process_init()
     idle_process.queue_next = NULL;
     idle_process.tss_stack = tss_stack;
     idle_process.syscall_stack = kmalloc(SYSCALL_STACK_SIZE);
-    idle_process.exit_status.normal_exit = false;
-    idle_process.exit_status.exit_status = 0;
-    idle_process.exit_status.has_terminated = false;
     idle_process.queued_signals = NULL;
     idle_process.in_signal_handler = false;
     for (int i = 0; i < SIG_MAX; i++)
@@ -197,8 +191,6 @@ void signal_process(pid_t pid, signal_t *signal)
 
     signal->next = current->queued_signals;
     current->queued_signals = signal;
-
-    serial_printf("Sent signal %d to process %d\n", signal->signal_number, pid);
 
     signal->syscall_stack = NULL;
     signal->handled = false;
@@ -242,7 +234,11 @@ void check_signals(bool is_after_syscall) {
         if (!current_process->queued_signals->handled) {
             // Check for special signals
             if (current_process->queued_signals->signal_number == SIGKILL) {
-                process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = SIGKILL, .exit_status = 0});
+                union wait status;
+                status.w_T.w_Retcode = 0;
+                status.w_T.w_Coredump = false;
+                status.w_T.w_Termsig = SIGKILL;
+                process_exit_abnormal(status);
             }
 
             if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler ||
@@ -258,7 +254,11 @@ void check_signals(bool is_after_syscall) {
                 }
 
                 // no, we shouldn't
-                process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = signo, .exit_status = 0});
+                union wait status;
+                status.w_T.w_Retcode = 0;
+                status.w_T.w_Coredump = false;
+                status.w_T.w_Termsig = signo;
+                process_exit_abnormal(status);
             }
 
             signal_t *signal = current_process->queued_signals;
@@ -279,7 +279,11 @@ void check_signals(bool is_after_syscall) {
             uint64_t rsp = is_after_syscall ? syscall_old_rsp : (current_process->interrupt_registers.rsp >= VIRT_MEM_OFFSET ? current_process->user_rsp : current_process->interrupt_registers.rsp);
 
             if (virt_to_phys(rsp, current_pml4) == (uint64_t)-1) {
-                process_exit_abnormal((exit_status_bits_t){.normal_exit = false, .has_terminated = true, .term_signal = SIGSEGV, .exit_status = 0});
+                union wait status;
+                status.w_T.w_Retcode = 0;
+                status.w_T.w_Coredump = false;
+                status.w_T.w_Termsig = SIGSEGV;
+                process_exit_abnormal(status);
             }
 
             run_signal(rsp, current_process->signal_handlers[signal->signal_number].signal_handler, signal->signal_number, signal, NULL);
@@ -376,12 +380,10 @@ int64_t krt_sigaction(int signum, const struct sigaction *act, struct sigaction 
         return -EINVAL;
     }
 
-    // if (oldact != NULL)
-    // {
-    //     *oldact = current_process->signal_handlers[signum];
-    // }
-
-    serial_printf("Signal %d for process %d -> 0x%lx\n", signum, current_process->pid, act->signal_handler);
+    if (oldact != NULL)
+    {
+        *oldact = current_process->signal_handlers[signum];
+    }
 
     if (act != NULL)
     {
@@ -439,9 +441,9 @@ void process_exit(int status)
     free_page_directory(current_process->pml4);
 
     // Update the exit status and waiters
-    current_process->exit_status.normal_exit = true;
-    current_process->exit_status.exit_status = status;
-    current_process->exit_status.has_terminated = true;
+    current_process->exit_status.w_T.w_Retcode = 0;
+    current_process->exit_status.w_T.w_Coredump = false;
+    current_process->exit_status.w_T.w_Termsig = status;
 
     // free the signals
     signal_t *current_signal = current_process->queued_signals;
@@ -462,22 +464,22 @@ void process_exit(int status)
     IRQ0;
 }
 
-void process_exit_abnormal(exit_status_bits_t status)
+void process_exit_abnormal(union wait status)
 {
     // switch to the temporary stack
     ASM_WRITE_RSP((uint64_t)temp_stack + SYSCALL_STACK_SIZE);
     
     current_process->status = TASK_EXITED;
 
-    serial_printf("Process %d exited abnormally with status %d\n", current_process->pid, status.exit_status);
+    serial_printf("Process %d exited abnormally with status %d\n", current_process->pid, status.w_T.w_Termsig);
 
     // free the process's memory
     switch_page_directory(kernel_pml4);
     free_page_directory(current_process->pml4);
 
     // Update the exit status and waiters
-    status.has_terminated = true; // make sure the process is considered terminated
     current_process->exit_status = status;
+    current_process->status = TASK_EXITED;
 
     // free the signals
     signal_t *current_signal = current_process->queued_signals;
@@ -502,6 +504,13 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
 {
     UNUSED(options);
     UNUSED(rusage);
+
+    // if it wants to wait on itself, return an error
+    if (pid == current_process->pid)
+    {
+        serial_printf("Attempted to wait on self\n");
+        return -ECHILD;
+    }
     
     process_t *current = process_list;
     if (pid == -1) {
@@ -528,28 +537,39 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
     }
     if (current == NULL)
     {
+        serial_printf("Process %d not found\n", pid);
         return -ECHILD;
     }
 
-    current->dependents++;
-
     ASM_ENABLE_INTERRUPTS;
-    while (!WIFTERMINATED(current->exit_status)) {
+    while (!(current->status == TASK_EXITED)) {
         IRQ0;
     }
     ASM_DISABLE_INTERRUPTS;
 
-    exit_status_bits_t *status_bits = (exit_status_bits_t *)status;
+    union wait *status_bits = (union wait *)status;
     *status_bits = current->exit_status;
 
-    current->dependents--;
-
-    if (current->dependents == 0) {
-        // no longer needed
-        kfree(current);
+    // and done! Remove from the process list, and free the memory
+    process_t *prev = process_list;
+    if (prev == current) {
+        process_list = current->next;
+    } else {
+        while (prev->next != current) {
+            prev = prev->next;
+        }
+        prev->next = current->next;
     }
 
-    return pid;
+    kfree(current);
+    
+    if (pid != -1) {
+        serial_printf("Returning process %d\n", pid);
+        return pid;
+    } else {
+        serial_printf("Returning process %d\n", current->pid);
+        return current->pid;
+    }
 }
 
 extern uint64_t read_rip();
@@ -627,10 +647,6 @@ int64_t kexecv(regs_t *regs)
     int argc = 0;
     int envc = 0;
     uint64_t argv_string_size = 0;
-
-    serial_printf("Args prep...\n");
-    serial_printf("argv: 0x%lx\n", argv);
-    serial_printf("envp: 0x%lx\n", envp);
     
     if (argv) {
         while (argv[argc] != NULL) {
@@ -645,8 +661,6 @@ int64_t kexecv(regs_t *regs)
             envc++;
         }
     }
-
-    serial_printf("Args prepped.\n");
 
     char *temp_strings = kmalloc(argv_string_size);
     char *temp_strings_start = temp_strings;
@@ -664,8 +678,6 @@ int64_t kexecv(regs_t *regs)
         }
     }
     temp_strings = temp_strings_start;
-
-    serial_printf("Copied.\n");
 
 
     page_directory_t *new_directory = clone_page_directory(kernel_pml4);
@@ -793,8 +805,6 @@ uint64_t kbrk(uint64_t location) {
         map_page_kmalloc(i, first_free_page_addr(), false, true, current_process->pml4);
         memset((void *)i, 0, 0x1000);
     }
-
-    serial_printf("Adjusted process brk to 0x%lx\n", location);
 
     return 0;
 }

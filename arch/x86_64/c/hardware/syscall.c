@@ -76,6 +76,7 @@ uint64_t syscall_lseek(regs_t *regs) {
 }
 
 uint64_t syscall_ioctl(regs_t *regs) {
+    serial_printf("IOCTL called from 0x%lx: ioctl(%d, 0x%lx, 0x%lx)\n", regs->rcx, regs->rdi, regs->rsi, regs->rdx);
     return (uint64_t)kioctl(regs->rdi, regs->rsi, (void *)regs->rdx);
 }
 
@@ -250,10 +251,6 @@ uint64_t syscall_handler(regs_t *regs)
         current_process->user_rsp = regs->rsp;
     }
 
-    if (regs->rax) {
-        serial_printf("P%dS%d\n", current_process->pid, regs->rax);
-    }
-
     if (syscall_table[regs->rax] != NULL) {
         current_process->in_syscall = true;
         uint64_t raxval = syscall_table[regs->rax]((regs_t *)&(current_process->syscall_registers));
@@ -262,7 +259,11 @@ uint64_t syscall_handler(regs_t *regs)
     } else {
         serial_printf("Unknown syscall: %d\n", regs->rax);
         regs_dump((regs_t *)&current_process->syscall_registers);
-        process_exit_abnormal((exit_status_bits_t){.exit_status = 0, .stop_signal = SIGSYS, .normal_exit = false, .has_terminated = true});
+        union wait status;
+        status.w_T.w_Retcode = 0; // Terminated
+        status.w_T.w_Coredump = false;
+        status.w_T.w_Termsig = SIGSYS;
+        process_exit_abnormal(status);
     }
 
     syscall_old_rsp = current_process->syscall_rsp;
