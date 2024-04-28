@@ -166,12 +166,18 @@ uint64_t syscall_setuid(regs_t *regs) {
     return 0;
 }
 
+uint64_t syscall_setgid(regs_t *regs) {
+    current_process->gid = regs->rdi;
+    return 0;
+}
+
 uint64_t syscall_syslog(regs_t *regs) {
     // first arg is type, second is message
-    serial_printf("SYSLOG TYPE %d\n", regs->rdi);
     // if the message is a pointer, print it
-    if (regs->rsi) {
-        serial_printf("SYSLOG: %s\n", (char *)regs->rsi);
+    if (regs->rdi == 0) {
+        // NOP
+    } else {
+        kpanic("Unknown syslog type %d", regs->rdi);
     }
     return 0;
 }
@@ -212,6 +218,7 @@ void syscall_init() {
     syscall_table[103] = &syscall_syslog;
     syscall_table[104] = &syscall_getgid;
     syscall_table[105] = &syscall_setuid;
+    syscall_table[106] = &syscall_setgid;
     syscall_table[107] = &syscall_geteuid;
     syscall_table[109] = &syscall_setpgid;
     syscall_table[110] = &syscall_getppid;
