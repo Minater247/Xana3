@@ -368,6 +368,7 @@ void keyboard_install()
     kbd_device.lseek = NULL;
     kbd_device.clone = (clone_func_t)kbd_device_clone;
     kbd_device.stat = (stat_func_t)kbd_stat;
+    kbd_device.dup = NULL;
 
     register_device(&kbd_device);
 

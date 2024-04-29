@@ -186,6 +186,10 @@ uint64_t syscall_select(regs_t *regs) {
     return (uint64_t)kselect(regs->rdi, (fd_set *)regs->rsi, (fd_set *)regs->rdx, (fd_set *)regs->r10, (struct timeval *)regs->r8);
 }
 
+uint64_t syscall_dup2(regs_t *regs) {
+    return (uint64_t)kdup2(regs->rdi, regs->rsi);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -204,6 +208,7 @@ void syscall_init() {
     syscall_table[15] = &syscall_rt_sigret;
     syscall_table[16] = &syscall_ioctl;
     syscall_table[23] = &syscall_select;
+    syscall_table[33] = &syscall_dup2;
     syscall_table[39] = &syscall_getpid;
     syscall_table[57] = &syscall_fork;
     syscall_table[59] = &syscall_execv;

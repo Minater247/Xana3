@@ -246,7 +246,21 @@ void * tty_clone(void *filedes_data, void *device_passed) {
     new_data->dependents++;
 
     return new_data;
+}
 
+void *tty_dup(void *filedes_data, void *device_passed) {
+    tty_open_data_t *data = (tty_open_data_t *)filedes_data;
+    data->dependents++;
+    return data;
+}
+
+int tty_close(void *filedes_data, void *device_passed) {
+    tty_open_data_t *data = (tty_open_data_t *)filedes_data;
+    data->dependents--;
+    if (data->dependents == 0) {
+        kfree(data);
+    }
+    return 0;
 }
 
 
@@ -261,7 +275,7 @@ device_t *create_tty() {
     tty_device->data = (void *)kmalloc(sizeof(tty_t));
 
     tty_device->open = (open_func_t)tty_open;
-    tty_device->close = NULL;
+    tty_device->close = (close_func_t)tty_close;
     tty_device->read = (read_func_t)tty_read;
     tty_device->write = (write_func_t)tty_write;
     tty_device->ioctl = (ioctl_func_t)tty_ioctl;
@@ -269,7 +283,7 @@ device_t *create_tty() {
     tty_device->fcntl = NULL;
     tty_device->getdents64 = NULL;
     tty_device->stat = NULL;
-    tty_device->dup = NULL;
+    tty_device->dup = (dup_func_t)tty_dup;
     tty_device->clone = (clone_func_t)tty_clone;
     tty_device->file_size = NULL;
 

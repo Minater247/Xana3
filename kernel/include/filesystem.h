@@ -205,5 +205,6 @@ int kfstat(int fd, struct stat *buf);
 int kstat(char *path, struct stat *buf);
 file_descriptor_t *clone_file_descriptors(file_descriptor_t *descriptors);
 int kselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout);
+int kdup2(int oldfd, int newfd);
 
 #endif

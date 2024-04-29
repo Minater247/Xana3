@@ -9,6 +9,7 @@
 #include <serial.h>
 #include <unused.h>
 #include <display.h>
+#include <errors.h>
 
 device_t *xandisk_devices = NULL;
 device_t *simpleo_devices = NULL;
@@ -193,6 +194,16 @@ size_t device_write(void *data, size_t size, size_t count, device_open_data_t *d
 {
     UNUSED(this_device);
 
+    if (!device_to_write) {
+        kwarn("Attempted to run device write on bad fd\n");
+        return -EINVAL;
+    }
+
+    if (!device_to_write->device->write) {
+        kwarn("Attempted to run device write on device that doesn't support write! Device name: %s\n", device_to_write->device->name);
+        return -EOPNOTSUPP;
+    }
+
     return device_to_write->device->write(data, size, count, device_to_write->data, device_to_write->device, flags);
 }
 
@@ -200,12 +211,22 @@ size_t device_read(void *data, size_t size, size_t count, device_open_data_t *de
 {
     UNUSED(this_device);
 
+    if (!device_to_read) {
+        kwarn("Attempted to run device read on bad device\n");
+        return -EINVAL;
+    }
+
     return device_to_read->device->read(data, size, count, device_to_read->data, device_to_read->device, flags);
 }
 
 int device_close(device_open_data_t *data, device_t *this_device)
 {
     UNUSED(this_device);
+
+    if (!data) {
+        kwarn("Attempted to run device close on bad device\n");
+        return -EINVAL;
+    }
 
     if (data->device->close == NULL)
     {
@@ -263,7 +284,12 @@ void *device_dup(device_open_data_t *data, device_t *this_device)
         return NULL;
     }
 
-    return data->device->dup(data->data, data->device);
+    device_open_data_t *new_data = (device_open_data_t *)kmalloc(sizeof(device_open_data_t));
+    new_data->data = data->device->dup(data->data, data->device);
+    new_data->device = data->device;
+    new_data->dependents = 1;
+
+    return new_data;
 }
 
 int device_stat(device_open_data_t *data, struct stat *statbuf, device_t *this_device)

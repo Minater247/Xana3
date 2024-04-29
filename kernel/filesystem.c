@@ -202,6 +202,17 @@ char *resolve_path(char *path) {
     return resolution_buffer;
 }
 
+void serial_dump_descriptors(file_descriptor_t *currfd) {
+    while (currfd) {
+        serial_printf("---------------");
+        serial_printf("Id: %d\n", currfd->descriptor_id);
+        serial_printf("Dv: 0x%lx\n", currfd->device);
+        serial_printf("Nx: 0x%lx\n", currfd->next);
+        currfd = currfd->next;
+    }
+    serial_printf("---------------");
+}
+
 /**
  * Open a file.
  * 
@@ -389,6 +400,10 @@ int kdup(int oldfd) {
             fd->flags = current->flags & ~O_CLOEXEC;
             fd->device = current->device;
             fd->data = current->device->dup(current->data, current->device);
+            if (fd->data == NULL) {
+                kfree(fd);
+                return -EOPNOTSUPP;
+            }
             fd->next = current_process->file_descriptors;
             current_process->file_descriptors = fd;
 
@@ -419,7 +434,67 @@ int kdup(int oldfd) {
         current = current->next;
     }
     return -EBADF;
+}
 
+/**
+ * Duplicate a file descriptor with a new file descriptor number.
+ * Silently (and without reporting any error) closes newfd if it was already open.
+ * 
+ * @param oldfd The file descriptor to duplicate
+ * @param newfd The new file descriptor number
+ * 
+ * @return The new file descriptor
+*/
+int kdup2(int oldfd, int newfd) {
+    file_descriptor_t *current = current_process->file_descriptors;
+    while (current != NULL) {
+        if (current->descriptor_id == oldfd) {
+            file_descriptor_t *fd = (file_descriptor_t *)kmalloc(sizeof(file_descriptor_t));
+
+            if (current->device->dup == NULL) {
+                kprintf("No dup!\n");
+                return -EOPNOTSUPP;
+            }
+            fd->flags = current->flags & ~O_CLOEXEC;
+            fd->device = current->device;
+            fd->data = current->device->dup(current->data, current->device);
+            fd->next = current_process->file_descriptors;
+            fd->descriptor_id = newfd;
+
+            // Check if newfd is already open
+            file_descriptor_t *newfd_current = current_process->file_descriptors;
+            file_descriptor_t *newfd_prev = NULL;
+            while (newfd_current != NULL) {
+                if (newfd_current->descriptor_id == newfd) {
+                    fd->next = newfd_current->next;
+                    kfclose(newfd);
+                    if (newfd_prev == NULL) {
+                        current_process->file_descriptors = fd;
+                    } else {
+                        newfd_prev->next = fd;
+                    }
+                    break;
+                } else if (newfd_current->descriptor_id < newfd) { // we grow leftwards
+                    fd->next = newfd_current;
+                    if (newfd_prev) {
+                        newfd_prev->next = fd;
+                    } else {
+                        current_process->file_descriptors = fd;
+                    }
+                    break;
+                } else if (newfd_current->next == NULL) {
+                    newfd_current->next = fd;
+                    break;
+                }
+                newfd_prev = newfd_current;
+                newfd_current = newfd_current->next;
+            }
+            
+            return fd->descriptor_id;
+        }
+        current = current->next;
+    }
+    return -EBADF;
 }
 
 /**
