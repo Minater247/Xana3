@@ -441,9 +441,9 @@ void process_exit(int status)
     free_page_directory(current_process->pml4);
 
     // Update the exit status and waiters
-    current_process->exit_status.w_T.w_Retcode = 0;
-    current_process->exit_status.w_T.w_Coredump = false;
-    current_process->exit_status.w_T.w_Termsig = status;
+    current_process->exit_status.w_T.w_Retcode = status;
+    current_process->exit_status.w_T.w_Coredump = 0;
+    current_process->exit_status.w_T.w_Termsig = 0;
 
     // free the signals
     signal_t *current_signal = current_process->queued_signals;
@@ -505,10 +505,13 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
     UNUSED(options);
     UNUSED(rusage);
 
+    int *status_int = (int *)status;
+
     // if it wants to wait on itself, return an error
     if (pid == current_process->pid)
     {
         serial_printf("Attempted to wait on self\n");
+        *status_int = 0;
         return -ECHILD;
     }
     
@@ -538,6 +541,7 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
     if (current == NULL)
     {
         serial_printf("Process %d not found\n", pid);
+        *status_int = 0;
         return -ECHILD;
     }
 

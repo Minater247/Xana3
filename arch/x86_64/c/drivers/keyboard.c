@@ -189,14 +189,16 @@ void keyboard_addcode(uint8_t scancode) {
     }
 }
 
-char keyboard_popchar()
+char keyboard_popchar(bool blocking)
 {
-    while (keypress_buffer_size == 0)
-    {
-        // wait for a keypress
-        ASM_ENABLE_INTERRUPTS;
+    if (blocking) {
+        while (keypress_buffer_size == 0)
+        {
+            // wait for a keypress
+            ASM_ENABLE_INTERRUPTS;
+        }
+        ASM_DISABLE_INTERRUPTS;
     }
-    ASM_DISABLE_INTERRUPTS;
 
     keypress_buffer_size--;
     char c = keypress_buffer[0];
@@ -278,7 +280,7 @@ size_t kbd_device_read(void *ptr, size_t nmemb, size_t count, void *unused1, voi
     
     // todo: works, but bad. need to fix this
     // that will probably come with the proper tty implementation
-    char code = keyboard_popchar();
+    char code = keyboard_popchar(false);
     while (true) {
         if (code != 0) {
             if (code == '\b') {
@@ -300,7 +302,7 @@ size_t kbd_device_read(void *ptr, size_t nmemb, size_t count, void *unused1, voi
                 }
             }
         }
-        code = keyboard_popchar();
+        code = keyboard_popchar(false);
     }
 
     // may be a better idea to make this blocking? depends. will see what comes of this

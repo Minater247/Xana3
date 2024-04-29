@@ -68,8 +68,6 @@ void mouse_handler(regs_t *r) {
 }
 
 void mouse_init() {
-    ASM_DISABLE_INTERRUPTS;
-
     uint8_t status_byte;
 
     // Enable the mouse
@@ -93,8 +91,6 @@ void mouse_init() {
     mouse_receive();
     mouse_send(MOUSE_ENABLE_PACKETS);
     mouse_receive();
-
-    ASM_ENABLE_INTERRUPTS;
 
     register_interrupt_handler(12, mouse_handler);
 }

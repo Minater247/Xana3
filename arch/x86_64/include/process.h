@@ -37,26 +37,26 @@ Bit 24: Whether the child was continued via SIGCONT
 */
 
 union wait
+{
+  /* Terminated process status. */
+  struct
   {
-    /* Terminated process status. */
-    struct
-      {
-	unsigned short w_Fill1    : 16;	/* high 16 bits unused */
-	unsigned       w_Retcode  : 8;	/* exit code if w_termsig==0 */
-	unsigned       w_Coredump : 1;	/* core dump indicator */
-	unsigned       w_Termsig  : 7;	/* termination signal */
-      } w_T;
+    unsigned       w_Termsig  : 7;	/* termination signal */
+    unsigned       w_Coredump : 1;	/* core dump indicator */
+    unsigned       w_Retcode  : 8;	/* exit code if w_termsig==0 */
+    unsigned short w_Fill1    : 16;	/* high 16 bits unused */
+  } w_T;
 
-    /* Stopped process status.  Returned
-       only for traced children unless requested
-       with the WUNTRACED option bit. */
-    struct
-      {
-	unsigned short w_Fill2   : 16;	/* high 16 bits unused */
-	unsigned       w_Stopsig : 8;	/* signal that stopped us */
-	unsigned       w_Stopval : 8;	/* == W_STOPPED if stopped */
-      } w_S;
-  };
+  /* Stopped process status.  Returned
+     only for traced children unless requested
+     with the WUNTRACED option bit. */
+  struct
+  {
+    unsigned       w_Stopval : 8;	/* == W_STOPPED if stopped */
+    unsigned       w_Stopsig : 8;	/* signal that stopped us */
+    unsigned short w_Fill2   : 16;	/* high 16 bits unused */
+  } w_S;
+};
 
 #define w_termsig  w_T.w_Termsig
 #define w_coredump w_T.w_Coredump
