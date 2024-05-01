@@ -13,6 +13,7 @@
 #include <process.h>
 #include <string.h>
 #include <tables.h>
+#include <pipe.h>
 
 syscall_t syscall_table[512];
 
@@ -190,6 +191,11 @@ uint64_t syscall_dup2(regs_t *regs) {
     return (uint64_t)kdup2(regs->rdi, regs->rsi);
 }
 
+uint64_t syscall_pipe(regs_t *regs) {
+    int *pipefd = (int *)regs->rdi;
+    return (uint64_t)kpipe(pipefd);
+}
+
 void syscall_init() {
     for (int i = 0; i < 512; i++) {
         syscall_table[i] = NULL;
@@ -207,6 +213,7 @@ void syscall_init() {
     syscall_table[14] = &syscall_sigprocmask;
     syscall_table[15] = &syscall_rt_sigret;
     syscall_table[16] = &syscall_ioctl;
+    syscall_table[22] = &syscall_pipe;
     syscall_table[23] = &syscall_select;
     syscall_table[33] = &syscall_dup2;
     syscall_table[39] = &syscall_getpid;

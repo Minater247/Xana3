@@ -13,7 +13,7 @@
 #include <device.h>
 
 ramdisk_t boot_ramdisk;
-device_t ramdisk_device;
+device_t ramdisk_device = {0};
 
 ramdisk_file_t *ramdisk_get_path_header(char *path, ramdisk_t *ramdisk)
 {

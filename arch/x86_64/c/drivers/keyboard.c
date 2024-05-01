@@ -31,7 +31,7 @@ bool caps = false;
 char *keypress_buffer;
 uint64_t allocated_keypress_buffer_size = 0;
 
-device_t kbd_device;
+device_t kbd_device = {0};
 
 const char kbdcodes[128] =
     {

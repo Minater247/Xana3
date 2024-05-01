@@ -242,7 +242,7 @@ void check_signals(bool is_after_syscall) {
             }
 
             if (!current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler ||
-                !is_mapped_user(current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler, current_process->pml4)) {
+                !is_mapped_user((uint64_t)current_process->signal_handlers[current_process->queued_signals->signal_number].signal_handler, current_process->pml4)) {
                     
                 // should we ignore this?
                 int signo = current_process->queued_signals->signal_number;
@@ -550,9 +550,12 @@ int64_t process_wait(pid_t pid, void *status, int options, void *rusage)
         IRQ0;
     }
     ASM_DISABLE_INTERRUPTS;
-
+    
     union wait *status_bits = (union wait *)status;
-    *status_bits = current->exit_status;
+    if (status_bits != NULL)
+    {
+        *status_bits = current->exit_status;
+    }
 
     // and done! Remove from the process list, and free the memory
     process_t *prev = process_list;
@@ -593,7 +596,32 @@ int64_t kfork()
 
     page_directory_t *new_pml4 = clone_page_directory(current_pml4);
 
-    process_t *new_process = create_process(0, 0, new_pml4, true, current_process->memory_regions);
+    // Copy the memregions
+    memregion_t *current_old = current_process->memory_regions;
+    memregion_t *new_regions = NULL;
+    memregion_t *new_current = NULL;
+    while (current_old != NULL)
+    {
+        memregion_t *new_region = kmalloc(sizeof(memregion_t));
+        new_region->start = current_old->start;
+        new_region->end = current_old->end;
+        new_region->flags = current_old->flags;
+        new_region->next = NULL;
+
+        if (new_regions == NULL)
+        {
+            new_regions = new_region;
+        }
+        else
+        {
+            new_current->next = new_region;
+        }
+        new_current = new_region;
+
+        current_old = current_old->next;
+    }
+
+    process_t *new_process = create_process(0, 0, new_pml4, true, new_regions);
     new_process->status = TASK_FORKED;
     new_process->queue_next = NULL;
     
@@ -768,6 +796,8 @@ uint64_t kbrk(uint64_t location) {
     if (location < current_process->brk_start) {
         return current_process->brk_start;
     }
+
+    serial_printf("Adjusting process brk to 0x%lx\n", location);
 
     location = PAGE_ALIGN_UP(location);
 

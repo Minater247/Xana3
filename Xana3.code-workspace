@@ -45,7 +45,8 @@
 			"types.h": "c",
 			"mouse.h": "c",
 			"posixwait.h": "c",
-			"device.h": "c"
+			"device.h": "c",
+			"pipe.h": "c"
 		}
 	}
 }

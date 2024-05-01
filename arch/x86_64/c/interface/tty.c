@@ -17,7 +17,6 @@ typedef struct tty {
     uint16_t buffer_size;
     uint16_t buffer_pos;
     char *buffer;
-    uint8_t mode;
     int id;
     struct tty *next;
 } tty_t;
@@ -34,6 +33,8 @@ typedef struct {
 } tty_open_data_t;
 
 pointer_int_t tty_open(const char *path, uint64_t flags, void *device_passed) {
+    UNUSED(flags);
+    UNUSED(device_passed);
 
     // may or may not be leading slash
     char *part = (char *)path;
@@ -65,10 +66,10 @@ pointer_int_t tty_open(const char *path, uint64_t flags, void *device_passed) {
 
 //ioctl
 int tty_ioctl(void *filedes_data, unsigned long request, void *arg, void *device_passed) {
+    UNUSED(device_passed);
+
     tty_open_data_t *data = (tty_open_data_t *)filedes_data;
     tty_t *tty = data->tty;
-
-    struct termios *termios_p = (struct termios *)arg; // if arg is a pointer to a termios struct
 
     serial_printf("IOCTL on TTY: %x\n", request);
 
@@ -106,8 +107,7 @@ int tty_ioctl(void *filedes_data, unsigned long request, void *arg, void *device
 
 size_t tty_write(void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags) {
     UNUSED(device_passed);
-    tty_open_data_t *data = (tty_open_data_t *)filedes_data;
-    tty_t *tty = data->tty;
+    UNUSED(flags);
 
     // we can just write to the screen with video_putc
     for (size_t i = 0; i < size * nmemb; i++) {
@@ -119,6 +119,9 @@ size_t tty_write(void *ptr, size_t size, size_t nmemb, void *filedes_data, void 
 }
 
 size_t tty_read(void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags) {
+    UNUSED(device_passed);
+    UNUSED(flags);
+
     tty_t *tty = ((tty_open_data_t *)filedes_data)->tty;
 
     // read from the tty buffer
@@ -237,6 +240,8 @@ void tty_addchar_internal(char c) {
 }
 
 void * tty_clone(void *filedes_data, void *device_passed) {
+    UNUSED(device_passed);
+
     tty_open_data_t *data = (tty_open_data_t *)filedes_data;
     tty_t *tty = data->tty;
 
@@ -249,18 +254,49 @@ void * tty_clone(void *filedes_data, void *device_passed) {
 }
 
 void *tty_dup(void *filedes_data, void *device_passed) {
+    UNUSED(device_passed);
+
     tty_open_data_t *data = (tty_open_data_t *)filedes_data;
     data->dependents++;
     return data;
 }
 
 int tty_close(void *filedes_data, void *device_passed) {
+    UNUSED(device_passed);
+
     tty_open_data_t *data = (tty_open_data_t *)filedes_data;
     data->dependents--;
     if (data->dependents == 0) {
         kfree(data);
     }
     return 0;
+}
+
+int tty_select(void *filedes_data, void *device_passed, int type) {
+    UNUSED(device_passed);
+
+    tty_open_data_t *data = (tty_open_data_t *)filedes_data;
+    tty_t *tty = data->tty;
+
+    if (type == SELECT_READ) {
+        // If ICANO is set, we can read if there's a newline
+        // Otherwise, we can read if there's anything
+        if (tty->termios.c_lflag & ICANON) {
+            for (uint16_t i = 0; i < tty->buffer_pos; i++) {
+                if (tty->buffer[i] == '\n') {
+                    return 1;
+                }
+            }
+            return 0;
+        } else {
+            return tty->buffer_pos > 0;
+        }
+    } else if (type == SELECT_WRITE) {
+        return 1;
+    } else {
+        return 0;
+    }
+
 }
 
 
@@ -286,6 +322,7 @@ device_t *create_tty() {
     tty_device->dup = (dup_func_t)tty_dup;
     tty_device->clone = (clone_func_t)tty_clone;
     tty_device->file_size = NULL;
+    tty_device->select = (select_func_t)tty_select;
 
 
 
@@ -295,7 +332,6 @@ device_t *create_tty() {
     tty->buffer_pos = 0;
     memset(tty->buffer, 0, BASE_TTY_LENGTH);
     tty->buffer_size = BASE_TTY_LENGTH;
-    tty->mode = TTY_MODE_COOKED;
     tty->id = 0;
 
     tty->termios.c_iflag = (BRKINT | ICRNL | INPCK | ISTRIP | IXON);

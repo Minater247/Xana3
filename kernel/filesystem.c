@@ -9,6 +9,7 @@
 #include <errors.h>
 #include <unused.h>
 #include <string.h>
+#include <system.h>
 
 dev_t next_device_id = 0;
 mount_t *mounts = NULL;
@@ -213,6 +214,33 @@ void serial_dump_descriptors(file_descriptor_t *currfd) {
     serial_printf("---------------");
 }
 
+int add_descriptor(file_descriptor_t *fd) {
+    file_descriptor_t *current = current_process->file_descriptors;
+    if (current == NULL) {
+        fd->descriptor_id = 0;
+        fd->next = NULL;
+        current_process->file_descriptors = fd;
+    } else {
+        file_descriptor_t *prev = NULL;
+        while (current != NULL) {
+            if (prev != NULL && current->descriptor_id > prev->descriptor_id + 1) {
+                fd->descriptor_id = prev->descriptor_id + 1;
+                fd->next = current;
+                prev->next = fd;
+                break;
+            }
+            prev = current;
+            current = current->next;
+        }
+        if (current == NULL) {
+            fd->descriptor_id = prev->descriptor_id + 1;
+            fd->next = NULL;
+            prev->next = fd;
+        }
+    }
+    return fd->descriptor_id;
+}
+
 /**
  * Open a file.
  * 
@@ -246,36 +274,11 @@ int kfopen(char *path, int flags, mode_t mode) {
     }
 
     file_descriptor_t *fd = (file_descriptor_t *)kmalloc(sizeof(file_descriptor_t));
-
-    file_descriptor_t *current = current_process->file_descriptors;
-    if (current == NULL) {
-        fd->descriptor_id = 0;
-        fd->next = NULL;
-    } else {
-        while (current != NULL) {
-            if (current->next != NULL) {
-                if (current->next->descriptor_id + 1 < current->descriptor_id) {
-                    fd->descriptor_id = current->descriptor_id - 1;
-                    fd->next = current->next;
-                    break;
-                } else {
-                    current = current->next;
-                }
-            } else {
-                fd->descriptor_id = current_process->file_descriptors->descriptor_id + 1;
-                fd->next = NULL;
-                break;
-            }
-        }
-    }
-
     fd->flags = flags;
     fd->device = device;
     fd->data = returned.pointer;
-    fd->next = current_process->file_descriptors;
-    current_process->file_descriptors = fd;
 
-    return fd->descriptor_id;
+    return add_descriptor(fd);
 }
 
 /**
@@ -288,6 +291,7 @@ int kfopen(char *path, int flags, mode_t mode) {
 int kfclose(int fd) {
     file_descriptor_t *current = current_process->file_descriptors;
     file_descriptor_t *prev = NULL;
+
     while (current != NULL) {
         if (current->descriptor_id == fd) {
             if (current->device->close != NULL) {
@@ -304,6 +308,7 @@ int kfclose(int fd) {
         prev = current;
         current = current->next;
     }
+
     return -EBADF;
 }
 
@@ -404,32 +409,8 @@ int kdup(int oldfd) {
                 kfree(fd);
                 return -EOPNOTSUPP;
             }
-            fd->next = current_process->file_descriptors;
-            current_process->file_descriptors = fd;
 
-            // find the new descriptor id
-            current = current_process->file_descriptors;
-            if (current == NULL) {
-                fd->descriptor_id = 0;
-            } else {
-                while (current != NULL) {
-                    if (current->next != NULL) {
-                        if (current->next->descriptor_id + 1 < current->descriptor_id) {
-                            fd->descriptor_id = current->descriptor_id - 1;
-                            fd->next = current->next;
-                            break;
-                        } else {
-                            current = current->next;
-                        }
-                    } else {
-                        fd->descriptor_id = current_process->file_descriptors->descriptor_id + 1;
-                        fd->next = NULL;
-                        break;
-                    }
-                }
-            }
-
-            return fd->descriptor_id;
+            return add_descriptor(fd);
         }
         current = current->next;
     }
@@ -452,13 +433,11 @@ int kdup2(int oldfd, int newfd) {
             file_descriptor_t *fd = (file_descriptor_t *)kmalloc(sizeof(file_descriptor_t));
 
             if (current->device->dup == NULL) {
-                kprintf("No dup!\n");
                 return -EOPNOTSUPP;
             }
             fd->flags = current->flags & ~O_CLOEXEC;
             fd->device = current->device;
             fd->data = current->device->dup(current->data, current->device);
-            fd->next = current_process->file_descriptors;
             fd->descriptor_id = newfd;
 
             // Check if newfd is already open
@@ -466,30 +445,33 @@ int kdup2(int oldfd, int newfd) {
             file_descriptor_t *newfd_prev = NULL;
             while (newfd_current != NULL) {
                 if (newfd_current->descriptor_id == newfd) {
-                    fd->next = newfd_current->next;
                     kfclose(newfd);
                     if (newfd_prev == NULL) {
                         current_process->file_descriptors = fd;
+                        fd->next = newfd_current->next;
                     } else {
                         newfd_prev->next = fd;
+                        fd->next = newfd_current->next;
                     }
                     break;
-                } else if (newfd_current->descriptor_id < newfd) { // we grow leftwards
-                    fd->next = newfd_current;
+                } else if (newfd_current->descriptor_id > newfd) {
                     if (newfd_prev) {
                         newfd_prev->next = fd;
+                        fd->next = newfd_current;
                     } else {
                         current_process->file_descriptors = fd;
+                        fd->next = newfd_current;
                     }
                     break;
                 } else if (newfd_current->next == NULL) {
                     newfd_current->next = fd;
+                    fd->next = NULL;
                     break;
                 }
                 newfd_prev = newfd_current;
                 newfd_current = newfd_current->next;
             }
-            
+
             return fd->descriptor_id;
         }
         current = current->next;
@@ -720,33 +702,66 @@ char *kfgetpwd(char *buf, size_t size) {
  * @return The number of file descriptors ready
 */
 int kselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout) {
+    UNUSED(timeout);
+
     int ready = 0;
-    file_descriptor_t **fds = (file_descriptor_t **)kmalloc(sizeof(file_descriptor_t *) * nfds);
-    for (int i = 0; i < nfds; i++) {
-        fds[i] = NULL;
+    
+    // Wait for one to be ready (ignore timeout for the moment)
+    // Also note file descriptors are in order, but there may be gaps if some are closed
+    ASM_ENABLE_INTERRUPTS;
+    while (ready == 0) {
         file_descriptor_t *current = current_process->file_descriptors;
-        while (current != NULL) {
-            if (current->descriptor_id == i) {
-                fds[i] = current;
+        for (int i = 0; i < nfds; i++) {
+            if (!current) {
                 break;
+            }
+
+            if (!current->device->select) {
+                current = current->next;
+                continue;
+            }
+
+            if (current->descriptor_id == i) {
+                if (readfds && (readfds->fds_bits[i / NFDBITS] & (1 << (i % NFDBITS)))) {
+                    int status = current->device->select(current->data, current->device, SELECT_READ);
+
+                    if (status < 0) {
+                        serial_printf("Error in select (device name: %s): %d\n", current->device ? current->device->name : "unknown", status);
+                        return status;
+                    } else if (status == 1) {
+                        ready++;
+                    }
+                }
+                if (writefds && (writefds->fds_bits[i / NFDBITS] & (1 << (i % NFDBITS)))) {
+                    int status = current->device->select(current->data, current->device, SELECT_WRITE);
+
+                    if (status < 0) {
+                        serial_printf("Error in select (device name: %s): %d\n", current->device ? current->device->name : "unknown", status);
+                        return status;
+                    } else if (status == 1) {
+                        ready++;
+                    }
+                }
+                if (errorfds && (errorfds->fds_bits[i / NFDBITS] & (1 << (i % NFDBITS)))) {
+                    int status = current->device->select(current->data, current->device, SELECT_ERROR);
+
+                    if (status < 0) {
+                        serial_printf("Error in select (device name: %s): %d\n", current->device ? current->device->name : "unknown", status);
+                        return status;
+                    } else if (status == 1) {
+                        ready++;
+                    }
+                }
             }
             current = current->next;
         }
-
-        if (fds[i] == NULL) {
-            return -EBADF;
+        if (ready == 0) {
+            schedule();
         }
     }
+    ASM_DISABLE_INTERRUPTS;
 
-    // we won't *actually* check for readiness, just return the number of file descriptors
-    // TODO: actually implement this
-    for (int i = 0; i < nfds; i++) {
-        if (fds[i] != NULL) {
-            ready++;
-        }
-    }
-
-    kfree(fds);
+    // kfree(fds);
 
     return ready;
 }

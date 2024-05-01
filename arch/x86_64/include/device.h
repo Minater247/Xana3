@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #define NAME_MAX 255
 
@@ -19,6 +20,7 @@ typedef struct
 #define DEVICE_TYPE_KYBOARD 0x3
 #define DEVICE_TYPE_FRMEBUF 0x4
 #define DEVICE_TYPE_TTY 0x5
+#define DEVICE_TYPE_PIPE 0x6
 
 typedef pointer_int_t (*open_func_t)(const char *path, uint64_t flags, void *device_passed);
 typedef size_t (*read_func_t)(void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags);
@@ -32,6 +34,7 @@ typedef int (*ioctl_func_t)(void *filedes_data, unsigned long request, void *arg
 typedef int (*stat_func_t)(void *filedes_data, void *buf, void *device_passed);
 typedef void * (*dup_func_t)(void *filedes_data, void *device_passed);
 typedef void * (*clone_func_t)(void *filedes_data, void *device_passed);
+typedef int (*select_func_t)(void *filedes_data, void *device_passed, int type);
 
 typedef struct device
 {
@@ -52,6 +55,7 @@ typedef struct device
 	stat_func_t stat;
 	dup_func_t dup;
 	clone_func_t clone;
+	select_func_t select;
 
 	file_size_func_t file_size;
 

@@ -17,7 +17,7 @@ device_t *keyboard_devices = NULL;
 device_t *framebuffer_devices = NULL;
 device_t *tty_devices = NULL;
 
-device_t device_device;
+device_t device_device = {0};
 
 void insert_device(device_t *list, device_t *device_to_insert)
 {
@@ -316,6 +316,18 @@ void *device_clone(device_open_data_t *data, device_t *this_device)
     return new_data;
 }
 
+int device_select(device_open_data_t *data, device_t *this_device, int type)
+{
+    UNUSED(this_device);
+
+    if (data->device->select == NULL)
+    {
+        return -EOPNOTSUPP;
+    }
+
+    return data->device->select(data->data, data->device, type);
+}
+
 void init_device_device()
 {
     strcpy(device_device.name, "devices");
@@ -335,6 +347,7 @@ void init_device_device()
     device_device.dup = (dup_func_t)device_dup;
     device_device.clone = (clone_func_t)device_clone;
     device_device.stat = (stat_func_t)device_stat;
+    device_device.select = (select_func_t)device_select;
 
     device_device.file_size = NULL;
 

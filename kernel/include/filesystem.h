@@ -182,6 +182,12 @@ struct timeval {
 	suseconds_t	tv_usec;	/* and microseconds */
 };
 
+#define PIPE_SIZE 0x1000 * 16 // 16 pages
+
+#define SELECT_READ 0
+#define SELECT_WRITE 1
+#define SELECT_ERROR 2
+
 
 
 
@@ -206,5 +212,6 @@ int kstat(char *path, struct stat *buf);
 file_descriptor_t *clone_file_descriptors(file_descriptor_t *descriptors);
 int kselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds, struct timeval *timeout);
 int kdup2(int oldfd, int newfd);
+int add_descriptor(file_descriptor_t *fd);
 
 #endif
