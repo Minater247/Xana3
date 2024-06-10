@@ -27,6 +27,9 @@ typedef struct pipe
 } pipe_t;
 
 size_t pipe_read(void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags) {
+    UNUSED(flags);
+    UNUSED(device_passed);
+
     // just read the bytes
     pipe_t *pipe = (pipe_t *)filedes_data;
 
@@ -54,6 +57,9 @@ size_t pipe_read(void *ptr, size_t size, size_t nmemb, void *filedes_data, void 
 
 size_t pipe_write(const void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags)
 {
+    UNUSED(flags);
+    UNUSED(device_passed);
+
     // just write the bytes
     pipe_t *pipe = (pipe_t *)filedes_data;
 
