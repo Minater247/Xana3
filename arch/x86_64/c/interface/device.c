@@ -190,7 +190,7 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed)
     return (pointer_int_t){NULL, -ENODEV};
 }
 
-size_t device_write(void *data, size_t size, size_t count, device_open_data_t *device_to_write, device_t *this_device, uint64_t flags)
+size_t device_write(const void *data, size_t size, size_t count, device_open_data_t *device_to_write, device_t *this_device, uint64_t flags)
 {
     UNUSED(this_device);
 

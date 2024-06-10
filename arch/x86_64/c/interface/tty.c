@@ -105,8 +105,9 @@ int tty_ioctl(void *filedes_data, unsigned long request, void *arg, void *device
     return 0;
 }
 
-size_t tty_write(void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags) {
+size_t tty_write(const void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags) {
     UNUSED(device_passed);
+    UNUSED(filedes_data);
     UNUSED(flags);
 
     // we can just write to the screen with video_putc
@@ -299,6 +300,24 @@ int tty_select(void *filedes_data, void *device_passed, int type) {
 
 }
 
+int tty_stat(void *file_entry, void *buf, void *device_passed) {
+    UNUSED(file_entry);
+    UNUSED(device_passed);
+
+    struct stat *statbuf = (struct stat *)buf;
+    statbuf->st_dev = 0;
+    statbuf->st_ino = 0;
+    statbuf->st_mode = 0;
+    statbuf->st_nlink = 1;
+    statbuf->st_uid = 0;
+    statbuf->st_gid = 0;
+    statbuf->st_rdev = 0;
+    statbuf->st_size = 0;
+    statbuf->st_blksize = 64;
+
+    return 0;
+}
+
 
 device_t *create_tty() {
     device_t *tty_device = (device_t *)kmalloc(sizeof(device_t));
@@ -318,7 +337,7 @@ device_t *create_tty() {
     tty_device->lseek = NULL;
     tty_device->fcntl = NULL;
     tty_device->getdents64 = NULL;
-    tty_device->stat = NULL;
+    tty_device->stat = (stat_func_t)tty_stat;
     tty_device->dup = (dup_func_t)tty_dup;
     tty_device->clone = (clone_func_t)tty_clone;
     tty_device->file_size = NULL;

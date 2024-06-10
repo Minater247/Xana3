@@ -190,6 +190,7 @@ typedef struct process {
 
     signal_t *queued_signals;
     struct sigaction signal_handlers[SIG_MAX];
+    sigset_t signal_mask;
 
     uint64_t stack_low;
     uint64_t brk_start;

@@ -219,10 +219,19 @@ int process_kill(pid_t pid, int signal)
 
 int ksigprocmask(int how, const sigset_t *set, sigset_t *oldset)
 {
-    // dummy implementation, for now. just to get signals working
     UNUSED(how);
-    UNUSED(set);
-    UNUSED(oldset);
+
+    if (oldset != NULL)
+    {
+        *oldset = current_process->signal_mask;
+    }
+
+    if (set != NULL)
+    {
+        current_process->signal_mask = *set;
+    }
+
+    // how is used to modify the signal mask, but we don't support that yet
 
     return 0;
 }
@@ -649,6 +658,7 @@ int64_t kfork()
     return new_process->pid;
 }
 
+// TODO: replace with something like binfmt for loading
 int64_t kexecv(regs_t *regs)
 {
     int fd = kfopen((char *)regs->rdi, 0, 0);

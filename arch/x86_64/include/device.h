@@ -27,7 +27,7 @@ typedef size_t (*read_func_t)(void *ptr, size_t size, size_t nmemb, void *filede
 typedef int (*close_func_t)(void *filedes_data, void *device_passed);
 typedef int (*fcntl_func_t)(int cmd, long arg, void *filedes_data, void *device);
 typedef size_t (*file_size_func_t)(const char *path, void *device_passed);
-typedef size_t (*write_func_t)(void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags);
+typedef size_t (*write_func_t)(const void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags);
 typedef size_t (*getdents64_func_t)(void *ptr, size_t count, void *filedes_data, void *device_passed);
 typedef off_t (*lseek_func_t)(void *filedes_data, off_t offset, int whence, void *device_passed);
 typedef int (*ioctl_func_t)(void *filedes_data, unsigned long request, void *arg, void *device_passed);

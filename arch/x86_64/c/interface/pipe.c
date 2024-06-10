@@ -7,6 +7,8 @@
 #include <string.h>
 #include <memory.h>
 #include <unused.h>
+#include <sys/errno.h>
+#include <system.h>
 
 device_t pipe_device_in = {0};
 device_t pipe_device_out = {0};
@@ -24,47 +26,60 @@ typedef struct pipe
     file_descriptor_t *read_fd;
 } pipe_t;
 
-size_t pipe_read(void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags)
-{
-    UNUSED(device_passed);
-    UNUSED(flags);
-
+size_t pipe_read(void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags) {
+    // just read the bytes
     pipe_t *pipe = (pipe_t *)filedes_data;
-    size_t bytes_read = 0;
 
-    for (size_t i = 0; i < size * nmemb; i++)
-    {
-        if (pipe->read_pos == pipe->write_pos)
-        {
-            break;
+    size_t read = 0;
+    size_t to_read = size * nmemb;
+
+    while (read < to_read) {
+        if (pipe->size == 0) {
+            // pipe is empty
+            return read;
         }
-        ((char *)ptr)[i] = pipe->buffer[pipe->read_pos];
-        pipe->read_pos = (pipe->read_pos + 1) % PIPE_SIZE;
-        bytes_read++;
+
+        // read byte
+        ((char *)ptr)[read] = pipe->buffer[pipe->read_pos];
+        pipe->read_pos++;
+        if (pipe->read_pos == PIPE_SIZE) {
+            pipe->read_pos = 0;
+        }
+        pipe->size--;
+        read++;
     }
-    return bytes_read;
+
+    return read;
 }
 
-size_t pipe_write(void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags)
+size_t pipe_write(const void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags)
 {
-    UNUSED(device_passed);
-    UNUSED(flags);
-
+    // just write the bytes
     pipe_t *pipe = (pipe_t *)filedes_data;
-    size_t bytes_written = 0;
-    for (size_t i = 0; i < size * nmemb; i++)
+
+    size_t written = 0;
+    size_t to_write = size * nmemb;
+
+    while (written < to_write)
     {
         if (pipe->size == PIPE_SIZE)
         {
-            break;
+            // pipe is full
+            return written;
         }
-        pipe->buffer[pipe->write_pos] = ((char *)ptr)[i];
-        pipe->write_pos = (pipe->write_pos + 1) % PIPE_SIZE;
+
+        // write byte
+        pipe->buffer[pipe->write_pos] = ((char *)ptr)[written];
+        pipe->write_pos++;
+        if (pipe->write_pos == PIPE_SIZE)
+        {
+            pipe->write_pos = 0;
+        }
         pipe->size++;
-        bytes_written++;
+        written++;
     }
 
-    return bytes_written;
+    return written;
 }
 
 int pipe_close(void *filedes_data, void *device_passed)
@@ -73,11 +88,11 @@ int pipe_close(void *filedes_data, void *device_passed)
 
     if (device_passed == &pipe_device_in)
     {
-        pipe->read_dependents--;
+        pipe->write_dependents--;
     }
     else if (device_passed == &pipe_device_out)
     {
-        pipe->write_dependents--;
+        pipe->read_dependents--;
     }
 
     if (pipe->read_dependents == 0 && pipe->write_dependents == 0)
@@ -95,11 +110,11 @@ void *pipe_dup(void *filedes_data, void *device_passed)
 
     if (device_passed == &pipe_device_in)
     {
-        pipe->read_dependents++;
+        pipe->write_dependents++;
     }
     else if (device_passed == &pipe_device_out)
     {
-        pipe->write_dependents++;
+        pipe->read_dependents++;
     }
 
     return pipe;
@@ -114,11 +129,11 @@ void *pipe_clone(void *filedes_data, void *device_passed)
 
     if (device_passed == &pipe_device_in)
     {
-        pipe->read_dependents++;
+        pipe->write_dependents++;
     }
     else if (device_passed == &pipe_device_out)
     {
-        pipe->write_dependents++;
+        pipe->read_dependents++;
     }
 
     return pipe;
@@ -163,17 +178,18 @@ void pipe_init()
     // We don't register this one since it's an internal filesystem device
 }
 
-int kpipe(int pipefd[2]) {
+int kpipe(int pipefd[2])
+{
     pipe_t *pipe = (pipe_t *)kmalloc(sizeof(pipe_t));
     pipe->read_pos = 0;
     pipe->write_pos = 0;
     pipe->size = 0;
-    pipe->buffer = (char *)kmalloc(PIPE_SIZE); // freed here
+    pipe->buffer = (char *)kmalloc(PIPE_SIZE);
     pipe->flags = 0;
     pipe->read_dependents = 1;
     pipe->write_dependents = 1;
 
-    // freed in 
+    // freed in
     file_descriptor_t *fd1 = (file_descriptor_t *)kmalloc(sizeof(file_descriptor_t));
     fd1->flags = 0;
     fd1->data = pipe;
@@ -189,6 +205,9 @@ int kpipe(int pipefd[2]) {
 
     pipefd[0] = add_descriptor(fd1);
     pipefd[1] = add_descriptor(fd2);
+
+    // TODO: debug, remove this
+    memset(pipe->buffer, 0, PIPE_SIZE);
 
     return 0;
 }

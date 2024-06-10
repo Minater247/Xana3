@@ -198,6 +198,10 @@ char keyboard_popchar(bool blocking)
             ASM_ENABLE_INTERRUPTS;
         }
         ASM_DISABLE_INTERRUPTS;
+    } else {
+        if (keypress_buffer_size == 0) {
+            return 0;
+        }
     }
 
     keypress_buffer_size--;
