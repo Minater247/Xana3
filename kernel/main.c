@@ -62,6 +62,8 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
 
     kprintf("Size of unsigned long: %d\n", sizeof(unsigned long));
 
+    ata_test();
+
     kprintf("\x1b[38;5;217m");
     kprintf("\n\nBefore we jump to the usermode program, roadmap:\n");
     kprintf("  - Proper TTY support\n");

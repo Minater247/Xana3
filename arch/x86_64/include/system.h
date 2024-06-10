@@ -73,6 +73,8 @@ typedef struct {
 
 #define ASM_OUTB(port, val) asm volatile("outb %0, %1" :: "a"(val), "Nd"(port));
 #define ASM_INB(port, val) asm volatile("inb %1, %0" : "=a"(val) : "Nd"(port));
+#define ASM_OUTW(port, val) asm volatile("outw %0, %1" :: "a"(val), "Nd"(port));
+#define ASM_INW(port, val) asm volatile("inw %1, %0" : "=a"(val) : "Nd"(port));
 
 #define ASM_WRMSR_ADC(a, d, c) asm volatile("wrmsr" :: "a"(a), "d"(d), "c"(c));
 #define ASM_RDMSR(msr, reg) asm volatile("rdmsr" : "=a"(reg) : "c"(msr));
