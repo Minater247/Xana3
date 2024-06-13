@@ -65,6 +65,7 @@ void preboot_load(uint32_t magic, void *mbd) {
     passed_info.elf_symbols_addr = symbols_location;
     passed_info.elf_strings_addr = strings_location;
     passed_info.elf_symbol_count = symbols_count;
+    passed_info.acpi_tag_addr = acpi_tag;
 
     gdt_init64(kernel_entry);
 

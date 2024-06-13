@@ -8,6 +8,7 @@ typedef struct {
     uint32_t kheap_end;
     uint32_t ramdisk_addr;
     uint32_t mmap_tag_addr;
+    uint32_t acpi_tag_addr;
     uint32_t elf_symbols_addr;
     uint32_t elf_strings_addr;
     uint32_t elf_symbol_count;

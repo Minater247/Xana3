@@ -23,6 +23,7 @@
 #include <mouse.h>
 #include <tty.h>
 #include <pipe.h>
+#include <acpi.h>
 
 void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     serial_printf("Initializing video...\n");
@@ -44,6 +45,10 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     serial_printf("Initializing traceback...\n");
     traceback_init(info->elf_symbols_addr, info->elf_strings_addr, info->elf_symbol_count);
 
+    serial_printf("Initializing ACPI...\n");
+    acpi_init(info->acpi_tag_addr);
+    acpi_test();
+
     serial_printf("Setup complete\n");
 
     kprintf("Hello from a 64-bit graphical kernel!!\n");
@@ -61,8 +66,6 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     pipe_init();
 
     kprintf("Size of unsigned long: %d\n", sizeof(unsigned long));
-
-    ata_test();
 
     kprintf("\x1b[38;5;217m");
     kprintf("\n\nBefore we jump to the usermode program, roadmap:\n");

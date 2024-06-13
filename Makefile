@@ -62,6 +62,15 @@ run: iso
 run_no_uefi: iso
 	@qemu-system-x86_64 -cdrom os.iso -monitor stdio -d int,cpu_reset -accel tcg -D qemu-log.txt -cpu SandyBridge -serial file:serial.log
 
+run_no_uefi_hd: iso
+# same as above, but this time with a hard drive as well as the cdrom
+# hard drive is ./hdd.img
+# we do have to make the hard drive first, though
+	if [ ! -f hdd.img ]; then qemu-img create -f qcow2 hdd.img 1G; fi
+	@qemu-system-x86_64 -cdrom os.iso -monitor stdio -d int,cpu_reset -accel tcg -D qemu-log.txt -cpu SandyBridge -serial file:serial.log -hda hdd.img
+
+
+
 run_no_re:
 # run, but exit on reboot
 	@qemu-system-x86_64 -no-reboot -cdrom os.iso -monitor stdio -d int -accel tcg -D qemu-log.txt -cpu SandyBridge -serial file:serial.log -bios OVMF.fd

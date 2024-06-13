@@ -14,6 +14,7 @@
 bool has_framebuffer = false;
 uint32_t framebuffer_tag = 0;
 uint32_t mmap_tag = 0;
+uint32_t acpi_tag = 0;
 
 extern uint8_t BOOTSTRAP_END;
 
@@ -109,6 +110,12 @@ bool load_multiboot(uint32_t magic, void *mbd)
             }
             break;
         }
+        case MULTIBOOT_TAG_TYPE_ACPI_NEW:
+        case MULTIBOOT_TAG_TYPE_ACPI_OLD:
+        {
+            acpi_tag = (uint32_t)tag;
+            break;
+        }
         case MULTIBOOT_TAG_TYPE_BASIC_MEMINFO:
         case MULTIBOOT_TAG_TYPE_VBE:
         case MULTIBOOT_TAG_TYPE_EFI_MMAP:
@@ -117,8 +124,6 @@ bool load_multiboot(uint32_t magic, void *mbd)
         case MULTIBOOT_TAG_TYPE_ELF_SECTIONS:
         case MULTIBOOT_TAG_TYPE_APM:
         case MULTIBOOT_TAG_TYPE_LOAD_BASE_ADDR:
-        case MULTIBOOT_TAG_TYPE_ACPI_NEW:
-        case MULTIBOOT_TAG_TYPE_ACPI_OLD:
             // Either we don't need this or don't yet use it
             break;
         default:
