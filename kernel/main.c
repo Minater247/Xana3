@@ -63,7 +63,6 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     keyboard_install();
     mouse_init();
     tty_init();
-    pipe_init();
 
     kprintf("Size of unsigned long: %d\n", sizeof(unsigned long));
 

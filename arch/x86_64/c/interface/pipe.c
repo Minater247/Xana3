@@ -10,8 +10,32 @@
 #include <sys/errno.h>
 #include <system.h>
 
-device_t pipe_device_in = {0};
-device_t pipe_device_out = {0};
+size_t pipe_read(void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags);
+size_t pipe_write(const void *ptr, size_t size, size_t nmemb, void *filedes_data, void *device_passed, uint64_t flags);
+int pipe_close(void *filedes_data, void *device_passed);
+void *pipe_dup(void *filedes_data, void *device_passed);
+void *pipe_clone(void *filedes_data, void *device_passed);
+int pipe_select(void *filedes_data, void *device_passed, int type);
+
+device_t pipe_device_in = {
+    .name = "pipein",
+    .write = (write_func_t)pipe_write,
+    .close = (close_func_t)pipe_close,
+    .dup = (dup_func_t)pipe_dup,
+    .clone = (clone_func_t)pipe_clone,
+    .select = (select_func_t)pipe_select,
+    .flags = DEVICE_TYPE_PIPE,
+};
+
+device_t pipe_device_out = {
+    .name = "pipeout",
+    .read = (read_func_t)pipe_read,
+    .close = (close_func_t)pipe_close,
+    .dup = (dup_func_t)pipe_dup,
+    .clone = (clone_func_t)pipe_clone,
+    .select = (select_func_t)pipe_select,
+    .flags = DEVICE_TYPE_PIPE,
+};
 
 typedef struct pipe
 {
@@ -161,27 +185,6 @@ int pipe_select(void *filedes_data, void *device_passed, int type)
     }
 
     return 0;
-}
-
-void pipe_init()
-{
-    pipe_device_in.write = pipe_write;
-    pipe_device_in.close = pipe_close;
-    pipe_device_in.dup = pipe_dup;
-    pipe_device_in.clone = pipe_clone;
-    pipe_device_in.select = pipe_select;
-    pipe_device_in.flags = DEVICE_TYPE_PIPE;
-    strcpy(pipe_device_in.name, "pipein");
-
-    pipe_device_out.read = pipe_read;
-    pipe_device_out.close = pipe_close;
-    pipe_device_out.dup = pipe_dup;
-    pipe_device_out.clone = pipe_clone;
-    pipe_device_out.select = pipe_select;
-    pipe_device_out.flags = DEVICE_TYPE_PIPE;
-    strcpy(pipe_device_out.name, "pipeout");
-
-    // We don't register this one since it's an internal filesystem device
 }
 
 int kpipe(int pipefd[2])

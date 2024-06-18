@@ -454,6 +454,11 @@ void memdump(void *ptr, size_t len) {
 
 
 void acpi_test() {
+    if (dsdt == NULL) {
+        acpi_error("DSDT not found");
+        return;
+    }
+
     void *sbloc = read_aml_path("\\._S5_", dsdt + sizeof(struct ACPISDTHeader), ((struct ACPISDTHeader *)dsdt)->Length - sizeof(struct ACPISDTHeader));
     if (sbloc == NULL) {
         acpi_error("Failed to find _S5_ :(");
@@ -480,5 +485,5 @@ void acpi_test() {
     kprintf("Obj1: 0x%lx\n", obj1);
 
     // SHUT IT DOWN :D
-    outw(acpi_fadt->PM1aControlBlock, obj0 | (1 << 13));
+    // outw(acpi_fadt->PM1aControlBlock, obj0 | (1 << 13));
 }

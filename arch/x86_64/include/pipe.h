@@ -3,7 +3,6 @@
 
 #include <device.h>
 
-void pipe_init();
 int kpipe(int pipefd[2]);
 
 #endif
