@@ -10,7 +10,6 @@
 #include <drivers/PIT.h>
 #include <memory.h>
 #include <cpuid_funcs.h>
-#include <ramdisk.h>
 #include <elf_loader.h>
 #include <display.h>
 
@@ -34,13 +33,12 @@ void preboot_load(uint32_t magic, void *mbd) {
 
     enable_sse();
 
-    // Alright, let's get the kernel loaded from the ramdisk
-    char *elf_file = ramdisk_get_path_data("/bin/kernel.bin", &boot_ramdisk);
-    if (elf_file == NULL) {
+    if (kernel_addr == NULL) {
         kpanic("Failed to load kernel from ramdisk\n");
     }
 
-    uint32_t kernel_entry = load_elf64(elf_file);
+    uint32_t kernel_entry = load_elf64(kernel_addr);
+    
     // if the highest bit is set, we have an error
     if (kernel_entry & 0x80000000) {
         kpanic("Failed to load kernel from ramdisk - error %d\n", kernel_entry);
@@ -58,10 +56,8 @@ void preboot_load(uint32_t magic, void *mbd) {
     cr0 |= 0x80000000;
     asm volatile("mov %0, %%cr0" : : "r"(cr0));
 
-    passed_info.framebuffer_tag = framebuffer_tag;
     passed_info.kheap_end = kheap_loc;
-    passed_info.ramdisk_addr = (uint32_t)&boot_ramdisk;
-    passed_info.mmap_tag_addr = mmap_tag;
+    passed_info.multiboot_addr = (uint32_t)mbd;
     passed_info.elf_symbols_addr = symbols_location;
     passed_info.elf_strings_addr = strings_location;
     passed_info.elf_symbol_count = symbols_count;

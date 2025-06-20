@@ -7,7 +7,6 @@
 #include <stdbool.h>
 #include <serial.h>
 #include <string.h>
-#include <ramdisk.h>
 #include <video.h>
 #include <memory.h>
 
@@ -19,6 +18,8 @@ extern uint8_t BOOTSTRAP_END;
 
 uint64_t multiboot_total_memory = 0;
 uint64_t multiboot_max_addr = 0;
+
+void *kernel_addr = 0;
 
 uint32_t get_framebuffer_size_bytes(uint32_t tag_addr) {
     // pitch * height
@@ -99,9 +100,9 @@ bool load_multiboot(uint32_t magic, void *mbd)
             // if the string is RAMDISK, we want to load it
             struct multiboot_tag_module *module = (struct multiboot_tag_module *)tag;
             serial_printf("Got module: %s\n", module->cmdline);
-            if (strcmp((char *)module->cmdline, "RAMDISK") == 0)
+            if (strcmp((char *)module->cmdline, "KERNEL") == 0)
             {
-                ramdisk_init((uint32_t)module->mod_start);
+                kernel_addr = (void *)module->mod_start;
             }
             if (module->mod_end > multiboot_max_addr)
             {

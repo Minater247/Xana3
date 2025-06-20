@@ -5,6 +5,13 @@
         "*.s": "asm-intel-x86-generic",
         "*.asm": "asm-intel-x86-generic",
         "*.c86": "c",
+        "*.gh": "goboscript",
+        "*.gsc": "goboscript",
+        "*.DECOMP": "vasmmot",
+        "*.alu": "rust",
+        "*.luap": "lua",
+        "*.tlh": "m4",
+        "*.tlp": "m4",
         "stdint.h": "c",
         "display.h": "c",
         "unused.h": "c",
@@ -29,6 +36,7 @@
         "video.h": "c",
         "pit.h": "c",
         "keyboard.h": "c",
-        "ramdisk.h": "c"
+        "ramdisk.h": "c",
+        "hardware.h": "c"
     }
 }

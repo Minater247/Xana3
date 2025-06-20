@@ -23,16 +23,10 @@
 #include <mouse.h>
 #include <tty.h>
 #include <pipe.h>
+#include <multiboot.h>
 
 void __attribute__((noreturn)) kmain(kernel_info_t *info) {
-    serial_printf("Initializing video...\n");
-    video_init((struct multiboot_tag_framebuffer *)((uint64_t)info->framebuffer_tag + VIRT_MEM_OFFSET));
-
-    serial_printf("Initializing system tables...\n");
-    tables_init();
-
-    serial_printf("Initializing memory...\n");
-    memory_init(info->kheap_end, info->mmap_tag_addr, (uint64_t)info->framebuffer_tag + VIRT_MEM_OFFSET);
+    multiboot_init(info);
 
     info = (kernel_info_t *)((uint64_t)info + VIRT_MEM_OFFSET);
 
@@ -41,8 +35,7 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     serial_printf("Initializing syscall table...\n");
     syscall_init();
 
-    serial_printf("Initializing traceback...\n");
-    traceback_init(info->elf_symbols_addr, info->elf_strings_addr, info->elf_symbol_count);
+    traceback_init(info);
 
     serial_printf("Setup complete\n");
 
@@ -51,7 +44,7 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     process_init();
 
     // Set up filesystem and devices
-    filesystem_init(init_ramdisk_device((uint64_t)info->ramdisk_addr + VIRT_MEM_OFFSET));
+    filesystem_init(init_ramdisk_device((uint64_t)ramdisk_addr + VIRT_MEM_OFFSET));
     init_device_device();
     init_simple_output();
     init_fb_device();
@@ -59,8 +52,6 @@ void __attribute__((noreturn)) kmain(kernel_info_t *info) {
     mouse_init();
     tty_init();
     pipe_init();
-
-    kprintf("Size of unsigned long: %d\n", sizeof(unsigned long));
 
     kprintf("\x1b[38;5;217m");
     kprintf("\n\nBefore we jump to the usermode program, roadmap:\n");

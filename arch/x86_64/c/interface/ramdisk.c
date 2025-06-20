@@ -361,11 +361,10 @@ off_t ramdisk_lseek(void *file_entry, off_t offset, int whence, void *device_pas
 
 device_t *init_ramdisk_device(uint64_t addr)
 {
-    ramdisk_info_32_t *info = (ramdisk_info_32_t *)addr;
-
-    boot_ramdisk.hdr = (ramdisk_hdr_t *)((uint64_t)info->hdr + VIRT_MEM_OFFSET);
-    boot_ramdisk.files = (ramdisk_file_t *)((uint64_t)info->files + VIRT_MEM_OFFSET);
-    boot_ramdisk.data = (void *)((uint64_t)info->data + VIRT_MEM_OFFSET);
+    ramdisk_hdr_t *hdr = (ramdisk_hdr_t *)addr;
+    boot_ramdisk.hdr = hdr;
+    boot_ramdisk.files = (ramdisk_file_t *)((uint64_t)hdr + sizeof(ramdisk_hdr_t));
+    boot_ramdisk.data = (void *)((uint64_t)hdr + hdr->hdr_size);
 
     strcpy(ramdisk_device.name, "ramdisk");
     ramdisk_device.flags = 0;

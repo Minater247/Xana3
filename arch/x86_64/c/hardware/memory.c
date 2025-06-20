@@ -295,7 +295,7 @@ void memory_init(uint64_t old_kheap_end, uint64_t mmap_tag_addr, uint64_t frameb
 
     char buf[15];
     kprintf("Booted with %s memory\n", format_memory(total_memory, buf));
-    serial_printf("Booted with %s memory\n", format_memory(total_memory, buf));
+    serial_printf("Booted with %s memory\n", buf);
 
     // We need to read cr3 to locate the current page table
     uint64_t cr3;

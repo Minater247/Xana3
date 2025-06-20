@@ -15,11 +15,11 @@ char *string_table;
 Elf64_Sym *symbol_table;
 size_t symbol_count;
 
-void traceback_init(uint32_t elf_symbols_addr, uint32_t elf_strings_addr, uint32_t elf_symbol_count)
+void traceback_init(kernel_info_t *info)
 {
-    string_table = (char *)((uint64_t)elf_strings_addr + VIRT_MEM_OFFSET);
-    symbol_table = (Elf64_Sym *)((uint64_t)elf_symbols_addr + VIRT_MEM_OFFSET);
-    symbol_count = elf_symbol_count;
+    string_table = (char *)((uint64_t)info->elf_strings_addr + VIRT_MEM_OFFSET);
+    symbol_table = (Elf64_Sym *)((uint64_t)info->elf_symbols_addr + VIRT_MEM_OFFSET);
+    symbol_count = info->elf_symbol_count;
 }
 
 // Keep track of whether or not traceback failed, just in case something goes
@@ -54,6 +54,7 @@ void serial_traceback(size_t depth, uint64_t *rbp) {
         }
         
         if (string_table == NULL || symbol_table == NULL) {
+            serial_printf("\n");
             continue;
         }
 

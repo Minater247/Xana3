@@ -111,11 +111,6 @@ void memory_init() {
     memset(pml4_addr, 0, sizeof(page_directory_t));
     
     pml4_addr->phys_addr = (uint64_t)(uint32_t)pml4_addr;
-    
-    // for (uint64_t addr = 0; addr < multiboot_total_memory; addr += 0x1000)
-    // {
-    //     map_page(addr + 0xffffff8000000000, addr, true, true, pml4_addr);
-    // }
 
     // now with 2MB pages
     for (uint64_t addr = 0; addr < multiboot_total_memory; addr += 0x200000)

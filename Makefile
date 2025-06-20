@@ -45,6 +45,7 @@ iso: bootstrap kernel ramdisk
 	@mkdir -p isodir/boot/grub
 	@cp bootstrap.bin isodir/boot/bootstrap.bin
 	@cp ramdisk.img isodir/boot/ramdisk.img
+	@cp kernel.bin isodir/boot/kernel.bin
 	@cp arch/$(ARCH)/grub.cfg isodir/boot/grub/grub.cfg
 	@grub-mkrescue -o os.iso isodir
 
@@ -53,6 +54,7 @@ debug_iso: bootstrap kernel_dbg ramdisk_dbg
 	@mkdir -p isodir/boot/grub
 	@cp bootstrap.bin isodir/boot/bootstrap.bin
 	@cp ramdisk.img isodir/boot/ramdisk.img
+	@cp dbg_kernel.bin isodir/boot/kernel.bin
 	@cp arch/$(ARCH)/grub.cfg isodir/boot/grub/grub.cfg
 	@grub-mkrescue -o debug_os.iso isodir
 
@@ -85,12 +87,10 @@ FORCE:
 
 ramdisk: FORCE
 	@mkdir -p ramdisk/bin
-	@cp kernel.bin ramdisk/bin/kernel.bin
 	python3 buildutils/ramdisk.py ramdisk.img ramdisk/
 
 ramdisk_dbg: FORCE
 	@mkdir -p ramdisk/bin
-	@cp dbg_kernel.bin ramdisk/bin/kernel.bin
 	python3 buildutils/ramdisk.py ramdisk.img ramdisk/
 
 clean:

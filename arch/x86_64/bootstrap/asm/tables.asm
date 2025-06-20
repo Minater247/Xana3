@@ -1,4 +1,5 @@
 section .text
+[bits 32]
 global gdt_flush
 global idt_load
 
@@ -182,6 +183,7 @@ gdt_flush64:
     mov gs, ax
     mov ss, ax
     jmp 0x08:gdt_flush_2_64 ; jump to kernel code segment
+[bits 64]
 gdt_flush_2_64:
-    mov edi, passed_info
-    jmp ebx
+    mov rdi, passed_info
+    jmp rbx
