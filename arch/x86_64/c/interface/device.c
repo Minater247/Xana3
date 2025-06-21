@@ -12,7 +12,6 @@
 #include <errors.h>
 
 device_t *xandisk_devices = NULL;
-device_t *simpleo_devices = NULL;
 device_t *keyboard_devices = NULL;
 device_t *framebuffer_devices = NULL;
 device_t *tty_devices = NULL;
@@ -38,19 +37,6 @@ device_t *register_device(device_t *device_to_register)
         if (current_device == NULL)
         {
             xandisk_devices = device_to_register;
-            device_to_register->id = 0;
-        }
-        else
-        {
-            insert_device(current_device, device_to_register);
-        }
-    }
-    else if (device_to_register->type == DEVICE_TYPE_SIMPLOU)
-    {
-        device_t *current_device = simpleo_devices;
-        if (current_device == NULL)
-        {
-            simpleo_devices = device_to_register;
             device_to_register->id = 0;
         }
         else
@@ -162,10 +148,6 @@ pointer_int_t device_open(char *path, uint64_t flags, void *device_passed)
         if (strncmp(part, "xd", 2) == 0)
         {
             return device_open_helper(xandisk_devices, part, first_number, path, flags);
-        }
-        else if (strncmp(part, "so", 2) == 0)
-        {
-            return device_open_helper(simpleo_devices, part, first_number, path, flags);
         }
         else if (strncmp(part, "kb", 2) == 0)
         {
