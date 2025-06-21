@@ -25,7 +25,7 @@
 #include <pipe.h>
 #include <multiboot.h>
 
-void __attribute__((noreturn)) kmain(kernel_info_t *info) {
+void __attribute__((noreturn, force_align_arg_pointer)) kmain(kernel_info_t *info) {
     multiboot_init(info);
 
     info = (kernel_info_t *)((uint64_t)info + VIRT_MEM_OFFSET);

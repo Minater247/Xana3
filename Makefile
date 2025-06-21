@@ -78,10 +78,10 @@ debug_term:
 	@gdb -q -ex "target remote localhost:1234" -ex "symbol-file dbg_kernel.bin"
 
 bochs: iso
-	@"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f bochsrc.txt -q
+	@"/mnt/c/Program Files/Bochs-3.0/bochs.exe" -f bochsrc.txt -q
 
 bochs_debug: debug_iso
-	@"/mnt/c/Program Files/Bochs-2.7/bochsdbg.exe" -f bochsrc_dbg.txt -q
+	@"/mnt/c/Program Files/Bochs-3.0/bochsdbg.exe" -f bochsrc_dbg.txt -q
 
 FORCE:
 
