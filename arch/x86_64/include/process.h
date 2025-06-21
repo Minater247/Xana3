@@ -145,7 +145,6 @@ struct sigaction {
     int sa_flags;
 } __attribute__((packed));
 
-// TODO: Implement memory regions
 typedef struct memregion {
     uint64_t start;
     uint64_t end;

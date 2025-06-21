@@ -260,7 +260,6 @@ void page_fault_error(regs_t *r, uint64_t faulting_address)
 
     serial_printf("Page fault! (%s%s%s%s%s) at 0x%lx [0x%lx]\n", (flags & 0x1) ? "Present |" : "Not present |", (flags & 0x2) ? "Write |" : "Read |", (flags & 0x4) ? "User |" : "Supervisor |", (flags & 0x8) ? "Reserved bit set |" : "", (flags & 0x10) ? "Instruction fetch" : "", (uint64_t)faulting_address, r->rip);
 
-    // serial_dump_mappings(current_pml4, false);
     serial_traceback(10, (uint64_t *)current_process->interrupt_registers.rbp);
 
     if (current_process == NULL)
@@ -309,24 +308,6 @@ void regs_dump(regs_t *regs) {
 }
 
 
-// typedef struct {
-//    uint16_t fcw;
-//    uint16_t fsw;
-//    uint8_t ftw;
-//    uint8_t reserved;
-//    uint16_t fop;
-//    uint32_t fip;
-//    uint16_t fcs;
-//    uint16_t reserved1;
-//    uint32_t fdp;
-//    uint16_t fdp2;
-//    uint16_t reserved2;
-//    uint32_t mxcsr;
-//    uint32_t mxcsr_mask;
-//    uint8_t st_mm[8][16];
-//    uint8_t xmm_regs[16][16];
-//    uint8_t reserved3[512 - 416]; // rest of 512 bytes
-// } __attribute__((packed)) xmm_regs_t;
 void xmm_regs_dump(xmm_regs_t *xmm_regs) {
     serial_printf("XMM REG DUMP FOR PROCESS:\n");
     serial_printf("FCW: 0x%x\n", xmm_regs->fcw);

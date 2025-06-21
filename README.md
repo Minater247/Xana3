@@ -1,11 +1,10 @@
 # XanaduOS
 
-The third iteration of my homebrew Operating System. **XanaduOS** features a variety of advanced features:
+The third iteration of my homebrew Operating System, **XanaduOS**. I decided to make this to push the boundaries of what I could develop - skipping all the intermediates and controlling the hardware directly.
+
+So far, I have implemented several advanced features, such as:
 - Multitasking support, with Unix-like *fork*, *exec*, *wait*, et al.
-- Advanced software capabilities with a work-in-progress LibC. Notable programs which work with XanaduOS:
-  - Bash
-  - GNU BC (Calculator)
-  - Vi (limited due to partially implemented TTY calls)
+- A work-in-progress LibC via Newlib. This has been used to implement some programs such as `bash`, GNU `bc` (a calculator), and `vi` (limited due to partially implemented TTY calls)!
  
 ## Screenshots
 
@@ -22,17 +21,20 @@ Running bash, using it, then GNU BC from bash and doing some calculations, then 
 
  
 ### What I'm Doing Now
-As of the writing of this README (18 Nov. 2024), I am presently working on (in a private branch):
-- A complete rewrite of the VFS to support:
-  - Reading from devices other than ramdisks
-  - Real filesystem implementations not specific to this OS (SquashFS, Ext2, ISO.9660/ECMA-119)
-- A proper ATAPI IDE layer to read from CD
+As of the writing of this README (June 6, 2025), the roadmap is:
+- ACPI AML parsing
+- PCI Device Enumeration
+- Disk access
+- Filesystem (EXT2, ISO9660)
+- Ramdisk reimplementation (likely squashfs due to familiarity)
+- TTY stuff
+    - multi-tty handling
+    - control characters/mode switch (raw, handled, etc.)
+- USB Stack
 
 ### What's Next?
 - Once the text-based system is stable enough for proper use, a GUI system for programs to read and write with.
   - Likely, this requires at least partial networking capabilities for IPC, since pipes would quickly get unwieldly with multiple GUI processes.
-- USB/PCI support
 - A userspace-accessible GPU pipeline to allow multiple processes to use the GPU
-- A proper ACPI parser to determine and use the full capabilities of the hardware
 - Compile flags to optimize specifically for a target device's capabilities
 - Once all that is done, whatever logically follows that I've found helpful or necessary while working on this!
