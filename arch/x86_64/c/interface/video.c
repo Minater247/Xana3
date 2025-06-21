@@ -34,8 +34,6 @@ uint32_t char_pos_x = 0;
 uint32_t char_pos_y = 0;
 bool displayBackground = false;
 
-device_t simple_output_device;
-
 void fb_putpixel(uint32_t x, uint32_t y, uint32_t color)
 {
     if (framebuffer_type == MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT)
@@ -640,88 +638,6 @@ void video_putc(char c)
     }
 }
 
-pointer_int_t simple_output_open(char *path, uint64_t flags, void *device_passed)
-{
-    UNUSED(path);
-    UNUSED(flags);
-    UNUSED(device_passed);
-
-    return (pointer_int_t){NULL, 0};
-}
-
-size_t simple_output_write(void *ptr, size_t size, size_t nmemb, void *data, void *device_passed, uint64_t flags)
-{
-    UNUSED(data);
-    UNUSED(device_passed);
-    UNUSED(flags);
-
-    // literally just write bytes until size * nmemb
-    for (size_t i = 0; i < size * nmemb; i++)
-    {
-        video_putc(((char *)ptr)[i]);
-    }
-    return size * nmemb;
-}
-
-void *simple_output_dup(void *data, void *device_passed)
-{
-    UNUSED(device_passed);
-
-    // no dependent tracking for this one, just return the same data
-    return data;
-}
-
-void *simple_output_clone(void *data, void *device_passed)
-{
-    UNUSED(device_passed);
-
-    // no dependent tracking for this one, just return the same data
-    return data;
-}
-
-int simple_output_stat(void *file_entry, void *buf, void *device_passed)
-{
-    UNUSED(file_entry);
-    UNUSED(device_passed);
-
-    struct stat *statbuf = (struct stat *)buf;
-    statbuf->st_dev = 0;
-    statbuf->st_ino = 0;
-    statbuf->st_mode = S_IFCHR;
-    statbuf->st_nlink = 1;
-    statbuf->st_uid = 0;
-    statbuf->st_gid = 0;
-    statbuf->st_rdev = 0;
-    statbuf->st_size = 0;
-
-    return 0;
-}
-
-device_t *init_simple_output()
-{
-    strcpy(simple_output_device.name, "simple_output");
-    simple_output_device.flags = 0;
-    simple_output_device.data = NULL;
-    simple_output_device.next = NULL;
-
-    simple_output_device.open = (open_func_t)simple_output_open;
-    simple_output_device.read = NULL;
-    simple_output_device.close = NULL;
-    simple_output_device.fcntl = NULL;
-    simple_output_device.write = (write_func_t)simple_output_write;
-    simple_output_device.lseek = NULL;
-    simple_output_device.ioctl = NULL;
-    simple_output_device.dup = (dup_func_t)simple_output_dup;
-    simple_output_device.clone = (clone_func_t)simple_output_clone;
-    simple_output_device.stat = (stat_func_t)simple_output_stat;
-
-    simple_output_device.file_size = NULL;
-
-    simple_output_device.type = DEVICE_TYPE_SIMPLOU;
-
-    return register_device(&simple_output_device);
-}
-
 typedef struct {
     uint64_t pos; // read/write position within framebuffer
     uint64_t dependents;
@@ -965,8 +881,6 @@ device_t *init_fb_device()
     fb_device->type = DEVICE_TYPE_FRMEBUF;
 
     user_pitch = framebuffer_width * framebuffer_bpp / 8;
-
-    kprintf("Framebuffer BPP: %d\n", framebuffer_bpp);
 
     return register_device(fb_device);
 }
